@@ -1,0 +1,6 @@
+{
+  "name": "Secret Calculator Chat Vault",
+  "description": "An Android-style calculator vault that unlocks a secure real-time messaging and media sharing platform when a secret passcode is entered.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

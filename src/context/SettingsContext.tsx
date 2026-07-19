@@ -1,0 +1,490 @@
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+
+export interface CalculationHistory {
+  expression: string;
+  result: string;
+  date: string;
+  time: string;
+}
+
+export interface AppSettings {
+  darkMode: boolean;
+  saveHistory: boolean;
+  language: string;
+  soundEnabled: boolean;
+  vibrationEnabled: boolean;
+}
+
+interface SettingsContextType {
+  settings: AppSettings;
+  history: CalculationHistory[];
+  updateSettings: (key: keyof AppSettings, value: boolean | string) => void;
+  addToHistory: (calculation: CalculationHistory) => void;
+  clearHistory: () => void;
+  t: (key: string) => string;
+}
+
+const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
+
+const defaultSettings: AppSettings = {
+  darkMode: false,
+  saveHistory: false,
+  language: 'en',
+  soundEnabled: true,
+  vibrationEnabled: true,
+};
+
+const translations: Record<string, Record<string, string>> = {
+  en: {
+    calculator: 'Calculator',
+    settings: 'Settings',
+    history: 'History',
+    appearance: 'Appearance',
+    darkMode: 'Dark Mode',
+    saveHistory: 'Save History',
+    language: 'Language',
+    viewHistory: 'View Calculation History',
+    deleteHistory: 'Delete History',
+    exportHistory: 'Export History',
+    noHistory: 'No Calculation History',
+    deleteConfirmTitle: 'Delete History?',
+    deleteConfirmMessage: 'Are you sure you want to permanently delete all saved calculations?',
+    cancel: 'Cancel',
+    delete: 'Delete',
+    historyDeleted: 'History Deleted Successfully',
+    soundVibration: 'Sound & Vibration',
+    buttonClickSound: 'Button Click Sound',
+    vibration: 'Vibration',
+    historyExported: 'History Exported Successfully',
+    exportAsPdf: 'Export as PDF',
+    exportAsTxt: 'Export as TXT',
+    selectLanguage: 'Select Language',
+    english: 'English',
+    hindi: 'Hindi',
+    marathi: 'Marathi',
+    punjabi: 'Punjabi',
+    gujarati: 'Gujarati',
+    tamil: 'Tamil',
+    telugu: 'Telugu',
+    bengali: 'Bengali',
+    kannada: 'Kannada',
+    malayalam: 'Malayalam',
+    urdu: 'Urdu',
+    enterPasscode: 'Enter passcode to access settings:',
+    incorrectPasscode: 'Incorrect Passcode!',
+    decrypting: 'DECRYPTING CHAT VAULT...',
+  },
+  hi: {
+    calculator: 'कैलकुलेटर',
+    settings: 'सेटिंग्स',
+    history: 'इतिहास',
+    appearance: 'दिखावट',
+    darkMode: 'डार्क मोड',
+    saveHistory: 'इतिहास सहेजें',
+    language: 'भाषा',
+    viewHistory: 'गणना इतिहास देखें',
+    deleteHistory: 'इतिहास हटाएं',
+    exportHistory: 'इतिहास निर्यात करें',
+    noHistory: 'कोई गणना इतिहास नहीं',
+    deleteConfirmTitle: 'इतिहास हटाएं?',
+    deleteConfirmMessage: 'क्या आप सभी सहेजी गई गणनाओं को स्थायी रूप से हटाना चाहते हैं?',
+    cancel: 'रद्द करें',
+    delete: 'हटाएं',
+    historyDeleted: 'इतिहास सफलतापूर्वक हटा दिया गया',
+    historyExported: 'इतिहास सफलतापूर्वक निर्यात किया गया',
+    exportAsPdf: 'PDF के रूप में निर्यात करें',
+    exportAsTxt: 'TXT के रूप में निर्यात करें',
+    selectLanguage: 'भाषा चुनें',
+    english: 'अंग्रेज़ी',
+    hindi: 'हिंदी',
+    marathi: 'मराठी',
+    punjabi: 'पंजाबी',
+    gujarati: 'गुजराती',
+    tamil: 'तमिल',
+    telugu: 'तेलुगू',
+    bengali: 'बंगाली',
+    kannada: 'कन्नड़',
+    malayalam: 'मलयालम',
+    urdu: 'उर्दू',
+    enterPasscode: 'सेटिंग्स तक पहुंचने के लिए पासकोड दर्ज करें:',
+    incorrectPasscode: 'गलत पासकोड!',
+    decrypting: 'चैट वॉल्ट डिक्रिप्ट कर रहा है...',
+  },
+  mr: {
+    calculator: 'कॅल्क्युलेटर',
+    settings: 'सेटिंग्ज',
+    history: 'इतिहास',
+    appearance: 'दिसणे',
+    darkMode: 'डार्क मोड',
+    saveHistory: 'इतिहास जतन करा',
+    language: 'भाषा',
+    viewHistory: 'गणना इतिहास पहा',
+    deleteHistory: 'इतिहास हटवा',
+    exportHistory: 'इतिहास निर्यात करा',
+    noHistory: 'कोणताही गणना इतिहास नाही',
+    deleteConfirmTitle: 'इतिहास हटवायचा?',
+    deleteConfirmMessage: 'आपण सर्व साठवलेले गणना कायमस्वरूप हटवू इच्छिता?',
+    cancel: 'रद्द करा',
+    delete: 'हटवा',
+    historyDeleted: 'इतिहास यशस्वीरित्या हटवला',
+    historyExported: 'इतिहास यशस्वीरित्या निर्यात केला',
+    exportAsPdf: 'PDF म्हणून निर्यात करा',
+    exportAsTxt: 'TXT म्हणून निर्यात करा',
+    selectLanguage: 'भाषा निवडा',
+    english: 'इंग्रजी',
+    hindi: 'हिंदी',
+    marathi: 'मराठी',
+    punjabi: 'पंजाबी',
+    gujarati: 'गुजराती',
+    tamil: 'तामिळ',
+    telugu: 'तेलुगू',
+    bengali: 'बंगाली',
+    kannada: 'कन्नड',
+    malayalam: 'मल्याळम',
+    urdu: 'उर्दू',
+    enterPasscode: 'सेटिंग्समध्ये प्रवेश करण्यासाठी पासकोड टाका:',
+    incorrectPasscode: 'चुकीचा पासकोड!',
+    decrypting: 'चॅट वॉल्ट डिक्रिप्ट करत आहे...',
+  },
+  pa: {
+    calculator: 'ਕੈਲਕੁਲੇਟਰ',
+    settings: 'ਸੈਟਿੰਗਾਂ',
+    history: 'ਇਤਿਹਾਸ',
+    appearance: 'ਦਿੱਖ',
+    darkMode: 'ਡਾਰਕ ਮੋਡ',
+    saveHistory: 'ਇਤਿਹਾਸ ਸੰਭਾਲੋ',
+    language: 'ਭਾਸ਼ਾ',
+    viewHistory: 'ਗਣਨਾ ਇਤਿਹਾਸ ਵੇਖੋ',
+    deleteHistory: 'ਇਤਿਹਾਸ ਹਟਾਓ',
+    exportHistory: 'ਇਤਿਹਾਸ ਨਿਰਯਾਤ ਕਰੋ',
+    noHistory: 'ਕੋਈ ਗਣਨਾ ਇਤਿਹਾਸ ਨਹੀਂ',
+    deleteConfirmTitle: 'ਇਤਿਹਾਸ ਹਟਾਓ?',
+    deleteConfirmMessage: 'ਕੀ ਤੁਸੀਂ ਸਾਰੀਆਂ ਸੰਭਾਲੀਆਂ ਗਣਨਾਵਾਂ ਨੂੰ ਸਥਾਈ ਤੌਰ \'ਤੇ ਹਟਾਉਣਾ ਚਾਹੁੰਦੇ ਹੋ?',
+    cancel: 'ਰੱਦ ਕਰੋ',
+    delete: 'ਹਟਾਓ',
+    historyDeleted: 'ਇਤਿਹਾਸ ਸਫਲਤਾਪੂਰਵਕ ਹਟਾਇਆ ਗਿਆ',
+    historyExported: 'ਇਤਿਹਾਸ ਸਫਲਤਾਪੂਰਵਕ ਨਿਰਯਾਤ ਕੀਤਾ ਗਿਆ',
+    exportAsPdf: 'PDF ਵਜੋਂ ਨਿਰਯਾਤ ਕਰੋ',
+    exportAsTxt: 'TXT ਵਜੋਂ ਨਿਰਯਾਤ ਕਰੋ',
+    selectLanguage: 'ਭਾਸ਼ਾ ਚੁਣੋ',
+    english: 'ਅੰਗਰੇਜ਼ੀ',
+    hindi: 'ਹਿੰਦੀ',
+    marathi: 'ਮਰਾਠੀ',
+    punjabi: 'ਪੰਜਾਬੀ',
+    gujarati: 'ਗੁਜਰਾਤੀ',
+    tamil: 'ਤਾਮਿਲ',
+    telugu: 'ਤੇਲਗੂ',
+    bengali: 'ਬੰਗਾਲੀ',
+    kannada: 'ਕੰਨੜ',
+    malayalam: 'ਮਲਿਆਲਮ',
+    urdu: 'ਉਰਦੂ',
+    enterPasscode: 'ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਪਹੁੰਚਣ ਲਈ ਪਾਸਕੋਡ ਦਾਖਲ ਕਰੋ:',
+    incorrectPasscode: 'ਗਲਤ ਪਾਸਕੋਡ!',
+    decrypting: 'ਚੈਟ ਵਾਲਟ ਡੀਕ੍ਰਿਪਟ ਕਰ ਰਿਹਾ ਹੈ...',
+  },
+  gu: {
+    calculator: 'કેલ્ક્યુલેટર',
+    settings: 'સેટિંગ્સ',
+    history: 'ઇતિહાસ',
+    appearance: 'દેખાવ',
+    darkMode: 'ડાર્ક મોડ',
+    saveHistory: 'ઇતિહાસ સાચવો',
+    language: 'ભાષા',
+    viewHistory: 'ગણના ઇતિહાસ જુઓ',
+    deleteHistory: 'ઇતિહાસ કાઢી નાખો',
+    exportHistory: 'ઇતિહાસ નિકાસ કરો',
+    noHistory: 'કોઈ ગણના ઇતિહાસ નથી',
+    deleteConfirmTitle: 'ઇતિહાસ કાઢી નાખો?',
+    deleteConfirmMessage: 'શું તમે બધી સાચવેલી ગણનાઓને કાયમ માટે કાઢી નાખવા માંગો છો?',
+    cancel: 'રદ કરો',
+    delete: 'કાઢી નાખો',
+    historyDeleted: 'ઇતિહાસ સફળતાપૂર્વક કાઢી નાખવામાં આવ્યો',
+    historyExported: 'ઇતિહાસ સફળતાપૂર્વક નિકાસ કરવામાં આવ્યો',
+    exportAsPdf: 'PDF તરીકે નિકાસ કરો',
+    exportAsTxt: 'TXT તરીકે નિકાસ કરો',
+    selectLanguage: 'ભાષા પસંદ કરો',
+    english: 'અંગ્રેજી',
+    hindi: 'હિન્દી',
+    marathi: 'મરાઠી',
+    punjabi: 'પંજાબી',
+    gujarati: 'ગુજરાતી',
+    tamil: 'તમિલ',
+    telugu: 'તેલુગુ',
+    bengali: 'બંગાળી',
+    kannada: 'કન્નડ',
+    malayalam: 'મલયાલમ',
+    urdu: 'ઉર્દૂ',
+    enterPasscode: 'સેટિંગ્સમાં પ્રવેશવા માટે પાસકોડ દાખલ કરો:',
+    incorrectPasscode: 'ખોટો પાસકોડ!',
+    decrypting: 'ચેટ વોલ્ટ ડિક્રિપ્ટ કરી રહ્યું છે...',
+  },
+  ta: {
+    calculator: 'கால்குலேட்டர்',
+    settings: 'அமைப்புகள்',
+    history: 'வரலாறு',
+    appearance: 'தோற்றம்',
+    darkMode: 'இருண்ட பயன்முறை',
+    saveHistory: 'வரலாற்றை சேமி',
+    language: 'மொழி',
+    viewHistory: 'கணக்கீட்டு வரலாற்றைக் காண்க',
+    deleteHistory: 'வரலாற்றை நீக்கு',
+    exportHistory: 'வரலாற்றை ஏற்றுமதி செய்',
+    noHistory: 'கணக்கீட்டு வரலாறு இல்லை',
+    deleteConfirmTitle: 'வரலாற்றை நீக்கவா?',
+    deleteConfirmMessage: 'சேமித்த அனைத்து கணக்கீடுகளையும் நிரந்தரமாக நீக்க விரும்புகிறீர்களா?',
+    cancel: 'ரத்து செய்',
+    delete: 'நீக்கு',
+    historyDeleted: 'வரலாறு வெற்றிகரமாக நீக்கப்பட்டது',
+    historyExported: 'வரலாறு வெற்றிகரமாக ஏற்றுமதி செய்யப்பட்டது',
+    exportAsPdf: 'PDF ஆக ஏற்றுமதி செய்',
+    exportAsTxt: 'TXT ஆக ஏற்றுமதி செய்',
+    selectLanguage: 'மொழியைத் தேர்வு செய்',
+    english: 'ஆங்கிலம்',
+    hindi: 'இந்தி',
+    marathi: 'மராத்தி',
+    punjabi: 'பஞ்சாபி',
+    gujarati: 'குஜராத்தி',
+    tamil: 'தமிழ்',
+    telugu: 'தெலுங்கு',
+    bengali: 'வங்காளம்',
+    kannada: 'கன்னடம்',
+    malayalam: 'மலையாளம்',
+    urdu: 'உருது',
+    enterPasscode: 'அமைப்புகளில் அணுக கடவுச்சொல்லை உள்ளிடவும்:',
+    incorrectPasscode: 'தவறான கடவுச்சொல்!',
+    decrypting: 'சாட் வால்ட் மறைகுறியாக்கம் நீக்குகிறது...',
+  },
+  te: {
+    calculator: 'కాలిక్యులేటర్',
+    settings: 'సెట్టింగ్‌లు',
+    history: 'చరిత్ర',
+    appearance: 'రూపం',
+    darkMode: 'డార్క్ మోడ్',
+    saveHistory: 'చరిత్రను సేవ్ చేయండి',
+    language: 'భాష',
+    viewHistory: 'గణన చరిత్రను చూడండి',
+    deleteHistory: 'చరిత్రను తొలగించండి',
+    exportHistory: 'చరిత్రను ఎగుమతి చేయండి',
+    noHistory: 'గణన చరిత్ర లేదు',
+    deleteConfirmTitle: 'చరిత్రను తొలగించాలా?',
+    deleteConfirmMessage: 'మీరు సేవ్ చేసిన అన్ని గణనలను శాశ్వతంగా తొలగించాలనుకుంటున్నారా?',
+    cancel: 'రద్దు చేయండి',
+    delete: 'తొలగించండి',
+    historyDeleted: 'చరిత్ర విజయవంతంగా తొలగించబడింది',
+    historyExported: 'చరిత్ర విజయవంతంగా ఎగుమతి చేయబడింది',
+    exportAsPdf: 'PDF గా ఎగుమతి చేయండి',
+    exportAsTxt: 'TXT గా ఎగుమతి చేయండి',
+    selectLanguage: 'భాషను ఎంచుకోండి',
+    english: 'ఆంగ్లం',
+    hindi: 'హిందీ',
+    marathi: 'మరాఠీ',
+    punjabi: 'పంజాబీ',
+    gujarati: 'గుజరాతీ',
+    tamil: 'తమిళం',
+    telugu: 'తెలుగు',
+    bengali: 'బెంగాలీ',
+    kannada: 'కన్నడ',
+    malayalam: 'మలయాళం',
+    urdu: 'ఉర్దూ',
+    enterPasscode: 'సెట్టింగ్‌లకు ప్రవేశించడానికి పాస్‌కోడ్‌ని నమోదు చేయండి:',
+    incorrectPasscode: 'తప్పు పాస్‌కోడ్!',
+    decrypting: 'చాట్ వాల్ట్ డీక్రిప్ట్ చేస్తోంది...',
+  },
+  bn: {
+    calculator: 'ক্যালকুলেটর',
+    settings: 'সেটিংস',
+    history: 'ইতিহাস',
+    appearance: 'উপস্থিতি',
+    darkMode: 'ডার্ক মোড',
+    saveHistory: 'ইতিহাস সংরক্ষণ করুন',
+    language: 'ভাষা',
+    viewHistory: 'গণনা ইতিহাস দেখুন',
+    deleteHistory: 'ইতিহাস মুছুন',
+    exportHistory: 'ইতিহাস রপ্তানি করুন',
+    noHistory: 'কোন গণনা ইতিহাস নেই',
+    deleteConfirmTitle: 'ইতিহাস মুছে ফেলবেন?',
+    deleteConfirmMessage: 'আপনি কি সমস্ত সংরক্ষিত গণনা স্থায়ীভাবে মুছে ফেলতে চান?',
+    cancel: 'বাতিল',
+    delete: 'মুছুন',
+    historyDeleted: 'ইতিহাস সফলভাবে মুছে ফেলা হয়েছে',
+    historyExported: 'ইতিহাস সফলভাবে রপ্তানি করা হয়েছে',
+    exportAsPdf: 'PDF হিসেবে রপ্তানি করুন',
+    exportAsTxt: 'TXT হিসেবে রপ্তানি করুন',
+    selectLanguage: 'ভাষা নির্বাচন করুন',
+    english: 'ইংরেজি',
+    hindi: 'হিন্দি',
+    marathi: 'মারাঠি',
+    punjabi: 'পাঞ্জাবি',
+    gujarati: 'গুজরাটি',
+    tamil: 'তামিল',
+    telugu: 'তেলুগু',
+    bengali: 'বাংলা',
+    kannada: 'কন্নড়',
+    malayalam: 'মালায়ালম',
+    urdu: 'উর্দু',
+    enterPasscode: 'সেটিংসে অ্যাক্সেস করতে পাসকোড লিখুন:',
+    incorrectPasscode: 'ভুল পাসকোড!',
+    decrypting: 'চ্যাট ভল্ট ডিক্রিপ্ট করছে...',
+  },
+  kn: {
+    calculator: 'ಕ್ಯಾಲ್ಕುಲೇಟರ್',
+    settings: 'ಸೆಟ್ಟಿಂಗ್‌ಗಳು',
+    history: 'ಇತಿಹಾಸ',
+    appearance: 'ನೋಟ',
+    darkMode: 'ಡಾರ್ಕ್ ಮೋಡ್',
+    saveHistory: 'ಇತಿಹಾಸವನ್ನು ಉಳಿಸಿ',
+    language: 'ಭಾಷೆ',
+    viewHistory: 'ಲೆಕ್ಕಾಚಾರ ಇತಿಹಾಸವನ್ನು ವೀಕ್ಷಿಸಿ',
+    deleteHistory: 'ಇತಿಹಾಸವನ್ನು ಅಳಿಸಿ',
+    exportHistory: 'ಇತಿಹಾಸವನ್ನು ರಫ್ತು ಮಾಡಿ',
+    noHistory: 'ಯಾವುದೇ ಲೆಕ್ಕಾಚಾರ ಇತಿಹಾಸವಿಲ್ಲ',
+    deleteConfirmTitle: 'ಇತಿಹಾಸವನ್ನು ಅಳಿಸಬೇಕೇ?',
+    deleteConfirmMessage: 'ನೀವು ಉಳಿಸಿದ ಎಲ್ಲಾ ಲೆಕ್ಕಾಚಾರಗಳನ್ನು ಶಾಶ್ವತವಾಗಿ ಅಳಿಸಲು ಬಯಸುವಿರಾ?',
+    cancel: 'ರದ್ದುಮಾಡಿ',
+    delete: 'ಅಳಿಸಿ',
+    historyDeleted: 'ಇತಿಹಾಸವನ್ನು ಯಶಸ್ವಿಯಾಗಿ ಅಳಿಸಲಾಗಿದೆ',
+    historyExported: 'ಇತಿಹಾಸವನ್ನು ಯಶಸ್ವಿಯಾಗಿ ರಫ್ತು ಮಾಡಲಾಗಿದೆ',
+    exportAsPdf: 'PDF ಆಗಿ ರಫ್ತು ಮಾಡಿ',
+    exportAsTxt: 'TXT ಆಗಿ ರಫ್ತು ಮಾಡಿ',
+    selectLanguage: 'ಭಾಷೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ',
+    english: 'ಇಂಗ್ಲಿಷ್',
+    hindi: 'ಹಿಂದಿ',
+    marathi: 'ಮರಾಠಿ',
+    punjabi: 'ಪಂಜಾಬಿ',
+    gujarati: 'ಗುಜರಾತಿ',
+    tamil: 'ತಮಿಳು',
+    telugu: 'ತೆಲುಗು',
+    bengali: 'ಬಂಗಾಳಿ',
+    kannada: 'ಕನ್ನಡ',
+    malayalam: 'ಮಲಯಾಳಂ',
+    urdu: 'ಉರ್ದು',
+    enterPasscode: 'ಸೆಟ್ಟಿಂಗ್‌ಗಳಿಗೆ ಪ್ರವೇಶಿಸಲು ಪಾಸ್‌ಕೋಡ್ ನಮೂದಿಸಿ:',
+    incorrectPasscode: 'ತಪ್ಪು ಪಾಸ್‌ಕೋಡ್!',
+    decrypting: 'ಚಾಟ್ ವಾಲ್ಟ್ ಡಿಕ್ರಿಪ್ಟ್ ಮಾಡುತ್ತಿದೆ...',
+  },
+  ml: {
+    calculator: 'കാൽക്കുലേറ്റർ',
+    settings: 'ക്രമീകരണങ്ങൾ',
+    history: 'ചരിത്രം',
+    appearance: 'രൂപം',
+    darkMode: 'ഡാർക്ക് മോഡ്',
+    saveHistory: 'ചരിത്രം സൂക്ഷിക്കുക',
+    language: 'ഭാഷ',
+    viewHistory: 'കണക്കുകൂട്ടൽ ചരിത്രം കാണുക',
+    deleteHistory: 'ചരിത്രം ഇല്ലാതാക്കുക',
+    exportHistory: 'ചരിത്രം എക്സ്പോർട്ട് ചെയ്യുക',
+    noHistory: 'കണക്കുകൂട്ടൽ ചരിത്രമില്ല',
+    deleteConfirmTitle: 'ചരിത്രം ഇല്ലാതാക്കണോ?',
+    deleteConfirmMessage: 'നിങ്ങൾ സേവ് ചെയ്ത എല്ലാ കണക്കുകൂട്ടലുകളും സ്ഥിരമായി ഇല്ലാതാക്കാൻ ആഗ്രഹിക്കുന്നുണ്ടോ?',
+    cancel: 'റദ്ദാക്കുക',
+    delete: 'ഇല്ലാതാക്കുക',
+    historyDeleted: 'ചരിത്രം വിജയകരമായി ഇല്ലാതാക്കി',
+    historyExported: 'ചരിത്രം വിജയകരമായി എക്സ്പോർട്ട് ചെയ്തു',
+    exportAsPdf: 'PDF ആയി എക്സ്പോർട്ട് ചെയ്യുക',
+    exportAsTxt: 'TXT ആയി എക്സ്പോർട്ട് ചെയ്യുക',
+    selectLanguage: 'ഭാഷ തിരഞ്ഞെടുക്കുക',
+    english: 'ഇംഗ്ലീഷ്',
+    hindi: 'ഹിന്ദി',
+    marathi: 'മറാത്തി',
+    punjabi: 'പഞ്ചാബി',
+    gujarati: 'ഗുജറാത്തി',
+    tamil: 'തമിഴ്',
+    telugu: 'തെലുങ്കു',
+    bengali: 'ബംഗാളി',
+    kannada: 'കന്നഡ',
+    malayalam: 'മലയാളം',
+    urdu: 'ഉറുദു',
+    enterPasscode: 'ക്രമീകരണങ്ങളിൽ പ്രവേശിക്കാൻ പാസ്‌കോഡ് നൽകുക:',
+    incorrectPasscode: 'തെറ്റായ പാസ്‌കോഡ്!',
+    decrypting: 'ചാറ്റ് വോൾട്ട് ഡിക്രിപ്റ്റ് ചെയ്യുന്നു...',
+  },
+  ur: {
+    calculator: 'کیلکولیٹر',
+    settings: 'ترتیبات',
+    history: 'تاریخچہ',
+    appearance: 'ظاہر',
+    darkMode: 'ڈارک موڈ',
+    saveHistory: 'تاریخچہ محفوظ کریں',
+    language: 'زبان',
+    viewHistory: 'حساب کتاب کی تاریخچہ دیکھیں',
+    deleteHistory: 'تاریخچہ حذف کریں',
+    exportHistory: 'تاریخچہ ایکسپورٹ کریں',
+    noHistory: 'کوئی حساب کتاب کی تاریخچہ نہیں',
+    deleteConfirmTitle: 'تاریخچہ حذف کریں؟',
+    deleteConfirmMessage: 'کیا آپ تمام محفوظ شدہ حسابات کو مستقل طور پر حذف کرنا چاہتے ہیں؟',
+    cancel: 'منسوخ کریں',
+    delete: 'حذف کریں',
+    historyDeleted: 'تاریخچہ کامیابی سے حذف ہو گیا',
+    historyExported: 'تاریخچہ کامیابی سے ایکسپورٹ ہو گیا',
+    exportAsPdf: 'PDF کے طور پر ایکسپورٹ کریں',
+    exportAsTxt: 'TXT کے طور پر ایکسپورٹ کریں',
+    selectLanguage: 'زبان منتخب کریں',
+    english: 'انگریزی',
+    hindi: 'ہندی',
+    marathi: 'مراٹھی',
+    punjabi: 'پنجابی',
+    gujarati: 'گجراتی',
+    tamil: 'تمل',
+    telugu: 'تیلگو',
+    bengali: 'بنگالی',
+    kannada: 'کنڑ',
+    malayalam: 'مالایالم',
+    urdu: 'اردو',
+    enterPasscode: 'ترتیبات تک رسائی کے لیے پاس کوڈ درج کریں:',
+    incorrectPasscode: 'غلط پاس کوڈ!',
+    decrypting: 'چیٹ والٹ ڈکرپٹ کر رہا ہے...',
+  },
+};
+
+export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [settings, setSettings] = useState<AppSettings>(() => {
+    const saved = localStorage.getItem('calculatorSettings');
+    return saved ? JSON.parse(saved) : defaultSettings;
+  });
+
+  const [history, setHistory] = useState<CalculationHistory[]>(() => {
+    const saved = localStorage.getItem('calculatorHistory');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('calculatorSettings', JSON.stringify(settings));
+  }, [settings]);
+
+  useEffect(() => {
+    localStorage.setItem('calculatorHistory', JSON.stringify(history));
+  }, [history]);
+
+  const updateSettings = (key: keyof AppSettings, value: boolean | string) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  const addToHistory = (calculation: CalculationHistory) => {
+    if (settings.saveHistory) {
+      setHistory(prev => [calculation, ...prev]);
+    }
+  };
+
+  const clearHistory = () => {
+    setHistory([]);
+  };
+
+  const t = (key: string): string => {
+    const langTranslations = translations[settings.language] || translations.en;
+    return langTranslations[key] || translations.en[key] || key;
+  };
+
+  return (
+    <SettingsContext.Provider value={{ settings, history, updateSettings, addToHistory, clearHistory, t }}>
+      {children}
+    </SettingsContext.Provider>
+  );
+};
+
+export const useSettings = () => {
+  const context = useContext(SettingsContext);
+  if (!context) {
+    throw new Error('useSettings must be used within SettingsProvider');
+  }
+  return context;
+};

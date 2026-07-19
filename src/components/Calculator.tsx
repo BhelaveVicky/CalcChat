@@ -1,0 +1,418 @@
+import React, { useState } from 'react';
+import { Sparkles, Settings as SettingsIcon } from 'lucide-react';
+import { useVault } from '../context/VaultContext';
+import { useSettings } from '../context/SettingsContext';
+import { Settings as SettingsComponent } from './Settings';
+
+const formatDisplayNumber = (val: string): string => {
+  if (val === 'Error' || val === 'NaN') return val;
+  if (!val || val === '0') return '0';
+  
+  const parts = val.split('.');
+  
+  // Format the integer part with dot as thousands separator
+  const integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  
+  // If there is a decimal part, join with a comma (e.g. 12.5 -> 12,5)
+  if (parts.length > 1) {
+    return integerPart + ',' + parts[1];
+  }
+  
+  return integerPart;
+};
+
+export const Calculator: React.FC = () => {
+  const { settings, unlockVault, setActiveTab } = useVault();
+  const { settings: appSettings, addToHistory, t } = useSettings();
+  const [display, setDisplay] = useState<string>('0');
+  const [equation, setEquation] = useState<string>('');
+  const [unlocking, setUnlocking] = useState<boolean>(false);
+  const [isCalculated, setIsCalculated] = useState<boolean>(false);
+  const [showSettings, setShowSettings] = useState<boolean>(false);
+
+  const handleButtonClick = (val: string) => {
+    if (val === 'AC') {
+      setDisplay('0');
+      setEquation('');
+      setIsCalculated(false);
+      return;
+    }
+
+    if (val === 'C') {
+      setDisplay('0');
+      if (isCalculated) {
+        setEquation('');
+        setIsCalculated(false);
+      }
+      return;
+    }
+
+    if (val === '%') {
+      const num = parseFloat(display);
+      if (!isNaN(num)) {
+        const res = (num / 100).toString();
+        setDisplay(res);
+        if (isCalculated) {
+          setEquation('');
+          setIsCalculated(false);
+        }
+      }
+      return;
+    }
+
+    if (val === '=') {
+      if (isCalculated) return;
+
+      // SECRET CHECK: Check if display matches secret passcode!
+      if (display === settings.passcode || equation + display === settings.passcode) {
+        setUnlocking(true);
+        setTimeout(() => {
+          unlockVault(settings.passcode);
+        }, 500);
+        return;
+      }
+
+      // Normal Math Calculation
+      try {
+        let fullEq = equation + display;
+        // Map UI operator 'x' to internal Math operator '*'
+        fullEq = fullEq.replace(/x/g, '*');
+        const res = new Function(`return ${fullEq}`)();
+        if (res !== undefined && !isNaN(res)) {
+          const formatted = Math.round(res * 100000000) / 100000000;
+          const expression = equation + display;
+          setEquation(expression + ' =');
+          setDisplay(formatted.toString());
+          setIsCalculated(true);
+
+          // Save to history if enabled
+          const now = new Date();
+          const date = now.toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+          });
+          const time = now.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+          });
+
+          addToHistory({
+            expression: expression,
+            result: formatted.toString(),
+            date,
+            time
+          });
+        }
+      } catch {
+        setDisplay('Error');
+        setTimeout(() => {
+          setDisplay('0');
+          setEquation('');
+          setIsCalculated(false);
+        }, 1500);
+      }
+      return;
+    }
+
+    // Operator handling
+    if (['+', '-', 'x', '/'].includes(val)) {
+      if (isCalculated) {
+        setEquation(display + ' ' + val + ' ');
+        setDisplay('0');
+        setIsCalculated(false);
+      } else {
+        setEquation(equation + display + ' ' + val + ' ');
+        setDisplay('0');
+      }
+      return;
+    }
+
+    // Special case for '00'
+    if (val === '00') {
+      if (isCalculated) {
+        setDisplay('0');
+        setEquation('');
+        setIsCalculated(false);
+        return;
+      }
+      if (display === '0') return;
+      if (display.length < 15) {
+        setDisplay(display + '00');
+      }
+      return;
+    }
+
+    // Number / Decimal input
+    if (val === '.') {
+      if (isCalculated) {
+        setDisplay('0.');
+        setEquation('');
+        setIsCalculated(false);
+        return;
+      }
+      if (display.includes('.')) return;
+      setDisplay(display + '.');
+      return;
+    }
+
+    // Number digits input
+    if (isCalculated) {
+      setDisplay(val);
+      setEquation('');
+      setIsCalculated(false);
+    } else {
+      if (display === '0') {
+        setDisplay(val);
+      } else if (display.length < 15) {
+        setDisplay(display + val);
+      }
+    }
+  };
+
+  if (showSettings) {
+    return <SettingsComponent onClose={() => setShowSettings(false)} />;
+  }
+
+  return (
+    <div className={`flex-1 flex items-center justify-center p-0 sm:p-6 select-none w-full h-[100dvh] sm:h-auto min-h-[100dvh] transition-colors duration-300 ${
+      appSettings.darkMode ? 'bg-slate-900' : 'bg-slate-100'
+    }`}>
+      
+      {/* Device wrapper - full height/width on mobile, simulated mockup on desktop */}
+      <div className={`w-full h-[100dvh] sm:h-[820px] sm:w-[390px] sm:max-w-sm sm:rounded-[50px] sm:border-[10px] sm:border-slate-950 sm:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] sm:overflow-hidden relative flex flex-col ${
+        appSettings.darkMode ? 'bg-[#1a1a1a]' : 'bg-gradient-to-b from-[#ff8e6a] to-[#ff5676]'
+      }`}>
+        
+        {/* Desktop Device Notch */}
+        <div className="hidden sm:block absolute top-0 left-1/2 -translate-x-1/2 z-20 w-40 h-6 bg-slate-950 rounded-b-2xl"></div>
+        
+        {/* Top Display Section (Balanced 50-50 flex-1 section) */}
+        <div className={`flex-1 flex flex-col justify-between pt-12 pb-6 px-6 relative ${
+          appSettings.darkMode ? 'bg-gradient-to-b from-[#ff8e6a] to-[#ff5676]' : ''
+        }`}>
+          {/* Top Bar with Settings and Title */}
+          <div className="relative w-full flex items-center justify-center pt-1 min-h-[28px] flex-none">
+            {/* Centered title */}
+            <div className={`text-center text-xs font-semibold tracking-widest uppercase font-sans ${
+              appSettings.darkMode ? 'text-white/95' : 'text-white/95'
+            }`}>
+              {t('calculator')}
+            </div>
+
+            {/* Calculator Settings button */}
+            <button 
+              onClick={() => setShowSettings(true)}
+              className="absolute right-0 text-white/80 hover:text-white transition-colors cursor-pointer p-1.5 active:scale-90 duration-150 rounded-full hover:bg-white/10"
+              title="Calculator Settings"
+            >
+              <SettingsIcon className="w-5 h-5 stroke-[2.2]" />
+            </button>
+          </div>
+
+          {/* Display Output area */}
+          <div className="relative mt-auto mb-2 w-full flex flex-col items-end pr-1 pl-1">
+            {/* Previous Equation History */}
+            <div className={`text-right text-lg font-medium tracking-wide font-sans mb-1.5 min-h-[28px] select-text ${
+              appSettings.darkMode ? 'text-white/70' : 'text-white/70'
+            }`}>
+              {equation.replace(/x/g, 'X')}
+            </div>
+
+            {/* Current Value / Result */}
+            <div className={`text-right text-5xl sm:text-6xl font-semibold tracking-tight font-sans truncate w-full select-text ${
+              appSettings.darkMode ? 'text-white' : 'text-white'
+            }`}>
+              {formatDisplayNumber(display)}
+            </div>
+          </div>
+        </div>
+
+        {/* Keypad Bottom Sheet (Expanded to flex-1 to occupy remaining height) */}
+        <div className={`flex-1 rounded-t-[40px] px-6 pb-8 pt-3 shadow-[0_-8px_30px_rgba(0,0,0,0.06)] flex flex-col justify-between ${
+              appSettings.darkMode ? 'bg-[#1a1a1a]' : 'bg-white'
+            }`}>
+          {/* Bottom sheet drag handle indicator */}
+          <div className={`w-12 h-1.5 rounded-full mx-auto mb-6 mt-1 flex-none ${
+              appSettings.darkMode ? 'bg-gray-700' : 'bg-gray-200/80'
+            }`}></div>
+
+          {/* Grid Layout for Buttons - Spans all available height */}
+          <div className="grid grid-cols-4 grid-rows-5 gap-3.5 flex-1 mb-2">
+            {/* Row 1 */}
+            <button
+              onClick={() => handleButtonClick('AC')}
+              className={`h-full min-h-[54px] rounded-2xl font-bold text-lg transition-all shadow-[0_4px_10px_rgba(255,86,118,0.2)] flex items-center justify-center active:scale-95 ${
+                appSettings.darkMode
+                  ? 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
+                  : 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
+              }`}
+            >
+              AC
+            </button>
+            <button
+              onClick={() => handleButtonClick('C')}
+              className={`h-full min-h-[54px] rounded-2xl font-bold text-lg transition-all shadow-[0_4px_10px_rgba(255,86,118,0.2)] flex items-center justify-center active:scale-95 ${
+                appSettings.darkMode
+                  ? 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
+                  : 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
+              }`}
+            >
+              C
+            </button>
+            <button
+              onClick={() => handleButtonClick('%')}
+              className={`h-full min-h-[54px] rounded-2xl font-bold text-lg transition-all shadow-[0_4px_10px_rgba(255,86,118,0.2)] flex items-center justify-center active:scale-95 ${
+                appSettings.darkMode
+                  ? 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
+                  : 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
+              }`}
+            >
+              %
+            </button>
+            <button
+              onClick={() => handleButtonClick('/')}
+              className={`h-full min-h-[54px] rounded-2xl font-bold text-2xl transition-all shadow-[0_4px_10px_rgba(255,86,118,0.2)] flex items-center justify-center active:scale-95 ${
+                appSettings.darkMode
+                  ? 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
+                  : 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
+              }`}
+            >
+              /
+            </button>
+
+            {/* Row 2 */}
+            {['7', '8', '9'].map(num => (
+              <button
+                key={num}
+                onClick={() => handleButtonClick(num)}
+                className={`h-full min-h-[54px] rounded-2xl font-semibold text-xl transition-all shadow-[0_2px_5px_rgba(0,0,0,0.04)] flex items-center justify-center active:scale-95 ${
+                  appSettings.darkMode
+                    ? 'bg-gradient-to-b from-gray-800 to-gray-900 border border-gray-700/70 hover:from-gray-700 hover:to-gray-800 text-white'
+                    : 'bg-gradient-to-b from-gray-50 to-gray-100 border border-gray-100/70 hover:from-gray-100 hover:to-gray-200 text-gray-800'
+                }`}
+              >
+                {num}
+              </button>
+            ))}
+            <button
+              onClick={() => handleButtonClick('x')}
+              className={`h-full min-h-[54px] rounded-2xl font-bold text-xl transition-all shadow-[0_4px_10px_rgba(255,86,118,0.2)] flex items-center justify-center active:scale-95 ${
+                appSettings.darkMode
+                  ? 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
+                  : 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
+              }`}
+            >
+              x
+            </button>
+
+            {/* Row 3 */}
+            {['4', '5', '6'].map(num => (
+              <button
+                key={num}
+                onClick={() => handleButtonClick(num)}
+                className={`h-full min-h-[54px] rounded-2xl font-semibold text-xl transition-all shadow-[0_2px_5px_rgba(0,0,0,0.04)] flex items-center justify-center active:scale-95 ${
+                  appSettings.darkMode
+                    ? 'bg-gradient-to-b from-gray-800 to-gray-900 border border-gray-700/70 hover:from-gray-700 hover:to-gray-800 text-white'
+                    : 'bg-gradient-to-b from-gray-50 to-gray-100 border border-gray-100/70 hover:from-gray-100 hover:to-gray-200 text-gray-800'
+                }`}
+              >
+                {num}
+              </button>
+            ))}
+            <button
+              onClick={() => handleButtonClick('-')}
+              className={`h-full min-h-[54px] rounded-2xl font-bold text-2xl transition-all shadow-[0_4px_10px_rgba(255,86,118,0.2)] flex items-center justify-center active:scale-95 ${
+                appSettings.darkMode
+                  ? 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
+                  : 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
+              }`}
+            >
+              -
+            </button>
+
+            {/* Row 4 */}
+            {['1', '2', '3'].map(num => (
+              <button
+                key={num}
+                onClick={() => handleButtonClick(num)}
+                className={`h-full min-h-[54px] rounded-2xl font-semibold text-xl transition-all shadow-[0_2px_5px_rgba(0,0,0,0.04)] flex items-center justify-center active:scale-95 ${
+                  appSettings.darkMode
+                    ? 'bg-gradient-to-b from-gray-800 to-gray-900 border border-gray-700/70 hover:from-gray-700 hover:to-gray-800 text-white'
+                    : 'bg-gradient-to-b from-gray-50 to-gray-100 border border-gray-100/70 hover:from-gray-100 hover:to-gray-200 text-gray-800'
+                }`}
+              >
+                {num}
+              </button>
+            ))}
+            <button
+              onClick={() => handleButtonClick('+')}
+              className={`h-full min-h-[54px] rounded-2xl font-bold text-xl transition-all shadow-[0_4px_10px_rgba(255,86,118,0.2)] flex items-center justify-center active:scale-95 ${
+                appSettings.darkMode
+                  ? 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
+                  : 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
+              }`}
+            >
+              +
+            </button>
+
+            {/* Row 5 */}
+            <button
+              onClick={() => handleButtonClick('00')}
+              className={`h-full min-h-[54px] rounded-2xl font-semibold text-xl transition-all shadow-[0_2px_5px_rgba(0,0,0,0.04)] flex items-center justify-center active:scale-95 ${
+                appSettings.darkMode
+                  ? 'bg-gradient-to-b from-gray-800 to-gray-900 border border-gray-700/70 hover:from-gray-700 hover:to-gray-800 text-white'
+                  : 'bg-gradient-to-b from-gray-50 to-gray-100 border border-gray-100/70 hover:from-gray-100 hover:to-gray-200 text-gray-800'
+              }`}
+            >
+              00
+            </button>
+            <button
+              onClick={() => handleButtonClick('0')}
+              className={`h-full min-h-[54px] rounded-2xl font-semibold text-xl transition-all shadow-[0_2px_5px_rgba(0,0,0,0.04)] flex items-center justify-center active:scale-95 ${
+                appSettings.darkMode
+                  ? 'bg-gradient-to-b from-gray-800 to-gray-900 border border-gray-700/70 hover:from-gray-700 hover:to-gray-800 text-white'
+                  : 'bg-gradient-to-b from-gray-50 to-gray-100 border border-gray-100/70 hover:from-gray-100 hover:to-gray-200 text-gray-800'
+              }`}
+            >
+              0
+            </button>
+            <button
+              onClick={() => handleButtonClick('.')}
+              className={`h-full min-h-[54px] rounded-2xl font-semibold text-xl transition-all shadow-[0_2px_5px_rgba(0,0,0,0.04)] flex items-center justify-center active:scale-95 ${
+                appSettings.darkMode
+                  ? 'bg-gradient-to-b from-gray-800 to-gray-900 border border-gray-700/70 hover:from-gray-700 hover:to-gray-800 text-white'
+                  : 'bg-gradient-to-b from-gray-50 to-gray-100 border border-gray-100/70 hover:from-gray-100 hover:to-gray-200 text-gray-800'
+              }`}
+            >
+              .
+            </button>
+            <button
+              onClick={() => handleButtonClick('=')}
+              className={`h-full min-h-[54px] rounded-2xl font-bold text-2xl transition-all shadow-[0_4px_10px_rgba(255,86,118,0.2)] flex items-center justify-center active:scale-95 ${
+                appSettings.darkMode
+                  ? 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
+                  : 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
+              }`}
+            >
+              =
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Unlocking Vault Transition Overlay */}
+      {unlocking && (
+        <div className="fixed inset-0 z-50 bg-emerald-950/90 backdrop-blur-md flex flex-col items-center justify-center gap-4 animate-fade-in">
+          <div className="relative">
+            <div className="w-16 h-16 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin"></div>
+            <Sparkles className="w-6 h-6 text-emerald-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse" />
+          </div>
+          <p className="font-mono text-emerald-300 font-semibold tracking-wider text-sm">{t('decrypting')}</p>
+        </div>
+      )}
+    </div>
+  );
+};
+

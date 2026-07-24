@@ -2,11 +2,12 @@ import { Contact, Message, UserProfile, VaultSettings } from '../types';
 
 export const DEFAULT_USER: UserProfile = {
   id: 'user_me',
-  name: 'pranay malewar',
-  avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=300&auto=format&fit=crop&q=80',
+  name: 'paurnima bhelave',
+  username: 'vicky_bhelave',
+  avatar: '',
   status: 'In the encrypted vault 🤫',
   isOnline: true,
-  email: 'vickybhelave25@navgurukul.org',
+  email: 'paurnimabhelave@gmail.com',
   providerId: 'local',
   firebaseUid: '',
 };
@@ -19,6 +20,7 @@ export const DEFAULT_SETTINGS: VaultSettings = {
   theme: 'material-dark',
   showAndroidFrame: false,
   soundEffects: true,
+  chatWallpaper: 'default',
 };
 
 

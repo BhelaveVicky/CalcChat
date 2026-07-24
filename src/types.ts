@@ -3,6 +3,7 @@ export type ThemeMode = 'material-dark' | 'amoled-black' | 'cyberpunk' | 'materi
 export interface UserProfile {
   id: string;
   name: string;
+  username?: string;
   avatar: string;
   status: string;
   isOnline: boolean;
@@ -56,4 +57,5 @@ export interface VaultSettings {
   theme: ThemeMode;
   showAndroidFrame: boolean;
   soundEffects: boolean;
+  chatWallpaper?: string;
 }

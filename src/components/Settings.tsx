@@ -13,6 +13,7 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
     settings: vaultSettings, 
     unlockVault, 
     setActiveTab, 
+    setActiveContactId,
     updateSettings: updateVaultSettings,
     signOutGoogle,
     authUser,
@@ -49,7 +50,8 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
       // Unlock with existing password
       if (securityPassword === vaultSettings.passcode) {
         unlockVault(vaultSettings.passcode);
-        setActiveTab('settings');
+        setActiveTab('chats');
+        setActiveContactId(null);
         setShowSecurityModal(false);
         setSecurityPassword('');
         onClose?.();
@@ -123,18 +125,26 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
     setShowLanguageModal(false);
   };
 
+  const isDark = settings.darkMode;
+
   return (
-    <div className="w-full h-full flex flex-col bg-gradient-to-b from-gray-50 to-gray-100 dark:from-[#1a1a1a] dark:to-[#0d0d0d] transition-colors duration-300">
+    <div className={`w-full h-full flex flex-col transition-colors duration-300 ${
+      isDark ? 'dark bg-[#121212] text-[#e9edef]' : 'bg-gradient-to-b from-gray-50 to-gray-100 text-gray-800'
+    }`}>
       {/* Header */}
-      <div className="px-6 py-4 bg-white dark:bg-[#1a1a1a] shadow-sm border-b border-gray-200 dark:border-gray-700">
+      <div className={`px-6 py-4 shadow-sm border-b transition-colors ${
+        isDark ? 'bg-[#1e1e1e] border-[#2d2d2d]' : 'bg-white border-gray-200'
+      }`}>
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">{t('settings')}</h1>
+          <h1 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>{t('settings')}</h1>
           {onClose && (
             <button
               onClick={onClose}
-              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              className={`p-2 rounded-full transition-colors ${
+                isDark ? 'hover:bg-[#2c2c2c] text-gray-300' : 'hover:bg-gray-100 text-gray-600'
+              }`}
             >
-              <X className="w-6 h-6 text-gray-600 dark:text-gray-300" />
+              <X className="w-6 h-6" />
             </button>
           )}
         </div>
@@ -143,34 +153,42 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
       {/* Settings List */}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
         {/* Appearance Section */}
-        <div className="bg-white dark:bg-[#2a2a2a] rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="px-5 py-3 bg-gray-50 dark:bg-[#333333] border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-sm font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+        <div className={`rounded-2xl shadow-sm border overflow-hidden transition-colors ${
+          isDark ? 'bg-[#1e1e1e] border-[#2d2d2d]' : 'bg-white border-gray-200'
+        }`}>
+          <div className={`px-5 py-3 border-b transition-colors ${
+            isDark ? 'bg-[#252525] border-[#2d2d2d]' : 'bg-gray-50 border-gray-200'
+          }`}>
+            <h2 className={`text-sm font-semibold uppercase tracking-wider ${
+              isDark ? 'text-gray-300' : 'text-gray-600'
+            }`}>
               {t('appearance')}
             </h2>
           </div>
 
           {/* Dark Mode Toggle */}
-          <div className="px-5 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-[#333333] transition-colors">
+          <div className={`px-5 py-4 flex items-center justify-between transition-colors ${
+            isDark ? 'hover:bg-[#282828]' : 'hover:bg-gray-50'
+          }`}>
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg">
-                {settings.darkMode ? (
+                {isDark ? (
                   <Moon className="w-5 h-5 text-white" />
                 ) : (
                   <Sun className="w-5 h-5 text-white" />
                 )}
               </div>
-              <span className="text-gray-800 dark:text-white font-medium">{t('darkMode')}</span>
+              <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>{t('darkMode')}</span>
             </div>
             <button
               onClick={() => updateSettings('darkMode', !settings.darkMode)}
               className={`relative w-14 h-8 rounded-full transition-all duration-300 ${
-                settings.darkMode ? 'bg-gradient-to-r from-indigo-500 to-purple-600' : 'bg-gray-300 dark:bg-gray-600'
+                isDark ? 'bg-gradient-to-r from-indigo-500 to-purple-600' : 'bg-gray-300'
               }`}
             >
               <div
                 className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-all duration-300 ${
-                  settings.darkMode ? 'left-7' : 'left-1'
+                  isDark ? 'left-7' : 'left-1'
                 }`}
               />
             </button>
@@ -178,25 +196,33 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
         </div>
 
         {/* History Section */}
-        <div className="bg-white dark:bg-[#2a2a2a] rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="px-5 py-3 bg-gray-50 dark:bg-[#333333] border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-sm font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+        <div className={`rounded-2xl shadow-sm border overflow-hidden transition-colors ${
+          isDark ? 'bg-[#1e1e1e] border-[#2d2d2d]' : 'bg-white border-gray-200'
+        }`}>
+          <div className={`px-5 py-3 border-b transition-colors ${
+            isDark ? 'bg-[#252525] border-[#2d2d2d]' : 'bg-gray-50 border-gray-200'
+          }`}>
+            <h2 className={`text-sm font-semibold uppercase tracking-wider ${
+              isDark ? 'text-gray-300' : 'text-gray-600'
+            }`}>
               {t('history')}
             </h2>
           </div>
 
           {/* Save History Toggle */}
-          <div className="px-5 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-[#333333] transition-colors">
+          <div className={`px-5 py-4 flex items-center justify-between transition-colors ${
+            isDark ? 'hover:bg-[#282828]' : 'hover:bg-gray-50'
+          }`}>
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg">
                 <History className="w-5 h-5 text-white" />
               </div>
-              <span className="text-gray-800 dark:text-white font-medium">{t('saveHistory')}</span>
+              <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>{t('saveHistory')}</span>
             </div>
             <button
               onClick={() => updateSettings('saveHistory', !settings.saveHistory)}
               className={`relative w-14 h-8 rounded-full transition-all duration-300 ${
-                settings.saveHistory ? 'bg-gradient-to-r from-emerald-500 to-teal-600' : 'bg-gray-300 dark:bg-gray-600'
+                settings.saveHistory ? 'bg-gradient-to-r from-emerald-500 to-teal-600' : isDark ? 'bg-gray-700' : 'bg-gray-300'
               }`}
             >
               <div
@@ -210,53 +236,65 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
           {/* View History */}
           <button
             onClick={() => setShowHistoryView(true)}
-            className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-[#333333] transition-colors border-t border-gray-200 dark:border-gray-700"
+            className={`w-full px-5 py-4 flex items-center justify-between transition-colors border-t ${
+              isDark ? 'hover:bg-[#282828] border-[#2d2d2d]' : 'hover:bg-gray-50 border-gray-200'
+            }`}
           >
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 shadow-lg">
                 <Eye className="w-5 h-5 text-white" />
               </div>
               <div className="flex-1 text-left">
-                <span className="text-gray-800 dark:text-white font-medium">{t('viewHistory')}</span>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{history.length} {history.length === 1 ? 'calculation' : 'calculations'}</p>
+                <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>{t('viewHistory')}</span>
+                <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{history.length} {history.length === 1 ? 'calculation' : 'calculations'}</p>
               </div>
             </div>
-            <ChevronRight className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+            <ChevronRight className={`w-5 h-5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
           </button>
 
           {/* Delete History */}
           <button
             onClick={() => setShowDeleteConfirm(true)}
-            className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-[#333333] transition-colors border-t border-gray-200 dark:border-gray-700"
+            className={`w-full px-5 py-4 flex items-center justify-between transition-colors border-t ${
+              isDark ? 'hover:bg-[#282828] border-[#2d2d2d]' : 'hover:bg-gray-50 border-gray-200'
+            }`}
           >
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-gradient-to-br from-red-500 to-pink-600 shadow-lg">
                 <Trash2 className="w-5 h-5 text-white" />
               </div>
-              <span className="text-gray-800 dark:text-white font-medium">{t('deleteHistory')}</span>
+              <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>{t('deleteHistory')}</span>
             </div>
-            <ChevronRight className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+            <ChevronRight className={`w-5 h-5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
           </button>
 
           {/* Export History */}
           <button
             onClick={() => setShowExportSheet(true)}
-            className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-[#333333] transition-colors border-t border-gray-200 dark:border-gray-700"
+            className={`w-full px-5 py-4 flex items-center justify-between transition-colors border-t ${
+              isDark ? 'hover:bg-[#282828] border-[#2d2d2d]' : 'hover:bg-gray-50 border-gray-200'
+            }`}
           >
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg">
                 <Download className="w-5 h-5 text-white" />
               </div>
-              <span className="text-gray-800 dark:text-white font-medium">{t('exportHistory')}</span>
+              <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>{t('exportHistory')}</span>
             </div>
-            <ChevronRight className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+            <ChevronRight className={`w-5 h-5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
           </button>
         </div>
 
         {/* Security Section */}
-        <div className="bg-white dark:bg-[#2a2a2a] rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="px-5 py-3 bg-gray-50 dark:bg-[#333333] border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-sm font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+        <div className={`rounded-2xl shadow-sm border overflow-hidden transition-colors ${
+          isDark ? 'bg-[#1e1e1e] border-[#2d2d2d]' : 'bg-white border-gray-200'
+        }`}>
+          <div className={`px-5 py-3 border-b transition-colors ${
+            isDark ? 'bg-[#252525] border-[#2d2d2d]' : 'bg-gray-50 border-gray-200'
+          }`}>
+            <h2 className={`text-sm font-semibold uppercase tracking-wider ${
+              isDark ? 'text-gray-300' : 'text-gray-600'
+            }`}>
               Security
             </h2>
           </div>
@@ -264,29 +302,37 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
           {/* Vault Settings */}
           <button
             onClick={() => setShowSecurityModal(true)}
-            className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-[#333333] transition-colors"
+            className={`w-full px-5 py-4 flex items-center justify-between transition-colors ${
+              isDark ? 'hover:bg-[#282828]' : 'hover:bg-gray-50'
+            }`}
           >
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-gradient-to-br from-gray-700 to-gray-900 shadow-lg">
                 <Lock className="w-5 h-5 text-white" />
               </div>
               <div className="flex-1 text-left">
-                <span className="text-gray-800 dark:text-white font-medium">
+                <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>
                   {isFirstTimeUser ? 'Setup Password' : 'Vault Settings'}
                 </span>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                   {isFirstTimeUser ? 'Create your vault password' : 'Manage vault and files'}
                 </p>
               </div>
             </div>
-            <ChevronRight className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+            <ChevronRight className={`w-5 h-5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
           </button>
         </div>
 
         {/* Language Section */}
-        <div className="bg-white dark:bg-[#2a2a2a] rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="px-5 py-3 bg-gray-50 dark:bg-[#333333] border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-sm font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+        <div className={`rounded-2xl shadow-sm border overflow-hidden transition-colors ${
+          isDark ? 'bg-[#1e1e1e] border-[#2d2d2d]' : 'bg-white border-gray-200'
+        }`}>
+          <div className={`px-5 py-3 border-b transition-colors ${
+            isDark ? 'bg-[#252525] border-[#2d2d2d]' : 'bg-gray-50 border-gray-200'
+          }`}>
+            <h2 className={`text-sm font-semibold uppercase tracking-wider ${
+              isDark ? 'text-gray-300' : 'text-gray-600'
+            }`}>
               {t('language')}
             </h2>
           </div>
@@ -294,22 +340,30 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
           {/* Language Selector */}
           <button
             onClick={() => setShowLanguageModal(true)}
-            className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-[#333333] transition-colors"
+            className={`w-full px-5 py-4 flex items-center justify-between transition-colors ${
+              isDark ? 'hover:bg-[#282828]' : 'hover:bg-gray-50'
+            }`}
           >
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 shadow-lg">
                 <Globe className="w-5 h-5 text-white" />
               </div>
-              <span className="text-gray-800 dark:text-white font-medium">{t('language')}</span>
+              <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>{t('language')}</span>
             </div>
-            <ChevronRight className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+            <ChevronRight className={`w-5 h-5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
           </button>
         </div>
 
         {/* Session Section */}
-        <div className="bg-white dark:bg-[#2a2a2a] rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="px-5 py-3 bg-gray-50 dark:bg-[#333333] border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-sm font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+        <div className={`rounded-2xl shadow-sm border overflow-hidden transition-colors ${
+          isDark ? 'bg-[#1e1e1e] border-[#2d2d2d]' : 'bg-white border-gray-200'
+        }`}>
+          <div className={`px-5 py-3 border-b transition-colors ${
+            isDark ? 'bg-[#252525] border-[#2d2d2d]' : 'bg-gray-50 border-gray-200'
+          }`}>
+            <h2 className={`text-sm font-semibold uppercase tracking-wider ${
+              isDark ? 'text-gray-300' : 'text-gray-600'
+            }`}>
               {settings.language === 'hi' ? 'खाता सत्र' : 'Account Session'}
             </h2>
           </div>
@@ -317,7 +371,9 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
           {/* Log Out Action */}
           <button
             onClick={() => setShowLogoutConfirm(true)}
-            className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-[#333333] transition-colors text-rose-600 dark:text-rose-400"
+            className={`w-full px-5 py-4 flex items-center justify-between transition-colors ${
+              isDark ? 'hover:bg-[#282828] text-rose-400' : 'hover:bg-gray-50 text-rose-600'
+            }`}
           >
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-gradient-to-br from-rose-500 to-red-600 shadow-lg">
@@ -327,7 +383,7 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                 <span className="font-semibold">
                   {settings.language === 'hi' ? 'लॉग आउट' : 'Log out'}
                 </span>
-                <p className="text-xs text-rose-500/70 dark:text-rose-400/70 mt-0.5">
+                <p className={`text-xs mt-0.5 ${isDark ? 'text-rose-400/80' : 'text-rose-500/70'}`}>
                   {settings.language === 'hi' ? 'सत्र से सुरक्षित रूप से लॉग आउट करें' : 'Sign out securely from this session'}
                 </p>
               </div>
@@ -340,17 +396,21 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
       {/* Language Modal */}
       {showLanguageModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowLanguageModal(false)} />
-          <div className="relative bg-white dark:bg-[#2a2a2a] rounded-3xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-hidden animate-scale-in">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowLanguageModal(false)} />
+          <div className={`relative rounded-3xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-hidden animate-scale-in border transition-colors ${
+            isDark ? 'bg-[#1e1e1e] border-[#2d2d2d] text-white' : 'bg-white border-gray-200 text-gray-800'
+          }`}>
             {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <div className={`px-6 py-4 border-b ${isDark ? 'border-[#2d2d2d]' : 'border-gray-200'}`}>
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-gray-800 dark:text-white">{t('selectLanguage')}</h3>
+                <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>{t('selectLanguage')}</h3>
                 <button
                   onClick={() => setShowLanguageModal(false)}
-                  className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  className={`p-2 rounded-full transition-colors ${
+                    isDark ? 'hover:bg-[#282828] text-gray-300' : 'hover:bg-gray-100 text-gray-600'
+                  }`}
                 >
-                  <X className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
@@ -364,7 +424,7 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                   className={`w-full px-4 py-3 rounded-xl flex items-center justify-between mb-2 transition-all ${
                     settings.language === lang.code
                       ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg'
-                      : 'hover:bg-gray-100 dark:hover:bg-[#333333] text-gray-800 dark:text-white'
+                      : isDark ? 'hover:bg-[#282828] text-white' : 'hover:bg-gray-100 text-gray-800'
                   }`}
                 >
                   <span className="font-medium">{lang.name}</span>
@@ -383,17 +443,21 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
       {/* History View Modal */}
       {showHistoryView && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowHistoryView(false)} />
-          <div className="relative bg-white dark:bg-[#2a2a2a] rounded-3xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-hidden animate-scale-in">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowHistoryView(false)} />
+          <div className={`relative rounded-3xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-hidden animate-scale-in border transition-colors ${
+            isDark ? 'bg-[#1e1e1e] border-[#2d2d2d] text-white' : 'bg-white border-gray-200 text-gray-800'
+          }`}>
             {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <div className={`px-6 py-4 border-b ${isDark ? 'border-[#2d2d2d]' : 'border-gray-200'}`}>
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-gray-800 dark:text-white">{t('viewHistory')}</h3>
+                <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>{t('viewHistory')}</h3>
                 <button
                   onClick={() => setShowHistoryView(false)}
-                  className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  className={`p-2 rounded-full transition-colors ${
+                    isDark ? 'hover:bg-[#282828] text-gray-300' : 'hover:bg-gray-100 text-gray-600'
+                  }`}
                 >
-                  <X className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
@@ -402,22 +466,26 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
             <div className="overflow-y-auto max-h-[60vh] p-4">
               {history.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16">
-                  <div className="w-24 h-24 rounded-full bg-gray-100 dark:bg-[#333333] flex items-center justify-center mb-4">
-                    <Clock className="w-12 h-12 text-gray-400 dark:text-gray-500" />
+                  <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-4 ${
+                    isDark ? 'bg-[#282828]' : 'bg-gray-100'
+                  }`}>
+                    <Clock className={`w-12 h-12 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
                   </div>
-                  <p className="text-gray-500 dark:text-gray-400 text-lg font-medium">{t('noHistory')}</p>
+                  <p className={`text-lg font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{t('noHistory')}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {history.map((item, index) => (
                     <div
                       key={index}
-                      className="bg-gray-50 dark:bg-[#333333] rounded-2xl p-4 border border-gray-200 dark:border-gray-700"
+                      className={`rounded-2xl p-4 border transition-colors ${
+                        isDark ? 'bg-[#282828] border-[#333333]' : 'bg-gray-50 border-gray-200'
+                      }`}
                     >
-                      <p className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
+                      <p className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-800'}`}>
                         {item.expression} = {item.result}
                       </p>
-                      <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                      <div className={`flex items-center gap-2 text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                         <Calendar className="w-4 h-4" />
                         <span>{item.date}</span>
                         <span className="mx-1">•</span>
@@ -436,17 +504,19 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
       {/* Delete Confirm Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowDeleteConfirm(false)} />
-          <div className="relative bg-white dark:bg-[#2a2a2a] rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-scale-in p-6">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowDeleteConfirm(false)} />
+          <div className={`relative rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-scale-in p-6 border transition-colors ${
+            isDark ? 'bg-[#1e1e1e] border-[#2d2d2d]' : 'bg-white border-gray-200'
+          }`}>
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-3 rounded-xl bg-red-100 dark:bg-red-800">
-                <Trash2 className="w-6 h-6 text-red-600 dark:text-red-400" />
+              <div className={`p-3 rounded-xl ${isDark ? 'bg-red-950/50' : 'bg-red-100'}`}>
+                <Trash2 className="w-6 h-6 text-red-500" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-red-800 dark:text-red-300">
+                <h3 className="text-lg font-semibold text-red-500">
                   {t('deleteConfirmTitle')}
                 </h3>
-                <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                <p className={`text-sm mt-1 ${isDark ? 'text-red-400/80' : 'text-red-600'}`}>
                   {t('deleteConfirmMessage')}
                 </p>
               </div>
@@ -454,7 +524,9 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 px-4 py-3 rounded-xl bg-white dark:bg-[#333333] text-gray-700 dark:text-gray-300 font-medium border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#444444] transition-colors"
+                className={`flex-1 px-4 py-3 rounded-xl font-medium border transition-colors ${
+                  isDark ? 'bg-[#282828] text-gray-300 border-[#383838] hover:bg-[#333333]' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
               >
                 {t('cancel')}
               </button>
@@ -472,35 +544,41 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
       {/* Export Sheet */}
       {showExportSheet && (
         <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowExportSheet(false)} />
-          <div className="relative bg-white dark:bg-[#2a2a2a] rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-slide-up">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowExportSheet(false)} />
+          <div className={`relative rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-slide-up border transition-colors ${
+            isDark ? 'bg-[#1e1e1e] border-[#2d2d2d]' : 'bg-white border-gray-200'
+          }`}>
             <div className="p-6">
-              <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">
+              <h3 className={`text-xl font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-800'}`}>
                 {t('exportHistory')}
               </h3>
               <div className="space-y-3">
                 <button
                   onClick={() => handleExport('pdf')}
-                  className="w-full px-4 py-4 rounded-xl bg-gray-50 dark:bg-[#333333] flex items-center gap-4 hover:bg-gray-100 dark:hover:bg-[#444444] transition-colors border border-gray-200 dark:border-gray-700"
+                  className={`w-full px-4 py-4 rounded-xl flex items-center gap-4 transition-colors border ${
+                    isDark ? 'bg-[#282828] border-[#333333] hover:bg-[#333333]' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                  }`}
                 >
                   <div className="p-3 rounded-xl bg-gradient-to-br from-red-500 to-pink-600 shadow-lg">
                     <Download className="w-6 h-6 text-white" />
                   </div>
                   <div className="flex-1 text-left">
-                    <p className="font-medium text-gray-800 dark:text-white">{t('exportAsPdf')}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Export as PDF document</p>
+                    <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>{t('exportAsPdf')}</p>
+                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Export as PDF document</p>
                   </div>
                 </button>
                 <button
                   onClick={() => handleExport('txt')}
-                  className="w-full px-4 py-4 rounded-xl bg-gray-50 dark:bg-[#333333] flex items-center gap-4 hover:bg-gray-100 dark:hover:bg-[#444444] transition-colors border border-gray-200 dark:border-gray-700"
+                  className={`w-full px-4 py-4 rounded-xl flex items-center gap-4 transition-colors border ${
+                    isDark ? 'bg-[#282828] border-[#333333] hover:bg-[#333333]' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                  }`}
                 >
                   <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 shadow-lg">
                     <Download className="w-6 h-6 text-white" />
                   </div>
                   <div className="flex-1 text-left">
-                    <p className="font-medium text-gray-800 dark:text-white">{t('exportAsTxt')}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Export as text file</p>
+                    <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>{t('exportAsTxt')}</p>
+                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Export as text file</p>
                   </div>
                 </button>
               </div>
@@ -512,17 +590,19 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
       {/* Security Modal */}
       {showSecurityModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowSecurityModal(false)} />
-          <div className="relative bg-white dark:bg-[#2a2a2a] rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-scale-in p-6">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowSecurityModal(false)} />
+          <div className={`relative rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-scale-in p-6 border transition-colors ${
+            isDark ? 'bg-[#1e1e1e] border-[#2d2d2d]' : 'bg-white border-gray-200'
+          }`}>
             <div className="flex items-center gap-3 mb-6">
               <div className="p-3 rounded-xl bg-gradient-to-br from-gray-700 to-gray-900 shadow-lg">
                 <Shield className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-gray-800 dark:text-white">
+                <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-800'}`}>
                   {isFirstTimeUser ? 'Setup Password' : 'Enter Password'}
                 </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                <p className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                   {isFirstTimeUser 
                     ? 'Create a secure password for your vault (minimum 4 digits)' 
                     : 'Enter your vault password to access settings'
@@ -536,7 +616,9 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                 value={securityPassword}
                 onChange={(e) => setSecurityPassword(e.target.value)}
                 placeholder={isFirstTimeUser ? 'Create new password' : 'Enter password'}
-                className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-[#333333] border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
+                  isDark ? 'bg-[#282828] border-[#383838] text-white placeholder-gray-500' : 'bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400'
+                }`}
                 onKeyPress={(e) => {
                   if (e.key === 'Enter') {
                     handleSecurityUnlock();
@@ -550,7 +632,9 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                   setShowSecurityModal(false);
                   setSecurityPassword('');
                 }}
-                className="flex-1 px-4 py-3 rounded-xl bg-white dark:bg-[#333333] text-gray-700 dark:text-gray-300 font-medium border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#444444] transition-colors"
+                className={`flex-1 px-4 py-3 rounded-xl font-medium border transition-colors ${
+                  isDark ? 'bg-[#282828] text-gray-300 border-[#383838] hover:bg-[#333333]' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
               >
                 Cancel
               </button>
@@ -568,16 +652,20 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
       {/* Logout Confirmation Modal */}
       {showLogoutConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={() => setShowLogoutConfirm(false)} />
-          <div className="relative bg-white dark:bg-[#2a2a2a] rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-scale-in p-6 text-center space-y-5 border border-gray-200 dark:border-gray-700">
-            <div className="mx-auto w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-950/30 flex items-center justify-center text-rose-600 dark:text-rose-400">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowLogoutConfirm(false)} />
+          <div className={`relative rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-scale-in p-6 text-center space-y-5 border transition-colors ${
+            isDark ? 'bg-[#1e1e1e] border-[#2d2d2d]' : 'bg-white border-gray-200'
+          }`}>
+            <div className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center ${
+              isDark ? 'bg-rose-950/40 text-rose-400' : 'bg-rose-100 text-rose-600'
+            }`}>
               <LogOut className="w-6 h-6" />
             </div>
             <div className="space-y-1.5">
-              <h3 className="text-gray-800 dark:text-white font-bold text-lg">
+              <h3 className={`font-bold text-lg ${isDark ? 'text-white' : 'text-gray-800'}`}>
                 {settings.language === 'hi' ? 'लॉग आउट की पुष्टि करें' : 'Confirm Log out'}
               </h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+              <p className={`text-sm leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                 {settings.language === 'hi'
                   ? 'क्या आप वाकई इस सत्र से लॉग आउट करना चाहते हैं? आपके सुरक्षित लॉक किए गए चैट सुरक्षित रहेंगे।'
                   : 'Are you sure you want to log out from this session? Your locked chats will remain secure.'}
@@ -586,7 +674,9 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
             <div className="flex gap-3 pt-1">
               <button
                 onClick={() => setShowLogoutConfirm(false)}
-                className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-[#333333] hover:bg-gray-200 dark:hover:bg-[#444444] active:scale-95 text-gray-700 dark:text-gray-300 text-sm font-semibold transition-all border border-gray-300/40 dark:border-gray-600/40"
+                className={`flex-1 py-3 rounded-xl text-sm font-semibold transition-all border ${
+                  isDark ? 'bg-[#282828] hover:bg-[#333333] text-gray-300 border-[#383838]' : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-300/40'
+                }`}
               >
                 {settings.language === 'hi' ? 'रद्द करें' : 'Cancel'}
               </button>

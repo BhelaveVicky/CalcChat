@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Search, Phone, Video, ArrowDownLeft, ArrowUpRight, PhoneCall, Mic, MicOff, PhoneOff } from 'lucide-react';
+import { useVault } from '../context/VaultContext';
+import { useSettings } from '../context/SettingsContext';
 
 interface CallItem {
   id: string;
@@ -80,6 +82,11 @@ const RECENT_CALLS: CallItem[] = [
 ];
 
 export const CallsView: React.FC = () => {
+  const { settings: vaultSettings } = useVault();
+  const { settings: globalSettings } = useSettings();
+
+  const isDark = globalSettings.darkMode && vaultSettings.theme !== 'material-light' && vaultSettings.theme !== 'light';
+
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCall, setActiveCall] = useState<CallItem | null>(null);
   const [isMuted, setIsMuted] = useState(false);
@@ -89,18 +96,30 @@ export const CallsView: React.FC = () => {
   );
 
   return (
-    <div className="flex-1 flex flex-col bg-[#0b141a] text-[#e9edef] overflow-y-auto no-scrollbar font-sans select-none relative h-full min-h-0 pb-16">
+    <div className={`flex-1 flex flex-col overflow-y-auto no-scrollbar font-sans select-none relative h-full min-h-0 pb-16 transition-colors ${
+      isDark ? 'bg-[#0b141a] text-[#e9edef]' : 'bg-white text-gray-900'
+    }`}>
       
       {/* Search Bar */}
-      <div className="px-4 pt-3 pb-2 sticky top-0 bg-[#0b141a] z-10">
-        <div className="flex items-center gap-3 bg-[#202c33] px-4 py-2 rounded-full text-sm text-[#e9edef] border border-transparent focus-within:border-[#00a884]/40 transition-all">
-          <Search className="w-4 h-4 text-[#8596a0] shrink-0" />
+      <div className={`px-4 pt-3 pb-2 sticky top-0 z-10 ${
+        isDark ? 'bg-[#0b141a]' : 'bg-white'
+      }`}>
+        <div className={`flex items-center gap-3 px-4 py-2 rounded-full text-sm transition-all border ${
+          isDark 
+            ? 'bg-[#202c33] text-[#e9edef] border-transparent focus-within:border-[#00a884]/40' 
+            : 'bg-gray-100 text-gray-900 border-gray-200 focus-within:border-emerald-500/40'
+        }`}>
+          <Search className={`w-4 h-4 shrink-0 ${isDark ? 'text-[#8596a0]' : 'text-gray-500'}`} />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search name or number"
-            className="bg-transparent border-none outline-none w-full text-sm placeholder:text-[#8596a0] text-[#e9edef]"
+            className={`bg-transparent border-none outline-none w-full text-sm ${
+              isDark 
+                ? 'placeholder:text-[#8596a0] text-[#e9edef]' 
+                : 'placeholder:text-gray-400 text-gray-900'
+            }`}
           />
         </div>
       </div>
@@ -109,7 +128,9 @@ export const CallsView: React.FC = () => {
 
       {/* Section Header */}
       <div className="px-4 pt-4 pb-2">
-        <h2 className="text-base font-semibold text-[#e9edef] tracking-wide">Recent</h2>
+        <h2 className={`text-base font-semibold tracking-wide ${
+          isDark ? 'text-[#e9edef]' : 'text-gray-900'
+        }`}>Recent</h2>
       </div>
 
       {/* Calls List */}
@@ -118,20 +139,28 @@ export const CallsView: React.FC = () => {
           <div
             key={call.id}
             onClick={() => setActiveCall(call)}
-            className="px-4 py-3 flex items-center gap-3.5 hover:bg-[#202c33]/50 cursor-pointer transition-colors group"
+            className={`px-4 py-3 flex items-center gap-3.5 cursor-pointer transition-colors group ${
+              isDark ? 'hover:bg-[#202c33]/50' : 'hover:bg-gray-100'
+            }`}
           >
             {/* Avatar */}
             <div className="relative shrink-0">
               <img
                 src={call.avatar}
                 alt={call.name}
-                className="w-12 h-12 rounded-full object-cover border border-[#2a3942]/40"
+                className={`w-12 h-12 rounded-full object-cover border ${
+                  isDark ? 'border-[#2a3942]/40' : 'border-gray-200'
+                }`}
               />
             </div>
 
             {/* Call Info */}
             <div className="flex-1 min-w-0 flex flex-col justify-center">
-              <h4 className={`text-base font-normal truncate ${call.type.includes('missed') ? 'text-[#f15c6d]' : 'text-[#e9edef]'}`}>
+              <h4 className={`text-base font-normal truncate ${
+                call.type.includes('missed') 
+                  ? 'text-[#f15c6d]' 
+                  : (isDark ? 'text-[#e9edef]' : 'text-gray-900')
+              }`}>
                 {call.name}
               </h4>
 
@@ -149,7 +178,9 @@ export const CallsView: React.FC = () => {
                   <ArrowDownLeft className="w-4 h-4 text-[#00a884] shrink-0 stroke-[2.5]" />
                 )}
 
-                <span className="text-xs text-[#8596a0] font-normal truncate">
+                <span className={`text-xs font-normal truncate ${
+                  isDark ? 'text-[#8596a0]' : 'text-gray-500'
+                }`}>
                   {call.type.includes('missed') ? 'Missed' : call.type === 'outgoing-voice' ? 'Outgoing' : 'Incoming'}
                 </span>
               </div>
@@ -157,7 +188,9 @@ export const CallsView: React.FC = () => {
 
             {/* Timestamp & Action Button */}
             <div className="flex items-center gap-3 shrink-0">
-              <span className="text-xs text-[#8596a0] font-normal">
+              <span className={`text-xs font-normal ${
+                isDark ? 'text-[#8596a0]' : 'text-gray-500'
+              }`}>
                 {call.time}
               </span>
 
@@ -166,7 +199,9 @@ export const CallsView: React.FC = () => {
                   e.stopPropagation();
                   setActiveCall(call);
                 }}
-                className="p-2 text-[#00a884] hover:bg-[#202c33] rounded-full transition-all active:scale-95"
+                className={`p-2 text-[#00a884] rounded-full transition-all active:scale-95 ${
+                  isDark ? 'hover:bg-[#202c33]' : 'hover:bg-gray-200'
+                }`}
                 title={`Call ${call.name}`}
               >
                 {call.isVideo ? (
@@ -180,7 +215,9 @@ export const CallsView: React.FC = () => {
         ))}
 
         {filteredCalls.length === 0 && (
-          <div className="py-12 text-center text-[#8596a0] text-sm">
+          <div className={`py-12 text-center text-sm ${
+            isDark ? 'text-[#8596a0]' : 'text-gray-500'
+          }`}>
             No calls found matching "{searchQuery}"
           </div>
         )}

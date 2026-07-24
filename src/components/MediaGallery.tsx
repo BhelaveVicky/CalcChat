@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Camera, Eye, Download, Shield, Upload, FileText, Video, Image as ImageIcon, X, Send, Lock } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
+import { useSettings } from '../context/SettingsContext';
 import { MediaAttachment } from '../types';
 
 interface StatusItem {
@@ -13,7 +14,11 @@ interface StatusItem {
 }
 
 export const MediaGallery: React.FC = () => {
-  const { messages, sendMessage, contacts, user } = useVault();
+  const { messages, sendMessage, contacts, user, settings: vaultSettings } = useVault();
+  const { settings: globalSettings } = useSettings();
+
+  const isDark = globalSettings.darkMode && vaultSettings.theme !== 'material-light' && vaultSettings.theme !== 'light';
+
   const [activeStory, setActiveStory] = useState<StatusItem | null>(null);
   const [replyText, setReplyText] = useState('');
   const [showVaultMedia, setShowVaultMedia] = useState(false);
@@ -126,7 +131,9 @@ export const MediaGallery: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-[#0b141a] text-[#e9edef] overflow-y-auto no-scrollbar font-sans select-none relative pb-12 h-full min-h-0">
+    <div className={`flex-1 flex flex-col overflow-y-auto no-scrollbar font-sans select-none relative pb-12 h-full min-h-0 transition-colors ${
+      isDark ? 'bg-[#0b141a] text-[#e9edef]' : 'bg-white text-gray-900'
+    }`}>
       
       {/* My Status Row */}
       <div className="pt-2 px-4 pb-3">
@@ -136,7 +143,9 @@ export const MediaGallery: React.FC = () => {
         >
           <div className="flex items-center gap-3.5 min-w-0">
             <div className="relative shrink-0">
-              <div className="w-13 h-13 rounded-full p-[2px] border-2 border-[#8596a0]/30 shrink-0">
+              <div className={`w-13 h-13 rounded-full p-[2px] border-2 shrink-0 ${
+                isDark ? 'border-[#8596a0]/30' : 'border-gray-300'
+              }`}>
                 <img 
                   src={myStatusItem.avatar} 
                   alt="My status" 
@@ -145,7 +154,9 @@ export const MediaGallery: React.FC = () => {
               </div>
               <label 
                 onClick={(e) => e.stopPropagation()}
-                className="absolute bottom-0 right-0 bg-[#00a884] text-[#0b141a] rounded-full p-1 border-2 border-[#0b141a] cursor-pointer hover:scale-110 transition-transform shadow"
+                className={`absolute bottom-0 right-0 bg-[#00a884] text-[#0b141a] rounded-full p-1 border-2 cursor-pointer hover:scale-110 transition-transform shadow ${
+                  isDark ? 'border-[#0b141a]' : 'border-white'
+                }`}
                 title="Add status"
               >
                 <Plus className="w-3.5 h-3.5 stroke-[3]" />
@@ -154,10 +165,14 @@ export const MediaGallery: React.FC = () => {
             </div>
 
             <div className="min-w-0">
-              <h3 className="font-semibold text-base text-[#e9edef] truncate">
+              <h3 className={`font-semibold text-base truncate ${
+                isDark ? 'text-[#e9edef]' : 'text-gray-900'
+              }`}>
                 My status
               </h3>
-              <p className="text-xs sm:text-sm text-[#8596a0] truncate mt-0.5">
+              <p className={`text-xs sm:text-sm truncate mt-0.5 ${
+                isDark ? 'text-[#8596a0]' : 'text-gray-500'
+              }`}>
                 Yesterday at 11:54 am
               </p>
             </div>
@@ -166,7 +181,9 @@ export const MediaGallery: React.FC = () => {
           <div className="flex items-center gap-2">
             <label 
               onClick={(e) => e.stopPropagation()}
-              className="p-2 text-[#8596a0] hover:text-[#e9edef] hover:bg-[#202c33] rounded-full cursor-pointer transition-colors"
+              className={`p-2 rounded-full cursor-pointer transition-colors ${
+                isDark ? 'text-[#8596a0] hover:text-[#e9edef] hover:bg-[#202c33]' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+              }`}
               title="Camera"
             >
               <Camera className="w-5 h-5" />
@@ -177,7 +194,9 @@ export const MediaGallery: React.FC = () => {
       </div>
 
       {/* Section Header: Recent */}
-      <div className="px-4 py-2 text-xs sm:text-sm font-semibold text-[#8596a0] tracking-wide select-none">
+      <div className={`px-4 py-2 text-xs sm:text-sm font-semibold tracking-wide select-none ${
+        isDark ? 'text-[#8596a0]' : 'text-gray-500'
+      }`}>
         Recent
       </div>
 
@@ -189,8 +208,8 @@ export const MediaGallery: React.FC = () => {
             onClick={() => setActiveStory(status)}
             className={`transition-all cursor-pointer ${
               status.isHighlighted 
-                ? 'bg-[#182229] rounded-2xl mx-2.5 px-3 py-3 my-1 border border-[#202c33]/60' 
-                : 'px-4 py-3 hover:bg-[#202c33]/40 active:bg-[#202c33]'
+                ? (isDark ? 'bg-[#182229] rounded-2xl mx-2.5 px-3 py-3 my-1 border border-[#202c33]/60' : 'bg-gray-100 rounded-2xl mx-2.5 px-3 py-3 my-1 border border-gray-200 shadow-sm')
+                : (isDark ? 'px-4 py-3 hover:bg-[#202c33]/40 active:bg-[#202c33]' : 'px-4 py-3 hover:bg-gray-50 active:bg-gray-100')
             }`}
           >
             <div className="flex items-center gap-3.5 min-w-0">
@@ -206,10 +225,14 @@ export const MediaGallery: React.FC = () => {
               </div>
 
               <div className="min-w-0 flex-1">
-                <h4 className="font-semibold text-base text-[#e9edef] truncate">
+                <h4 className={`font-semibold text-base truncate ${
+                  isDark ? 'text-[#e9edef]' : 'text-gray-900'
+                }`}>
                   {status.name}
                 </h4>
-                <p className="text-xs sm:text-sm text-[#8596a0] truncate mt-0.5">
+                <p className={`text-xs sm:text-sm truncate mt-0.5 ${
+                  isDark ? 'text-[#8596a0]' : 'text-gray-500'
+                }`}>
                   {status.time}
                 </p>
               </div>

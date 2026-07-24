@@ -1,6 +1,12 @@
-import React, { useState } from 'react';
-import { Search, Plus, Pin, Lock, EyeOff, Bot, MoreVertical, Trash2, Sparkles, PhoneCall, MessageSquare } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { 
+  Search, Plus, Pin, Lock, EyeOff, Bot, MoreVertical, Trash2, Sparkles, 
+  PhoneCall, MessageSquare, ArrowLeft, X, Archive, BellOff, CheckCheck, 
+  Heart, ListPlus, MinusCircle, LogOut, ChevronRight 
+} from 'lucide-react';
 import { useVault } from '../context/VaultContext';
+import { useSettings } from '../context/SettingsContext';
+import { Contact } from '../types';
 
 export const ChatList: React.FC = () => {
   const {
@@ -15,6 +21,9 @@ export const ChatList: React.FC = () => {
     toggleLockContact,
     clearChatHistory,
   } = useVault();
+  const { settings: globalSettings } = useSettings();
+
+  const isDark = globalSettings.darkMode && settings.theme !== 'material-light' && settings.theme !== 'light';
 
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'pin' | 'unread' | 'groups'>('all');
@@ -26,6 +35,35 @@ export const ChatList: React.FC = () => {
   const [lockPinAttempt, setLockPinAttempt] = useState('');
   const [targetLockId, setTargetLockId] = useState<string | null>(null);
   const [previewContact, setPreviewContact] = useState<any | null>(null);
+  const [fullImageContact, setFullImageContact] = useState<Contact | null>(null);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isLongPressRef = useRef<boolean>(false);
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 2500);
+  };
+
+  const handlePressStart = (contactId: string) => {
+    isLongPressRef.current = false;
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = setTimeout(() => {
+      isLongPressRef.current = true;
+      setOpenMenuId(contactId);
+      if (navigator.vibrate) {
+        try { navigator.vibrate(40); } catch(e) {}
+      }
+    }, 450);
+  };
+
+  const handlePressEnd = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
 
   const unreadTotalCount = contacts.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
 
@@ -78,18 +116,24 @@ export const ChatList: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-[#0b141a] text-[#e9edef] overflow-hidden relative font-sans select-none h-full min-h-0">
+    <div className={`flex-1 flex flex-col overflow-hidden relative font-sans select-none h-full min-h-0 transition-colors ${
+      isDark ? 'bg-[#0b141a] text-[#e9edef]' : 'bg-white text-gray-900'
+    }`}>
       
       {/* Search Bar Container */}
-      <div className="px-4 py-2 shrink-0 bg-[#0b141a]">
-        <div className="relative flex items-center bg-[#202c33] rounded-full px-4 py-2 text-sm">
-          <Search className="w-5 h-5 text-[#8596a0] mr-3 shrink-0" />
+      <div className={`px-4 py-2 shrink-0 ${isDark ? 'bg-[#0b141a]' : 'bg-white'}`}>
+        <div className={`relative flex items-center rounded-full px-4 py-2 text-sm ${
+          isDark ? 'bg-[#202c33]' : 'bg-gray-100'
+        }`}>
+          <Search className={`w-5 h-5 mr-3 shrink-0 ${isDark ? 'text-[#8596a0]' : 'text-gray-500'}`} />
           <input
             type="text"
             placeholder="Ask Meta AI or Search"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full bg-transparent text-[#e9edef] placeholder-[#8596a0] focus:outline-none text-base sm:text-sm"
+            className={`w-full bg-transparent focus:outline-none text-base sm:text-sm ${
+              isDark ? 'text-[#e9edef] placeholder-[#8596a0]' : 'text-gray-900 placeholder-gray-400'
+            }`}
           />
         </div>
       </div>
@@ -99,7 +143,9 @@ export const ChatList: React.FC = () => {
         <button
           onClick={() => setActiveFilter('all')}
           className={`py-1.5 rounded-full font-medium text-center transition-colors truncate px-2 ${
-            activeFilter === 'all' ? 'bg-[#103629] text-[#25d366]' : 'bg-[#202c33] text-[#8596a0] hover:bg-[#2a3942]'
+            activeFilter === 'all' 
+              ? (isDark ? 'bg-[#103629] text-[#25d366]' : 'bg-emerald-100 text-emerald-800 font-bold') 
+              : (isDark ? 'bg-[#202c33] text-[#8596a0] hover:bg-[#2a3942]' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')
           }`}
         >
           All
@@ -108,7 +154,9 @@ export const ChatList: React.FC = () => {
         <button
           onClick={() => setActiveFilter('pin')}
           className={`py-1.5 rounded-full font-medium text-center transition-colors truncate px-1 ${
-            activeFilter === 'pin' ? 'bg-[#103629] text-[#25d366]' : 'bg-[#202c33] text-[#8596a0] hover:bg-[#2a3942]'
+            activeFilter === 'pin' 
+              ? (isDark ? 'bg-[#103629] text-[#25d366]' : 'bg-emerald-100 text-emerald-800 font-bold') 
+              : (isDark ? 'bg-[#202c33] text-[#8596a0] hover:bg-[#2a3942]' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')
           }`}
         >
           Pin
@@ -117,7 +165,9 @@ export const ChatList: React.FC = () => {
         <button
           onClick={() => setActiveFilter('unread')}
           className={`py-1.5 rounded-full font-medium text-center transition-colors truncate px-1 ${
-            activeFilter === 'unread' ? 'bg-[#103629] text-[#25d366]' : 'bg-[#202c33] text-[#8596a0] hover:bg-[#2a3942]'
+            activeFilter === 'unread' 
+              ? (isDark ? 'bg-[#103629] text-[#25d366]' : 'bg-emerald-100 text-emerald-800 font-bold') 
+              : (isDark ? 'bg-[#202c33] text-[#8596a0] hover:bg-[#2a3942]' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')
           }`}
         >
           Unread {unreadTotalCount > 0 ? `(${unreadTotalCount})` : ''}
@@ -126,7 +176,9 @@ export const ChatList: React.FC = () => {
         <button
           onClick={() => setActiveFilter('groups')}
           className={`py-1.5 rounded-full font-medium text-center transition-colors truncate px-2 ${
-            activeFilter === 'groups' ? 'bg-[#103629] text-[#25d366]' : 'bg-[#202c33] text-[#8596a0] hover:bg-[#2a3942]'
+            activeFilter === 'groups' 
+              ? (isDark ? 'bg-[#103629] text-[#25d366]' : 'bg-emerald-100 text-emerald-800 font-bold') 
+              : (isDark ? 'bg-[#202c33] text-[#8596a0] hover:bg-[#2a3942]' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')
           }`}
         >
           Groups
@@ -135,7 +187,9 @@ export const ChatList: React.FC = () => {
 
       {/* Disguise Warning Banner if Hide History active */}
       {settings.hideChatHistory && (
-        <div className="bg-[#182229] border-b border-[#202c33] px-4 py-1.5 flex items-center justify-between text-xs text-amber-400">
+        <div className={`px-4 py-1.5 flex items-center justify-between text-xs text-amber-500 border-b ${
+          isDark ? 'bg-[#182229] border-[#202c33]' : 'bg-amber-50 border-amber-200'
+        }`}>
           <span className="flex items-center gap-1.5 font-mono">
             <EyeOff className="w-3.5 h-3.5" /> Disguised Previews Active
           </span>
@@ -146,8 +200,10 @@ export const ChatList: React.FC = () => {
       {/* Conversations List */}
       <div className="flex-1 overflow-y-auto divide-y divide-transparent min-h-0 no-scrollbar">
         {sortedContacts.length === 0 ? (
-          <div className="p-8 text-center text-[#8596a0] text-sm flex flex-col items-center justify-center gap-3 h-full">
-            <Search className="w-10 h-10 text-[#2a3942]" />
+          <div className={`p-8 text-center text-sm flex flex-col items-center justify-center gap-3 h-full ${
+            isDark ? 'text-[#8596a0]' : 'text-gray-500'
+          }`}>
+            <Search className={`w-10 h-10 ${isDark ? 'text-[#2a3942]' : 'text-gray-300'}`} />
             <p>No chats found matching "{search}"</p>
           </div>
         ) : (
@@ -169,8 +225,28 @@ export const ChatList: React.FC = () => {
             return (
               <div
                 key={contact.id}
-                onClick={() => handleContactClick(contact.id, contact.isLocked)}
-                className="px-4 py-3 cursor-pointer transition-colors flex items-center justify-between hover:bg-[#202c33]/50 active:bg-[#202c33] relative group"
+                onTouchStart={() => handlePressStart(contact.id)}
+                onTouchEnd={handlePressEnd}
+                onTouchMove={handlePressEnd}
+                onMouseDown={() => handlePressStart(contact.id)}
+                onMouseUp={handlePressEnd}
+                onMouseLeave={handlePressEnd}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setOpenMenuId(contact.id);
+                }}
+                onClick={() => {
+                  if (isLongPressRef.current) {
+                    isLongPressRef.current = false;
+                    return;
+                  }
+                  handleContactClick(contact.id, contact.isLocked);
+                }}
+                className={`px-4 py-3 cursor-pointer transition-colors flex items-center justify-between relative group ${
+                  isDark 
+                    ? 'hover:bg-[#202c33]/50 active:bg-[#202c33]' 
+                    : 'hover:bg-gray-100 active:bg-gray-200'
+                }`}
               >
                 {/* Left: Avatar */}
                 <div 
@@ -183,36 +259,50 @@ export const ChatList: React.FC = () => {
                   <img
                     src={contact.avatar}
                     alt={contact.name}
-                    className="w-12 h-12 sm:w-13 sm:h-13 rounded-full object-cover bg-[#202c33]"
+                    className={`w-12 h-12 sm:w-13 sm:h-13 rounded-full object-cover ${
+                      isDark ? 'bg-[#202c33]' : 'bg-gray-200'
+                    }`}
                   />
                   {contact.isOnline && (
-                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-[#25d366] border-2 border-[#0b141a] rounded-full"></span>
+                    <span className={`absolute bottom-0 right-0 w-3 h-3 bg-[#25d366] border-2 rounded-full ${
+                      isDark ? 'border-[#0b141a]' : 'border-white'
+                    }`}></span>
                   )}
                   {contact.isAiBot && (
-                    <span className="absolute -bottom-1 -left-1 bg-[#103629] text-[#25d366] p-0.5 rounded-full border border-[#0b141a]">
+                    <span className={`absolute -bottom-1 -left-1 p-0.5 rounded-full border ${
+                      isDark ? 'bg-[#103629] text-[#25d366] border-[#0b141a]' : 'bg-emerald-100 text-emerald-700 border-white'
+                    }`}>
                       <Sparkles className="w-2.5 h-2.5" />
                     </span>
                   )}
                 </div>
 
                 {/* Middle: Title & Message Preview */}
-                <div className="min-w-0 flex-1 border-b border-[#1f2c34]/60 pb-3 flex flex-col justify-center">
+                <div className={`min-w-0 flex-1 border-b pb-3 flex flex-col justify-center ${
+                  isDark ? 'border-[#1f2c34]/60' : 'border-gray-100'
+                }`}>
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <h3 className="font-semibold text-[16px] text-[#e9edef] truncate">{contact.name}</h3>
-                      {contact.isPinned && <Pin className="w-3.5 h-3.5 text-[#8596a0] rotate-45 shrink-0" />}
+                      <h3 className={`font-semibold text-[16px] truncate ${
+                        isDark ? 'text-[#e9edef]' : 'text-gray-900'
+                      }`}>{contact.name}</h3>
+                      {contact.isPinned && <Pin className={`w-3.5 h-3.5 rotate-45 shrink-0 ${isDark ? 'text-[#8596a0]' : 'text-gray-400'}`} />}
                       {contact.isLocked && <Lock className="w-3 h-3 text-amber-400 shrink-0" />}
                     </div>
                     
-                    <span className={`text-xs whitespace-nowrap ml-2 ${unreadBadge > 0 ? 'text-[#25d366] font-medium' : 'text-[#8596a0]'}`}>
+                    <span className={`text-xs whitespace-nowrap ml-2 ${
+                      unreadBadge > 0 ? 'text-[#25d366] font-medium' : (isDark ? 'text-[#8596a0]' : 'text-gray-400')
+                    }`}>
                       {lastMsg ? lastMsg.timestamp : (contact.lastSeen || 'Yesterday')}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm text-[#8596a0] truncate flex items-center gap-1">
+                    <p className={`text-sm truncate flex items-center gap-1 ${
+                      isDark ? 'text-[#8596a0]' : 'text-gray-500'
+                    }`}>
                       {contact.name.includes('Harsh') ? (
-                        <span className="flex items-center gap-1 italic text-[#8596a0]">
+                        <span className={`flex items-center gap-1 italic ${isDark ? 'text-[#8596a0]' : 'text-gray-500'}`}>
                           <PhoneCall className="w-3.5 h-3.5 rotate-45 text-rose-400 inline" /> Voice call
                         </span>
                       ) : previewText}
@@ -225,13 +315,16 @@ export const ChatList: React.FC = () => {
                         </span>
                       )}
 
-                      {/* Three dots hover trigger */}
+                      {/* Three dots button - ONLY VISIBLE ON DESKTOP/LAPTOP */}
                       <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
+                          e.preventDefault();
                           setOpenMenuId(openMenuId === contact.id ? null : contact.id);
                         }}
-                        className="p-1 text-[#8596a0] hover:text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="hidden md:flex p-1 text-[#8596a0] hover:text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                        title="More options"
                       >
                         <MoreVertical className="w-4 h-4" />
                       </button>
@@ -239,45 +332,170 @@ export const ChatList: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Action Menu */}
+                {/* Context Action Menu Modal/Popover */}
                 {openMenuId === contact.id && (
-                  <div
-                    onClick={e => e.stopPropagation()}
-                    className="absolute right-6 top-10 z-30 bg-[#233138] border border-[#2a3942] rounded-xl shadow-2xl py-1.5 w-40 text-sm text-[#e9edef] animate-fade-in"
-                  >
-                    <button
-                      onClick={() => {
-                        togglePinContact(contact.id);
+                  <>
+                    <div 
+                      className="fixed inset-0 z-40 bg-black/20 md:bg-transparent" 
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setOpenMenuId(null);
-                      }}
-                      className="w-full text-left px-4 py-2 hover:bg-[#182229] flex items-center gap-2"
-                    >
-                      <Pin className="w-4 h-4 text-[#25d366]" />
-                      {contact.isPinned ? 'Unpin chat' : 'Pin chat'}
-                    </button>
+                      }} 
+                    />
 
-                    <button
-                      onClick={() => {
-                        toggleLockContact(contact.id);
-                        setOpenMenuId(null);
-                      }}
-                      className="w-full text-left px-4 py-2 hover:bg-[#182229] flex items-center gap-2"
+                    <div
+                      onClick={e => e.stopPropagation()}
+                      className={`absolute right-4 top-12 z-50 rounded-2xl shadow-2xl py-2 w-56 text-sm font-sans select-none animate-scale-in border transition-all ${
+                        isDark 
+                          ? 'bg-[#233138] border-[#2a3942] text-[#e9edef]' 
+                          : 'bg-white border-gray-200 text-gray-800 shadow-xl'
+                      }`}
                     >
-                      <Lock className="w-4 h-4 text-amber-400" />
-                      {contact.isLocked ? 'Unlock chat' : 'Lock chat'}
-                    </button>
+                      {/* 1. Archive chat */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenMenuId(null);
+                          showToast(`Chat archived`);
+                        }}
+                        className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${
+                          isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Archive className="w-4.5 h-4.5 opacity-80" />
+                          <span>Archive chat</span>
+                        </div>
+                      </button>
 
-                    <button
-                      onClick={() => {
-                        clearChatHistory(contact.id);
-                        setOpenMenuId(null);
-                      }}
-                      className="w-full text-left px-4 py-2 hover:bg-[#182229] text-rose-400 flex items-center gap-2"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Clear chat
-                    </button>
-                  </div>
+                      {/* 2. Mute notifications */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenMenuId(null);
+                          showToast(`Notifications muted`);
+                        }}
+                        className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${
+                          isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <BellOff className="w-4.5 h-4.5 opacity-80" />
+                          <span>Mute notifications</span>
+                        </div>
+                        <ChevronRight className="w-4 h-4 opacity-40" />
+                      </button>
+
+                      {/* 3. Pin chat */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          togglePinContact(contact.id);
+                          setOpenMenuId(null);
+                          showToast(contact.isPinned ? `Unpinned ${contact.name}` : `Pinned ${contact.name}`);
+                        }}
+                        className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${
+                          isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Pin className="w-4.5 h-4.5 opacity-80" />
+                          <span>{contact.isPinned ? 'Unpin chat' : 'Pin chat'}</span>
+                        </div>
+                      </button>
+
+                      {/* 4. Mark as read / unread */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenMenuId(null);
+                          showToast(`Marked as unread`);
+                        }}
+                        className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${
+                          isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <CheckCheck className="w-4.5 h-4.5 opacity-80" />
+                          <span>Mark as unread</span>
+                        </div>
+                      </button>
+
+                      {/* 5. Add to favourites */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenMenuId(null);
+                          showToast(`Added to favourites`);
+                        }}
+                        className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${
+                          isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Heart className="w-4.5 h-4.5 opacity-80" />
+                          <span>Add to favourites</span>
+                        </div>
+                      </button>
+
+                      {/* 6. Add to list */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenMenuId(null);
+                          showToast(`Added to list`);
+                        }}
+                        className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${
+                          isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <ListPlus className="w-4.5 h-4.5 opacity-80" />
+                          <span>Add to list</span>
+                        </div>
+                        <ChevronRight className="w-4 h-4 opacity-40" />
+                      </button>
+
+                      {/* Divider line */}
+                      <div className={`my-1 border-t ${isDark ? 'border-[#2a3942]' : 'border-gray-200'}`} />
+
+                      {/* 7. Clear chat */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          clearChatHistory(contact.id);
+                          setOpenMenuId(null);
+                          showToast(`Chat history cleared`);
+                        }}
+                        className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${
+                          isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <MinusCircle className="w-4.5 h-4.5 opacity-80" />
+                          <span>Clear chat</span>
+                        </div>
+                      </button>
+
+                      {/* 8. Exit group / Delete chat */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          clearChatHistory(contact.id);
+                          setOpenMenuId(null);
+                          showToast(`Chat deleted`);
+                        }}
+                        className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors text-rose-500 ${
+                          isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <LogOut className="w-4.5 h-4.5" />
+                          <span>{contact.name.toLowerCase().includes('group') ? 'Exit group' : 'Delete chat'}</span>
+                        </div>
+                      </button>
+                    </div>
+                  </>
                 )}
               </div>
             );
@@ -406,12 +624,22 @@ export const ChatList: React.FC = () => {
             </div>
 
             {/* Profile Image Square */}
-            <div className="relative aspect-square w-full">
+            <div 
+              onClick={() => {
+                setFullImageContact(previewContact);
+                setPreviewContact(null);
+              }}
+              className="relative aspect-square w-full cursor-pointer group overflow-hidden"
+              title="Click to view full image"
+            >
               <img 
                 src={previewContact.avatar} 
                 alt={previewContact.name} 
-                className="w-full h-full object-cover select-none pointer-events-none"
+                className="w-full h-full object-cover select-none group-hover:scale-105 transition-transform duration-300"
               />
+              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold backdrop-blur-[1px]">
+                Tap for full screen
+              </div>
             </div>
 
             {/* Bottom action bar */}
@@ -461,6 +689,57 @@ export const ChatList: React.FC = () => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Full Screen Contact Avatar Modal */}
+      {fullImageContact && (
+        <div 
+          onClick={() => setFullImageContact(null)} 
+          className="fixed inset-0 z-50 bg-black/95 flex flex-col justify-between p-4 animate-fade-in text-white select-none backdrop-blur-md"
+        >
+          {/* Top Bar */}
+          <div className="w-full flex items-center justify-between py-2 px-2 max-w-2xl mx-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <button 
+                type="button"
+                onClick={() => setFullImageContact(null)} 
+                className="p-2 hover:bg-white/10 rounded-full transition-colors text-white"
+              >
+                <ArrowLeft className="w-6 h-6" />
+              </button>
+              <span className="font-semibold text-lg text-white">{fullImageContact.name}</span>
+            </div>
+            <button 
+              type="button"
+              onClick={() => setFullImageContact(null)} 
+              className="p-2 hover:bg-white/10 rounded-full transition-colors text-white"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          {/* Center Image */}
+          <div className="flex-1 flex items-center justify-center p-2 max-w-2xl mx-auto w-full" onClick={e => e.stopPropagation()}>
+            <img 
+              src={fullImageContact.avatar} 
+              alt={fullImageContact.name} 
+              className="max-w-full max-h-[80vh] w-auto h-auto object-contain shadow-2xl rounded-lg border border-white/10"
+            />
+          </div>
+
+          {/* Bottom Bar / Action */}
+          <div className="py-2 text-center text-xs text-gray-400">
+            Profile Photo • Tap anywhere to close
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification Banner */}
+      {toastMsg && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-[#233138] border border-[#25d366]/40 text-[#25d366] px-5 py-2.5 rounded-full text-xs font-semibold shadow-2xl animate-fade-in flex items-center gap-2 pointer-events-none">
+          <CheckCheck className="w-4 h-4" />
+          <span>{toastMsg}</span>
         </div>
       )}
 

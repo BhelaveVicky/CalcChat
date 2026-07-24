@@ -2,7 +2,9 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { Contact, MediaAttachment, Message, UserProfile, VaultSettings } from '../types';
 import { DEFAULT_SETTINGS, DEFAULT_USER, INITIAL_CONTACTS, INITIAL_MESSAGES } from '../data/initialData';
-import { isFirebaseConfigured } from '../lib/firebase';
+import { firebaseAuth, googleProvider, firebaseDb } from '../lib/firebase';
+import { signInWithRedirect as firebaseSignInWithRedirect, getRedirectResult, signOut as firebaseSignOut } from 'firebase/auth';
+import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 
 interface VaultContextType {
   isUnlocked: boolean;
@@ -16,7 +18,6 @@ interface VaultContextType {
   authUser: FirebaseUser | null;
   authReady: boolean;
   authError: string | null;
-  isFirebaseConfigured: boolean;
   unlockVault: (code: string) => boolean;
   lockVault: () => void;
   signInWithGoogle: () => Promise<void>;
@@ -48,7 +49,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [activeTab, setActiveTab] = useState<'chats' | 'gallery' | 'profile' | 'settings' | 'calls'>('chats');
   const [unlockedLocks, setUnlockedLocks] = useState<Record<string, boolean>>({});
   const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
-  const [authReady, setAuthReady] = useState<boolean>(true);
+  const [authReady, setAuthReady] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
   const [user, setUser] = useState<UserProfile>(() => {
@@ -71,8 +72,101 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return saved ? JSON.parse(saved) : INITIAL_MESSAGES;
   });
 
-  // Authentication removed: keep auth-related state present but inert so
-  // components depending on it continue to work without requiring login.
+  // Firebase Auth State Listener
+  useEffect(() => {
+    let isMounted = true;
+
+    // Set up auth state listener immediately
+    const unsubscribe = firebaseAuth.onAuthStateChanged(async (user) => {
+      if (!isMounted) return;
+      
+      console.log('🔥 Auth state changed:', user ? 'User logged in' : 'User logged out');
+      setAuthUser(user);
+      setAuthReady(true);
+
+      if (user) {
+        // Save user to Firestore
+        await saveUserToFirebase(user);
+        
+        // Load user data from Firestore
+        await loadUserDataFromFirebase(user.uid);
+        
+        // Update user profile with Firebase data
+        setUser(prev => ({
+          ...prev,
+          name: user.displayName || prev.name,
+          avatar: user.photoURL || prev.avatar,
+          email: user.email || prev.email,
+          providerId: user.providerData[0]?.providerId || prev.providerId,
+          firebaseUid: user.uid,
+          isAdmin: user.email === 'bhelavevicky66@gmail.com',
+        }));
+      }
+    });
+
+    // Handle redirect result on page load (separate from auth state)
+    getRedirectResult(firebaseAuth).then((result) => {
+      if (result && result.user && isMounted) {
+        console.log('✅ Redirect sign-in successful:', result.user);
+        // Auth state will be handled by onAuthStateChanged
+      }
+    }).catch((error) => {
+      console.error('❌ Redirect result error:', error);
+      // Ignore redirect errors - might be normal page load without redirect
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
+
+  const saveUserToFirebase = async (firebaseUser: FirebaseUser) => {
+    try {
+      const userRef = doc(firebaseDb, 'users', firebaseUser.uid);
+      const userDoc = await getDoc(userRef);
+      
+      const userData = {
+        firebaseUid: firebaseUser.uid,
+        email: firebaseUser.email,
+        name: firebaseUser.displayName,
+        avatar: firebaseUser.photoURL,
+        providerId: firebaseUser.providerData[0]?.providerId,
+        isAdmin: firebaseUser.email === 'bhelavevicky66@gmail.com',
+        updatedAt: new Date().toISOString(),
+      };
+
+      if (userDoc.exists()) {
+        await updateDoc(userRef, userData);
+      } else {
+        await setDoc(userRef, {
+          ...userData,
+          createdAt: new Date().toISOString(),
+          settings: DEFAULT_SETTINGS,
+          contacts: INITIAL_CONTACTS,
+          messages: INITIAL_MESSAGES,
+        });
+      }
+    } catch (error) {
+      console.error('Error saving user to Firebase:', error);
+    }
+  };
+
+  const loadUserDataFromFirebase = async (uid: string) => {
+    try {
+      const userRef = doc(firebaseDb, 'users', uid);
+      const userDoc = await getDoc(userRef);
+      
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        if (data.settings) setSettings(data.settings);
+        if (data.contacts) setContacts(data.contacts);
+        if (data.messages) setMessages(data.messages);
+      }
+    } catch (error) {
+      console.error('Error loading user data from Firebase:', error);
+    }
+  };
 
   // Save to LocalStorage whenever state changes
   useEffect(() => {
@@ -81,15 +175,54 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(settings));
+    // Sync to Firestore
+    if (authUser) {
+      saveSettingsToFirebase(authUser.uid, settings);
+    }
   }, [settings]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_CONTACTS, JSON.stringify(contacts));
+    // Sync to Firestore
+    if (authUser) {
+      saveContactsToFirebase(authUser.uid, contacts);
+    }
   }, [contacts]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify(messages));
+    // Sync to Firestore
+    if (authUser) {
+      saveMessagesToFirebase(authUser.uid, messages);
+    }
   }, [messages]);
+
+  const saveSettingsToFirebase = async (uid: string, settings: VaultSettings) => {
+    try {
+      const userRef = doc(firebaseDb, 'users', uid);
+      await updateDoc(userRef, { settings });
+    } catch (error) {
+      console.error('Error saving settings to Firebase:', error);
+    }
+  };
+
+  const saveContactsToFirebase = async (uid: string, contacts: Contact[]) => {
+    try {
+      const userRef = doc(firebaseDb, 'users', uid);
+      await updateDoc(userRef, { contacts });
+    } catch (error) {
+      console.error('Error saving contacts to Firebase:', error);
+    }
+  };
+
+  const saveMessagesToFirebase = async (uid: string, messages: Record<string, Message[]>) => {
+    try {
+      const userRef = doc(firebaseDb, 'users', uid);
+      await updateDoc(userRef, { messages });
+    } catch (error) {
+      console.error('Error saving messages to Firebase:', error);
+    }
+  };
 
   // Broadcast channel for multi-tab real-time sync
   useEffect(() => {
@@ -304,16 +437,42 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   };
 
-  const signInWithGoogle = async () => {
-    // no-op: login removed
-    setAuthError(null);
-    return;
-  };
+ const signInWithGoogle = async () => {
+  try {
+    console.log("========== GOOGLE LOGIN START ==========");
+    console.log("Current URL:", window.location.href);
+    console.log("Firebase Auth:", firebaseAuth);
+    console.log("Google Provider:", googleProvider);
 
-  const signOutGoogle = async () => {
-    // no-op: login removed
     setAuthError(null);
-    return;
+
+    // Use popup for immediate authentication without page reload
+    const { signInWithPopup } = await import('firebase/auth');
+    await signInWithPopup(firebaseAuth, googleProvider);
+
+    console.log("✅ Sign-in successful");
+  } catch (error: any) {
+    console.error("❌ Google Sign In Error");
+    console.error("Error Code:", error.code);
+    console.error("Error Message:", error.message);
+    console.error("Full Error:", error);
+
+    setAuthError(error.message || "Google Sign In Failed");
+
+    throw error;
+  }
+};
+  const signOutGoogle = async () => {
+    try {
+      await firebaseSignOut(firebaseAuth);
+      setAuthUser(null);
+      setUser(DEFAULT_USER);
+      setAuthError(null);
+    } catch (error: any) {
+      console.error('Google sign-out error:', error);
+      setAuthError(error.message || 'Failed to sign out');
+      throw error;
+    }
   };
 
   const addContact = (name: string, status: string, isAi: boolean) => {
@@ -374,7 +533,6 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       authUser,
       authReady,
       authError,
-      isFirebaseConfigured,
       unlockVault,
       lockVault,
       signInWithGoogle,

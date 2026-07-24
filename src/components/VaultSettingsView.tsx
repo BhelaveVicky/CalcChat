@@ -31,9 +31,9 @@ const MenuItem: React.FC<{
   right?: React.ReactNode;
   danger?: boolean;
 }> = ({ icon, label, sub, onClick, right, danger }) => (
-  <button
+  <div
     onClick={onClick}
-    className={`w-full flex items-center gap-4 px-5 py-3.5 hover:bg-white/5 active:bg-white/10 transition-colors text-left`}
+    className={`w-full flex items-center gap-4 px-5 py-3.5 transition-colors text-left ${onClick ? 'cursor-pointer hover:bg-white/5 active:bg-white/10' : ''}`}
   >
     <span className={`shrink-0 ${danger ? 'text-red-400' : 'text-[#8696a0]'}`}>{icon}</span>
     <div className="flex-1 min-w-0">
@@ -43,7 +43,7 @@ const MenuItem: React.FC<{
     {right !== undefined ? right : (
       onClick ? <ChevronRight className="w-4 h-4 text-[#8696a0] shrink-0" /> : null
     )}
-  </button>
+  </div>
 );
 
 const SectionDivider: React.FC<{ label?: string }> = ({ label }) => (

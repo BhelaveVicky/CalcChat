@@ -11,7 +11,7 @@ import { VaultContainer } from './components/VaultContainer';
 import LoginPage from './components/LoginPage';
 
 const AppContent: React.FC = () => {
-  const { authUser, authReady } = useVault();
+  const { authUser, authReady, isUnlocked, unlockVault, settings } = useVault();
 
   if (!authReady) {
     return (

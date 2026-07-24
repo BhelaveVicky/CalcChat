@@ -1,24 +1,43 @@
 import { initializeApp, getApp, getApps } from 'firebase/app';
-import { GoogleAuthProvider, getAuth } from 'firebase/auth';
+import { GoogleAuthProvider, getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, browserLocalPersistence, setPersistence } from 'firebase/auth';
+import { getFirestore, collection, doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY as string | undefined,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN as string | undefined,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID as string | undefined,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET as string | undefined,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID as string | undefined,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID as string | undefined,
+  apiKey: "AIzaSyDVFp5Eq8gyLNQqRlUPV2SxTLRAf4OPAVc",
+  authDomain: "linkup--app.firebaseapp.com",
+  databaseURL: "https://linkup--app-default-rtdb.firebaseio.com",
+  projectId: "linkup--app",
+  storageBucket: "linkup--app.firebasestorage.app",
+  messagingSenderId: "7898365037",
+  appId: "1:7898365037:web:de9ab4a9ab1a80ad849364",
+  measurementId: "G-1K8PZQ83SZ"
 };
 
-export const isFirebaseConfigured = Boolean(firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId && firebaseConfig.appId);
+// Always initialize Firebase with provided credentials
+export const firebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
-export const firebaseApp = isFirebaseConfigured
-  ? (getApps().length ? getApp() : initializeApp(firebaseConfig))
-  : null;
+console.log('🔥 Firebase App initialized:', firebaseApp);
+console.log('🔥 Firebase Config:', firebaseConfig);
 
-export const firebaseAuth = firebaseApp ? getAuth(firebaseApp) : null;
-export const googleProvider = firebaseAuth ? new GoogleAuthProvider() : null;
+export const firebaseAuth = getAuth(firebaseApp);
+console.log('🔥 Firebase Auth initialized:', firebaseAuth);
 
-if (googleProvider) {
-  googleProvider.setCustomParameters({ prompt: 'select_account' });
-}
+// Set auth persistence to LOCAL to keep user logged in
+setPersistence(firebaseAuth, browserLocalPersistence)
+  .then(() => {
+    console.log('✅ Auth persistence set to LOCAL');
+  })
+  .catch((error) => {
+    console.error('❌ Error setting auth persistence:', error);
+  });
+
+export const googleProvider = new GoogleAuthProvider();
+console.log('🔥 Google Provider initialized:', googleProvider);
+
+export const firebaseDb = getFirestore(firebaseApp);
+console.log('🔥 Firestore initialized:', firebaseDb);
+
+googleProvider.setCustomParameters({ prompt: 'select_account' });
+
+// Export auth functions
+export { signInWithPopup, signInWithRedirect, getRedirectResult, signOut };

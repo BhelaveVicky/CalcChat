@@ -1,9 +1,9 @@
 import React from 'react';
-import { MessageSquare, CircleDashed, Phone, User } from 'lucide-react';
+import { MessageSquare, CircleDashed, Phone, User, ArrowRightCircle } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 
 export const WhatsAppBottomBar: React.FC = () => {
-  const { activeTab, setActiveTab, unreadTotal } = useVault();
+  const { activeTab, setActiveTab, unreadTotal, lockVault } = useVault();
 
   return (
     <nav className="bg-[#0b141a] border-t border-[#202c33] px-2 py-2 flex items-center justify-around text-xs select-none shrink-0 z-30">
@@ -71,6 +71,19 @@ export const WhatsAppBottomBar: React.FC = () => {
           </div>
         </div>
         <span className="text-[11px] sm:text-xs">Profile</span>
+      </button>
+
+      {/* 5. Back to Calculator */}
+      <button
+        onClick={() => lockVault()}
+        className="flex flex-col items-center justify-center gap-1 flex-1 transition-all group text-rose-500 hover:text-rose-400"
+      >
+        <div className="relative flex items-center justify-center">
+          <div className="px-5 py-1 rounded-full bg-rose-500/10 group-hover:bg-rose-500/20 transition-colors">
+            <ArrowRightCircle className="w-5 h-5 stroke-[2.2] text-rose-500 animate-pulse" />
+          </div>
+        </div>
+        <span className="text-[11px] sm:text-xs font-bold text-rose-500">Back</span>
       </button>
     </nav>
   );

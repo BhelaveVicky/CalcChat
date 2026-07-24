@@ -105,16 +105,7 @@ export const CallsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Favorites / Quick Call Link */}
-      <div className="px-4 py-3 flex items-center gap-4 cursor-pointer hover:bg-[#202c33]/40 transition-colors">
-        <div className="w-12 h-12 rounded-full bg-[#00a884] flex items-center justify-center text-[#0b141a] font-bold shadow-md shrink-0">
-          <PhoneCall className="w-6 h-6 fill-current text-[#0b141a]" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="text-base font-medium text-[#e9edef]">Create call link</h3>
-          <p className="text-xs text-[#8596a0] truncate">Share a link for your WhatsApp call</p>
-        </div>
-      </div>
+
 
       {/* Section Header */}
       <div className="px-4 pt-4 pb-2">

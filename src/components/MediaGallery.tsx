@@ -218,51 +218,6 @@ export const MediaGallery: React.FC = () => {
         ))}
       </div>
 
-      {/* Secret Vault Media Toggle Section */}
-      <div className="mt-8 mx-4 pt-4 border-t border-[#1f2c34]/80">
-        <button
-          onClick={() => setShowVaultMedia(!showVaultMedia)}
-          className="w-full bg-[#182229] hover:bg-[#202c33] border border-[#2a3942] rounded-2xl p-3.5 flex items-center justify-between text-sm transition-colors shadow"
-        >
-          <div className="flex items-center gap-2.5 text-[#25d366] font-semibold">
-            <Lock className="w-4 h-4" />
-            <span>Classified Vault Media</span>
-          </div>
-          <span className="text-xs font-mono bg-[#0b141a] text-[#8596a0] px-2.5 py-1 rounded-full border border-[#2a3942]">
-            {allMedia.length} files {showVaultMedia ? '▲' : '▼'}
-          </span>
-        </button>
-
-        {showVaultMedia && (
-          <div className="mt-4 grid grid-cols-3 gap-2 animate-fade-in">
-            {allMedia.length === 0 ? (
-              <div className="col-span-3 text-center py-6 text-xs text-[#8596a0] bg-[#111b21] rounded-2xl">
-                No secret media files uploaded yet in chats.
-              </div>
-            ) : (
-              allMedia.map((item, i) => (
-                <div 
-                  key={i}
-                  onClick={() => item.attachment.type === 'image' ? setPreviewUrl(item.attachment.url) : window.open(item.attachment.url)}
-                  className="aspect-square bg-[#111b21] rounded-xl overflow-hidden relative cursor-pointer border border-[#2a3942] hover:opacity-90 transition-opacity flex items-center justify-center"
-                >
-                  {item.attachment.type === 'image' ? (
-                    <img src={item.attachment.url} alt={item.attachment.name} className="w-full h-full object-cover" />
-                  ) : item.attachment.type === 'video' ? (
-                    <Video className="w-6 h-6 text-rose-400" />
-                  ) : (
-                    <FileText className="w-6 h-6 text-indigo-400" />
-                  )}
-                  <span className="absolute bottom-1 left-1 right-1 text-[9px] bg-black/70 text-white truncate px-1 rounded">
-                    {item.attachment.name}
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
-        )}
-      </div>
-
       {/* Story Viewer Overlay Modal */}
       {activeStory && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between animate-fade-in text-white">

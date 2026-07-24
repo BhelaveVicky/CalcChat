@@ -2,11 +2,11 @@ import { Contact, Message, UserProfile, VaultSettings } from '../types';
 
 export const DEFAULT_USER: UserProfile = {
   id: 'user_me',
-  name: 'Agent Cipher',
-  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+  name: 'pranay malewar',
+  avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=300&auto=format&fit=crop&q=80',
   status: 'In the encrypted vault 🤫',
   isOnline: true,
-  email: '',
+  email: 'vickybhelave25@navgurukul.org',
   providerId: 'local',
   firebaseUid: '',
 };

@@ -5,12 +5,22 @@ import securityLock from '@assets/security-lock.png';
 
 const LoginPage: React.FC = () => {
   const { signInWithGoogle, authUser, authReady } = useVault();
+  
+  // Redirect to calculator if already authenticated
+  if (authUser) {
+    return null; // Will be handled by App.tsx routing
+  }
 
   const handleGoogleSignIn = async () => {
+    console.log('🔵 Google Sign-In button clicked');
     try {
+      console.log('🔵 Calling signInWithGoogle...');
       await signInWithGoogle();
+      console.log('✅ Redirect initiated successfully');
+      // Note: With redirect, the page will reload after Google authentication
     } catch (error) {
-      console.error('Sign in failed:', error);
+      console.error('❌ Sign in failed:', error);
+      alert('Sign in failed: ' + (error as Error).message);
     }
   };
 
@@ -34,7 +44,7 @@ const LoginPage: React.FC = () => {
       <h1 className="text-[28px] font-bold text-[#091540] flex items-center gap-2 mb-2">
         Welcome Back <span className="animate-pulse">👋</span>
       </h1>
-      <p className="text-[#718096] text-[15px] mb-8 font-medium">Sign in with Google to continue</p>
+      <p className="text-[#718096] text-[15px] mb-8 font-medium">Sign in with Google to continue (redirects to Google)</p>
 
       {/* Security Lock Image */}
       <div className="relative w-full flex justify-center mb-10">

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Plus, Pin, Lock, EyeOff, Bot, MoreVertical, Trash2, Sparkles, PhoneCall } from 'lucide-react';
+import { Search, Plus, Pin, Lock, EyeOff, Bot, MoreVertical, Trash2, Sparkles, PhoneCall, MessageSquare } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 
 export const ChatList: React.FC = () => {
@@ -17,7 +17,7 @@ export const ChatList: React.FC = () => {
   } = useVault();
 
   const [search, setSearch] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'unread' | 'favorites' | 'groups'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'pin' | 'unread' | 'groups'>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [newContactName, setNewContactName] = useState('');
   const [newContactStatus, setNewContactStatus] = useState('');
@@ -25,6 +25,7 @@ export const ChatList: React.FC = () => {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [lockPinAttempt, setLockPinAttempt] = useState('');
   const [targetLockId, setTargetLockId] = useState<string | null>(null);
+  const [previewContact, setPreviewContact] = useState<any | null>(null);
 
   const unreadTotalCount = contacts.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
 
@@ -32,8 +33,8 @@ export const ChatList: React.FC = () => {
     const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase()) ||
                           c.status.toLowerCase().includes(search.toLowerCase());
     if (!matchesSearch) return false;
+    if (activeFilter === 'pin') return c.isPinned;
     if (activeFilter === 'unread') return c.unreadCount > 0;
-    if (activeFilter === 'favorites') return c.isPinned;
     if (activeFilter === 'groups') return c.name.toLowerCase().includes('group') || c.name.toLowerCase().includes('team') || c.name.toLowerCase().includes('sparkle');
     return true;
   });
@@ -105,21 +106,21 @@ export const ChatList: React.FC = () => {
         </button>
 
         <button
+          onClick={() => setActiveFilter('pin')}
+          className={`py-1.5 rounded-full font-medium text-center transition-colors truncate px-1 ${
+            activeFilter === 'pin' ? 'bg-[#103629] text-[#25d366]' : 'bg-[#202c33] text-[#8596a0] hover:bg-[#2a3942]'
+          }`}
+        >
+          Pin
+        </button>
+
+        <button
           onClick={() => setActiveFilter('unread')}
           className={`py-1.5 rounded-full font-medium text-center transition-colors truncate px-1 ${
             activeFilter === 'unread' ? 'bg-[#103629] text-[#25d366]' : 'bg-[#202c33] text-[#8596a0] hover:bg-[#2a3942]'
           }`}
         >
-          Unread {unreadTotalCount > 0 ? unreadTotalCount : '13'}
-        </button>
-
-        <button
-          onClick={() => setActiveFilter('favorites')}
-          className={`py-1.5 rounded-full font-medium text-center transition-colors truncate px-1 ${
-            activeFilter === 'favorites' ? 'bg-[#103629] text-[#25d366]' : 'bg-[#202c33] text-[#8596a0] hover:bg-[#2a3942]'
-          }`}
-        >
-          Favorites
+          Unread {unreadTotalCount > 0 ? `(${unreadTotalCount})` : ''}
         </button>
 
         <button
@@ -172,7 +173,13 @@ export const ChatList: React.FC = () => {
                 className="px-4 py-3 cursor-pointer transition-colors flex items-center justify-between hover:bg-[#202c33]/50 active:bg-[#202c33] relative group"
               >
                 {/* Left: Avatar */}
-                <div className="relative shrink-0 mr-3.5">
+                <div 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPreviewContact(contact);
+                  }}
+                  className="relative shrink-0 mr-3.5 cursor-pointer hover:scale-105 active:scale-95 transition-transform"
+                >
                   <img
                     src={contact.avatar}
                     alt={contact.name}
@@ -278,30 +285,7 @@ export const ChatList: React.FC = () => {
         )}
       </div>
 
-      {/* Floating Action Buttons (FABs) Bottom Right */}
-      <div className="absolute bottom-4 right-4 flex flex-col items-center gap-3 z-30 pointer-events-none">
-        {/* Top FAB: Meta AI Sparkle */}
-        <button
-          onClick={() => alert("Meta AI Sparkle Connected.")}
-          className="pointer-events-auto w-11 h-11 rounded-2xl bg-[#202c33] hover:bg-[#2a3942] border border-[#2a3942] flex items-center justify-center shadow-xl active:scale-95 transition-all text-purple-400"
-          title="Meta AI"
-        >
-          <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center p-0.5">
-            <div className="w-full h-full bg-[#202c33] rounded-full flex items-center justify-center">
-              <Sparkles className="w-3.5 h-3.5 text-purple-300 animate-pulse" />
-            </div>
-          </div>
-        </button>
-
-        {/* Bottom FAB: New Chat */}
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="pointer-events-auto w-14 h-14 rounded-2xl bg-[#25d366] hover:bg-[#20ba5a] active:scale-95 flex items-center justify-center shadow-2xl transition-all text-[#0b141a]"
-          title="New Chat"
-        >
-          <Plus className="w-7 h-7 stroke-[2.5]" />
-        </button>
-      </div>
+      {/* Floating Action Buttons removed per user request */}
 
       {/* Add Contact Modal */}
       {showAddModal && (
@@ -403,6 +387,80 @@ export const ChatList: React.FC = () => {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Contact Profile Image Quick Preview Modal */}
+      {previewContact && (
+        <div 
+          onClick={() => setPreviewContact(null)} 
+          className="absolute inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-6 animate-fade-in"
+        >
+          <div 
+            onClick={e => e.stopPropagation()} 
+            className="bg-[#1f2c34] rounded-2xl overflow-hidden shadow-2xl w-full max-w-[250px] animate-scale-in relative border border-[#2a3942]"
+          >
+            {/* Top header with contact name */}
+            <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent text-white px-4 py-3 z-10 flex items-center justify-between">
+              <span className="font-semibold text-[15px] truncate pr-2 shadow-sm">{previewContact.name}</span>
+            </div>
+
+            {/* Profile Image Square */}
+            <div className="relative aspect-square w-full">
+              <img 
+                src={previewContact.avatar} 
+                alt={previewContact.name} 
+                className="w-full h-full object-cover select-none pointer-events-none"
+              />
+            </div>
+
+            {/* Bottom action bar */}
+            <div className="flex items-center justify-around py-2.5 bg-[#1f2c34] text-[#25d366] border-t border-[#2a3942]/60">
+              <button 
+                onClick={() => {
+                  handleContactClick(previewContact.id, previewContact.isLocked);
+                  setPreviewContact(null);
+                }}
+                className="p-2 hover:bg-[#202c33] rounded-full transition-colors active:scale-95"
+                title="Send Message"
+              >
+                <MessageSquare className="w-5 h-5 stroke-[2.2]" />
+              </button>
+              
+              <button 
+                onClick={() => {
+                  alert(`Simulating voice call with ${previewContact.name}... 📞`);
+                  setPreviewContact(null);
+                }}
+                className="p-2 hover:bg-[#202c33] rounded-full transition-colors active:scale-95"
+                title="Voice Call"
+              >
+                <PhoneCall className="w-5 h-5 stroke-[2.2]" />
+              </button>
+              
+              <button 
+                onClick={() => {
+                  alert(`Simulating video call with ${previewContact.name}... 🎥`);
+                  setPreviewContact(null);
+                }}
+                className="p-2 hover:bg-[#202c33] rounded-full transition-colors active:scale-95"
+                title="Video Call"
+              >
+                <PhoneCall className="w-5 h-5 stroke-[2.2] rotate-90" />
+              </button>
+              
+              <button 
+                onClick={() => {
+                  alert(`Status: "${previewContact.status}"\nLast Seen: ${previewContact.lastSeen || 'Online'}`);
+                  setPreviewContact(null);
+                }}
+                className="p-2 hover:bg-[#202c33] rounded-full transition-colors active:scale-95"
+                title="Info"
+              >
+                <Bot className="w-5 h-5 stroke-[2.2]" />
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -181,23 +181,17 @@ export const Calculator: React.FC = () => {
     }`}>
       
       {/* Device wrapper - full height/width on mobile, simulated mockup on desktop */}
-      <div className={`w-full h-[100dvh] sm:h-[820px] sm:w-[390px] sm:max-w-sm sm:rounded-[50px] sm:border-[10px] sm:border-slate-950 sm:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] sm:overflow-hidden relative flex flex-col ${
-        appSettings.darkMode ? 'bg-[#1a1a1a]' : 'bg-gradient-to-b from-[#ff8e6a] to-[#ff5676]'
-      }`}>
+      <div className="w-full h-[100dvh] sm:h-[820px] sm:w-[390px] sm:max-w-sm sm:rounded-[50px] sm:border-[10px] sm:border-slate-950 sm:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] sm:overflow-hidden relative flex flex-col bg-gradient-to-b from-[#ff8e6a] to-[#ff5676]">
         
         {/* Desktop Device Notch */}
         <div className="hidden sm:block absolute top-0 left-1/2 -translate-x-1/2 z-20 w-40 h-6 bg-slate-950 rounded-b-2xl"></div>
         
         {/* Top Display Section (Balanced 50-50 flex-1 section) */}
-        <div className={`flex-1 flex flex-col justify-between pt-12 pb-6 px-6 relative ${
-          appSettings.darkMode ? 'bg-gradient-to-b from-[#ff8e6a] to-[#ff5676]' : ''
-        }`}>
+        <div className="flex-1 flex flex-col justify-between pt-12 pb-6 px-6 relative">
           {/* Top Bar with Settings and Title */}
           <div className="relative w-full flex items-center justify-center pt-1 min-h-[28px] flex-none">
             {/* Centered title */}
-            <div className={`text-center text-xs font-semibold tracking-widest uppercase font-sans ${
-              appSettings.darkMode ? 'text-white/95' : 'text-white/95'
-            }`}>
+            <div className="text-center text-xs font-semibold tracking-widest uppercase font-sans text-white/95">
               {t('calculator')}
             </div>
 
@@ -214,23 +208,19 @@ export const Calculator: React.FC = () => {
           {/* Display Output area */}
           <div className="relative mt-auto mb-2 w-full flex flex-col items-end pr-1 pl-1">
             {/* Previous Equation History */}
-            <div className={`text-right text-lg font-medium tracking-wide font-sans mb-1.5 min-h-[28px] select-text ${
-              appSettings.darkMode ? 'text-white/70' : 'text-white/70'
-            }`}>
+            <div className="text-right text-lg font-medium tracking-wide font-sans mb-1.5 min-h-[28px] select-text text-white/70">
               {equation.replace(/x/g, 'X')}
             </div>
 
             {/* Current Value / Result */}
-            <div className={`text-right text-5xl sm:text-6xl font-semibold tracking-tight font-sans truncate w-full select-text ${
-              appSettings.darkMode ? 'text-white' : 'text-white'
-            }`}>
+            <div className="text-right text-5xl sm:text-6xl font-semibold tracking-tight font-sans truncate w-full select-text text-white">
               {formatDisplayNumber(display)}
             </div>
           </div>
         </div>
 
         {/* Keypad Bottom Sheet (Expanded to flex-1 to occupy remaining height) */}
-        <div className={`flex-1 rounded-t-[40px] px-6 pb-8 pt-3 shadow-[0_-8px_30px_rgba(0,0,0,0.06)] flex flex-col justify-between ${
+        <div className={`flex-1 rounded-t-[40px] px-6 pb-8 pt-3 shadow-[0_-8px_30px_rgba(0,0,0,0.15)] flex flex-col justify-between overflow-hidden ${
               appSettings.darkMode ? 'bg-[#1a1a1a]' : 'bg-white'
             }`}>
           {/* Bottom sheet drag handle indicator */}

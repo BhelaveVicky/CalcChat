@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Moon, Sun, History, Globe, ChevronRight, X, Eye, Trash2, Download, Calendar, Clock, Lock, Shield } from 'lucide-react';
+import { Moon, Sun, History, Globe, ChevronRight, X, Eye, Trash2, Download, Calendar, Clock, Lock, Shield, LogOut } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
 import { useVault } from '../context/VaultContext';
 
@@ -9,7 +9,15 @@ interface SettingsProps {
 
 export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
   const { settings, updateSettings, t, history, clearHistory } = useSettings();
-  const { settings: vaultSettings, unlockVault, setActiveTab, updateSettings: updateVaultSettings } = useVault();
+  const { 
+    settings: vaultSettings, 
+    unlockVault, 
+    setActiveTab, 
+    updateSettings: updateVaultSettings,
+    signOutGoogle,
+    authUser,
+    lockVault
+  } = useVault();
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [showHistoryView, setShowHistoryView] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -18,6 +26,7 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
   const [securityPassword, setSecurityPassword] = useState('');
   const [showSnackbar, setShowSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const isFirstTimeUser = !vaultSettings.passcode;
 
@@ -296,6 +305,36 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
             <ChevronRight className="w-5 h-5 text-gray-400 dark:text-gray-500" />
           </button>
         </div>
+
+        {/* Session Section */}
+        <div className="bg-white dark:bg-[#2a2a2a] rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="px-5 py-3 bg-gray-50 dark:bg-[#333333] border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-sm font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+              {settings.language === 'hi' ? 'खाता सत्र' : 'Account Session'}
+            </h2>
+          </div>
+
+          {/* Log Out Action */}
+          <button
+            onClick={() => setShowLogoutConfirm(true)}
+            className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-[#333333] transition-colors text-rose-600 dark:text-rose-400"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-rose-500 to-red-600 shadow-lg">
+                <LogOut className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1 text-left">
+                <span className="font-semibold">
+                  {settings.language === 'hi' ? 'लॉग आउट' : 'Log out'}
+                </span>
+                <p className="text-xs text-rose-500/70 dark:text-rose-400/70 mt-0.5">
+                  {settings.language === 'hi' ? 'सत्र से सुरक्षित रूप से लॉग आउट करें' : 'Sign out securely from this session'}
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-rose-400" />
+          </button>
+        </div>
       </div>
 
       {/* Language Modal */}
@@ -520,6 +559,47 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                 className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg"
               >
                 {isFirstTimeUser ? 'Set Password' : 'Unlock'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={() => setShowLogoutConfirm(false)} />
+          <div className="relative bg-white dark:bg-[#2a2a2a] rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-scale-in p-6 text-center space-y-5 border border-gray-200 dark:border-gray-700">
+            <div className="mx-auto w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-950/30 flex items-center justify-center text-rose-600 dark:text-rose-400">
+              <LogOut className="w-6 h-6" />
+            </div>
+            <div className="space-y-1.5">
+              <h3 className="text-gray-800 dark:text-white font-bold text-lg">
+                {settings.language === 'hi' ? 'लॉग आउट की पुष्टि करें' : 'Confirm Log out'}
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                {settings.language === 'hi'
+                  ? 'क्या आप वाकई इस सत्र से लॉग आउट करना चाहते हैं? आपके सुरक्षित लॉक किए गए चैट सुरक्षित रहेंगे।'
+                  : 'Are you sure you want to log out from this session? Your locked chats will remain secure.'}
+              </p>
+            </div>
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="flex-1 py-3 rounded-xl bg-gray-100 dark:bg-[#333333] hover:bg-gray-200 dark:hover:bg-[#444444] active:scale-95 text-gray-700 dark:text-gray-300 text-sm font-semibold transition-all border border-gray-300/40 dark:border-gray-600/40"
+              >
+                {settings.language === 'hi' ? 'रद्द करें' : 'Cancel'}
+              </button>
+              <button
+                onClick={() => {
+                  setShowLogoutConfirm(false);
+                  signOutGoogle();
+                  lockVault();
+                  onClose?.();
+                }}
+                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 active:scale-95 text-white text-sm font-semibold transition-all shadow-lg"
+              >
+                {settings.language === 'hi' ? 'लॉग आउट' : 'Log out'}
               </button>
             </div>
           </div>

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import {
   User, Key, Check, LogIn, LogOut, Mail, Fingerprint, Search,
-  Lock, MessageSquare, Bell, Keyboard, Shield, X, HelpCircle, Eye, EyeOff
+  Lock, MessageSquare, Bell, Keyboard, Shield, X, HelpCircle, Eye, EyeOff,
+  ArrowRightCircle
 } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 
@@ -15,7 +16,8 @@ export const UserProfileView: React.FC = () => {
     signInWithGoogle,
     signOutGoogle,
     settings,
-    updateSettings
+    updateSettings,
+    lockVault
   } = useVault();
 
   // Primary state matching the UI list
@@ -151,7 +153,7 @@ export const UserProfileView: React.FC = () => {
       {/* Main Settings Panel Area */}
       <div className="flex-1 overflow-y-auto no-scrollbar">
         
-        {/* User Info Section (Centered round avatar, bold name, email - Exactly as in the screenshot) */}
+        {/* User Info Section (Centered round avatar, bold name, email) */}
         <div className="flex flex-col items-center justify-center pt-4 pb-6 px-4">
           <div 
             onClick={() => setActiveSubPage('profile')}
@@ -199,15 +201,7 @@ export const UserProfileView: React.FC = () => {
           )}
         </div>
 
-        {/* Cryptographic Key Display */}
-        <div className="mx-6 my-6 p-4.5 bg-[#233138] border border-[#2a3942]/60 rounded-2xl text-xs font-mono text-[#8596a0]">
-          <div className="flex items-center gap-2 text-[#25d366] font-semibold mb-1.5">
-            <Key className="w-4 h-4" /> Security Key Status
-          </div>
-          <p className="truncate text-[11px] select-all bg-[#0b141a] p-2 rounded border border-[#2a3942]/40">
-            0x9F8831A044E119B2773C...84F00E9923
-          </p>
-        </div>
+
 
       </div>
 

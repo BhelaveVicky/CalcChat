@@ -18,6 +18,7 @@ export interface MediaAttachment {
   url: string;
   name: string;
   size?: string;
+  duration?: string;
 }
 
 export interface Message {
@@ -47,6 +48,9 @@ export interface Contact {
   isLocked?: boolean;
   isAiBot?: boolean;
   unreadCount: number;
+  isArchived?: boolean;
+  isGroup?: boolean;
+  groupMembers?: string[];
 }
 
 export interface VaultSettings {

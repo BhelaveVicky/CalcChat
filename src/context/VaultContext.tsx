@@ -33,6 +33,16 @@ interface VaultContextType {
   togglePinContact: (contactId: string) => void;
   toggleLockContact: (contactId: string) => void;
   unlockChatLock: (contactId: string) => void;
+  blockedContactIds: string[];
+  unreadTotal: number;
+  blockContact: (contactId: string) => void;
+  unblockContact: (contactId: string) => void;
+  clearAllChatHistory: () => void;
+  toggleArchiveContact: (contactId: string) => void;
+  startCall: (contactId: string, type: 'voice' | 'video') => void;
+  createGroup: (name: string, members: string[]) => string;
+  activeCall: { contactId: string; type: 'voice' | 'video' } | null;
+  endCall: () => void;
 }
 
 const VaultContext = createContext<VaultContextType | undefined>(undefined);
@@ -71,6 +81,15 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const saved = localStorage.getItem(STORAGE_KEY_MESSAGES);
     return saved ? JSON.parse(saved) : INITIAL_MESSAGES;
   });
+
+  const [blockedContactIds, setBlockedContactIds] = useState<string[]>(() => {
+    const saved = localStorage.getItem('calc_vault_blocked_v1');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [activeCall, setActiveCall] = useState<{ contactId: string; type: 'voice' | 'video' } | null>(null);
+
+  const unreadTotal = contacts.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
 
   // Firebase Auth State Listener
   useEffect(() => {
@@ -520,6 +539,56 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setUnlockedLocks(prev => ({ ...prev, [contactId]: true }));
   };
 
+  const blockContact = (contactId: string) => {
+    setBlockedContactIds(prev => {
+      const next = prev.includes(contactId) ? prev : [...prev, contactId];
+      localStorage.setItem('calc_vault_blocked_v1', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const unblockContact = (contactId: string) => {
+    setBlockedContactIds(prev => {
+      const next = prev.filter(id => id !== contactId);
+      localStorage.setItem('calc_vault_blocked_v1', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const clearAllChatHistory = () => {
+    setMessages({});
+    localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify({}));
+  };
+
+  const toggleArchiveContact = (contactId: string) => {
+    setContacts(prev => prev.map(c => c.id === contactId ? { ...c, isArchived: !c.isArchived } : c));
+  };
+
+  const startCall = (contactId: string, type: 'voice' | 'video') => {
+    setActiveCall({ contactId, type });
+  };
+
+  const endCall = () => {
+    setActiveCall(null);
+  };
+
+  const createGroup = (name: string, members: string[]): string => {
+    const groupId = 'group_' + Date.now();
+    const newGroupContact: Contact = {
+      id: groupId,
+      name,
+      avatar: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=150&auto=format&fit=crop&q=80',
+      status: `Group with ${members.length} members`,
+      isOnline: false,
+      unreadCount: 0,
+      isGroup: true,
+      groupMembers: members,
+    };
+    setContacts(prev => [newGroupContact, ...prev]);
+    setMessages(prev => ({ ...prev, [groupId]: [] }));
+    return groupId;
+  };
+
   return (
     <VaultContext.Provider value={{
       isUnlocked,
@@ -548,6 +617,16 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       togglePinContact,
       toggleLockContact,
       unlockChatLock,
+      blockedContactIds,
+      unreadTotal,
+      blockContact,
+      unblockContact,
+      clearAllChatHistory,
+      toggleArchiveContact,
+      startCall,
+      createGroup,
+      activeCall,
+      endCall,
     }}>
       {children}
     </VaultContext.Provider>

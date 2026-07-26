@@ -2,7 +2,8 @@ import React, { useState, useRef } from 'react';
 import { 
   Search, Plus, Pin, Lock, EyeOff, Bot, MoreVertical, Trash2, Sparkles, 
   PhoneCall, MessageSquare, ArrowLeft, X, Archive, BellOff, CheckCheck, 
-  Heart, ListPlus, MinusCircle, LogOut, ChevronRight 
+  Heart, ListPlus, MinusCircle, LogOut, ChevronRight, Users, UserPlus, UserCheck,
+  MessageSquarePlus
 } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 import { useSettings } from '../context/SettingsContext';
@@ -17,8 +18,10 @@ export const ChatList: React.FC = () => {
     unlockedLocks,
     unlockChatLock,
     addContact,
+    createGroup,
     togglePinContact,
     toggleLockContact,
+    toggleArchiveContact,
     clearChatHistory,
   } = useVault();
   const { settings: globalSettings } = useSettings();
@@ -27,7 +30,12 @@ export const ChatList: React.FC = () => {
 
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'pin' | 'unread' | 'groups'>('all');
+  const [showArchivedOnly, setShowArchivedOnly] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
+  const [groupNameInput, setGroupNameInput] = useState('');
+  const [customMemberInput, setCustomMemberInput] = useState('');
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [newContactName, setNewContactName] = useState('');
   const [newContactStatus, setNewContactStatus] = useState('');
   const [isAiContact, setIsAiContact] = useState(false);
@@ -66,14 +74,22 @@ export const ChatList: React.FC = () => {
   };
 
   const unreadTotalCount = contacts.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
+  const archivedContactsCount = contacts.filter(c => c.isArchived).length;
 
   const filteredContacts = contacts.filter(c => {
     const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase()) ||
                           c.status.toLowerCase().includes(search.toLowerCase());
     if (!matchesSearch) return false;
+
+    if (showArchivedOnly) {
+      return !!c.isArchived;
+    }
+
+    if (c.isArchived && !search.trim()) return false;
+
     if (activeFilter === 'pin') return c.isPinned;
     if (activeFilter === 'unread') return c.unreadCount > 0;
-    if (activeFilter === 'groups') return c.name.toLowerCase().includes('group') || c.name.toLowerCase().includes('team') || c.name.toLowerCase().includes('sparkle');
+    if (activeFilter === 'groups') return c.isGroup || c.name.toLowerCase().includes('group') || c.name.toLowerCase().includes('team') || c.name.toLowerCase().includes('sparkle');
     return true;
   });
 
@@ -115,6 +131,36 @@ export const ChatList: React.FC = () => {
     setShowAddModal(false);
   };
 
+  const toggleSelectMember = (contactId: string) => {
+    setSelectedMemberIds(prev => 
+      prev.includes(contactId) ? prev.filter(id => id !== contactId) : [...prev, contactId]
+    );
+  };
+
+  const handleGroupSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!groupNameInput.trim()) return;
+
+    const selectedContactNames = contacts
+      .filter(c => selectedMemberIds.includes(c.id))
+      .map(c => c.name);
+
+    const customMembers = customMemberInput
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    const allMembers = Array.from(new Set([...selectedContactNames, ...customMembers]));
+
+    const newGroupId = createGroup(groupNameInput.trim(), allMembers);
+    showToast(`Group "${groupNameInput.trim()}" created!`);
+    setGroupNameInput('');
+    setCustomMemberInput('');
+    setSelectedMemberIds([]);
+    setShowCreateGroupModal(false);
+    setActiveContactId(newGroupId);
+  };
+
   return (
     <div className={`flex-1 flex flex-col overflow-hidden relative font-sans select-none h-full min-h-0 transition-colors ${
       isDark ? 'bg-[#0b141a] text-[#e9edef]' : 'bg-white text-gray-900'
@@ -139,10 +185,10 @@ export const ChatList: React.FC = () => {
       </div>
 
       {/* Filter Chips Horizontal Row */}
-      <div className="grid grid-cols-4 gap-2 px-4 py-2 shrink-0 text-xs sm:text-sm">
+      <div className="flex items-center gap-2 px-4 py-2 shrink-0 text-xs sm:text-sm overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActiveFilter('all')}
-          className={`py-1.5 rounded-full font-medium text-center transition-colors truncate px-2 ${
+          className={`py-1.5 px-3.5 rounded-full font-medium text-center transition-colors whitespace-nowrap shrink-0 ${
             activeFilter === 'all' 
               ? (isDark ? 'bg-[#103629] text-[#25d366]' : 'bg-emerald-100 text-emerald-800 font-bold') 
               : (isDark ? 'bg-[#202c33] text-[#8596a0] hover:bg-[#2a3942]' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')
@@ -153,7 +199,7 @@ export const ChatList: React.FC = () => {
 
         <button
           onClick={() => setActiveFilter('pin')}
-          className={`py-1.5 rounded-full font-medium text-center transition-colors truncate px-1 ${
+          className={`py-1.5 px-3.5 rounded-full font-medium text-center transition-colors whitespace-nowrap shrink-0 ${
             activeFilter === 'pin' 
               ? (isDark ? 'bg-[#103629] text-[#25d366]' : 'bg-emerald-100 text-emerald-800 font-bold') 
               : (isDark ? 'bg-[#202c33] text-[#8596a0] hover:bg-[#2a3942]' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')
@@ -164,7 +210,7 @@ export const ChatList: React.FC = () => {
 
         <button
           onClick={() => setActiveFilter('unread')}
-          className={`py-1.5 rounded-full font-medium text-center transition-colors truncate px-1 ${
+          className={`py-1.5 px-3.5 rounded-full font-medium text-center transition-colors whitespace-nowrap shrink-0 ${
             activeFilter === 'unread' 
               ? (isDark ? 'bg-[#103629] text-[#25d366]' : 'bg-emerald-100 text-emerald-800 font-bold') 
               : (isDark ? 'bg-[#202c33] text-[#8596a0] hover:bg-[#2a3942]' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')
@@ -175,7 +221,7 @@ export const ChatList: React.FC = () => {
 
         <button
           onClick={() => setActiveFilter('groups')}
-          className={`py-1.5 rounded-full font-medium text-center transition-colors truncate px-2 ${
+          className={`py-1.5 px-3.5 rounded-full font-medium text-center transition-colors whitespace-nowrap shrink-0 ${
             activeFilter === 'groups' 
               ? (isDark ? 'bg-[#103629] text-[#25d366]' : 'bg-emerald-100 text-emerald-800 font-bold') 
               : (isDark ? 'bg-[#202c33] text-[#8596a0] hover:bg-[#2a3942]' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')
@@ -194,6 +240,59 @@ export const ChatList: React.FC = () => {
             <EyeOff className="w-3.5 h-3.5" /> Disguised Previews Active
           </span>
           <span className="text-[10px] opacity-80">Tap row to decrypt</span>
+        </div>
+      )}
+
+      {/* Archived Banner - SHOWN WHEN THERE ARE ARCHIVED CHATS */}
+      {!showArchivedOnly && archivedContactsCount > 0 && (
+        <div className={`px-4 py-2 shrink-0 border-b ${isDark ? 'border-[#2a3942]/30 bg-[#0b141a]' : 'border-gray-100 bg-white'}`}>
+          <button
+            type="button"
+            onClick={() => setShowArchivedOnly(true)}
+            className={`w-full py-2.5 px-4 rounded-2xl flex items-center justify-between transition-all font-medium text-sm shadow-xs group cursor-pointer ${
+              isDark 
+                ? 'bg-[#182229] hover:bg-[#202c33] text-[#e9edef] border border-[#2a3942]' 
+                : 'bg-gray-100 hover:bg-gray-200 text-gray-900 border border-gray-200'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold shrink-0 ${
+                isDark ? 'bg-[#202c33] text-[#25d366]' : 'bg-gray-200 text-emerald-700'
+              }`}>
+                <Archive className="w-4 h-4" />
+              </div>
+              <div className="text-left">
+                <span className="font-bold block leading-tight">Archived</span>
+                <span className="text-[11px] text-[#25d366] block">Tap to view archived chats</span>
+              </div>
+            </div>
+            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#25d366] text-[#0b141a]">
+              {archivedContactsCount}
+            </span>
+          </button>
+        </div>
+      )}
+
+      {/* Header bar when viewing Archived list */}
+      {showArchivedOnly && (
+        <div className={`px-4 py-2.5 shrink-0 flex items-center justify-between border-b ${
+          isDark ? 'bg-[#182229] border-[#2a3942] text-white' : 'bg-emerald-50 border-emerald-200 text-gray-900'
+        }`}>
+          <button
+            type="button"
+            onClick={() => setShowArchivedOnly(false)}
+            className="flex items-center gap-2 text-sm font-bold text-[#25d366] hover:opacity-80"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span>Archived Chats ({archivedContactsCount})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowArchivedOnly(false)}
+            className="text-xs font-semibold px-3 py-1 rounded-full bg-[#25d366]/20 text-[#25d366] hover:bg-[#25d366]/30 transition-colors"
+          >
+            Back to All
+          </button>
         </div>
       )}
 
@@ -351,20 +450,21 @@ export const ChatList: React.FC = () => {
                           : 'bg-white border-gray-200 text-gray-800 shadow-xl'
                       }`}
                     >
-                      {/* 1. Archive chat */}
+                      {/* 1. Archive / Unarchive chat */}
                       <button
                         type="button"
                         onClick={() => {
+                          toggleArchiveContact(contact.id);
                           setOpenMenuId(null);
-                          showToast(`Chat archived`);
+                          showToast(contact.isArchived ? `Unarchived ${contact.name}` : `Archived ${contact.name}`);
                         }}
                         className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${
                           isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <Archive className="w-4.5 h-4.5 opacity-80" />
-                          <span>Archive chat</span>
+                          <Archive className="w-4.5 h-4.5 opacity-80 text-[#25d366]" />
+                          <span>{contact.isArchived ? 'Unarchive chat' : 'Archive chat'}</span>
                         </div>
                       </button>
 
@@ -503,7 +603,112 @@ export const ChatList: React.FC = () => {
         )}
       </div>
 
-      {/* Floating Action Buttons removed per user request */}
+      {/* Floating Action Button (New Group) - Shown on Chat section above bottom bar */}
+      <button
+        type="button"
+        onClick={() => setShowCreateGroupModal(true)}
+        className="absolute bottom-4 right-4 z-30 w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-[#25d366] hover:bg-[#20ba5a] active:scale-90 text-[#0b141a] shadow-2xl flex items-center justify-center transition-all cursor-pointer border border-[#25d366]/40 group"
+        title="Create New Group"
+      >
+        <Users className="w-6 h-6 stroke-[2.3] group-hover:scale-110 transition-transform" />
+      </button>
+
+      {/* Create Group Modal */}
+      {showCreateGroupModal && (
+        <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in select-none">
+          <form onSubmit={handleGroupSubmit} className="bg-[#233138] border border-[#2a3942] w-full max-w-sm rounded-3xl p-6 shadow-2xl text-sm flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between mb-4 border-b border-[#2a3942] pb-3">
+              <h2 className="text-lg font-bold text-[#25d366] flex items-center gap-2">
+                <Users className="w-5 h-5" /> Create New Group
+              </h2>
+              <button 
+                type="button" 
+                onClick={() => setShowCreateGroupModal(false)}
+                className="p-1 rounded-full text-gray-400 hover:text-white hover:bg-white/10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 mb-4 overflow-y-auto pr-1">
+              <div>
+                <label className="text-[#8596a0] text-xs font-semibold block mb-1">Group Name *</label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  placeholder="e.g. Project Alpha, Family Vault, Friends"
+                  value={groupNameInput}
+                  onChange={e => setGroupNameInput(e.target.value)}
+                  className="w-full bg-[#0b141a] border border-[#2a3942] focus:border-[#25d366] rounded-xl px-3.5 py-2.5 text-white focus:outline-none text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="text-[#8596a0] text-xs font-semibold block mb-2">Select Members from Contacts</label>
+                <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1 border border-[#2a3942] bg-[#0b141a] rounded-xl p-2">
+                  {contacts.length === 0 ? (
+                    <p className="text-xs text-gray-500 py-2 text-center">No existing contacts</p>
+                  ) : (
+                    contacts.map(c => {
+                      const isSelected = selectedMemberIds.includes(c.id);
+                      return (
+                        <div
+                          key={c.id}
+                          onClick={() => toggleSelectMember(c.id)}
+                          className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
+                            isSelected ? 'bg-[#103629] text-white' : 'hover:bg-[#182229] text-gray-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <img src={c.avatar} alt={c.name} className="w-7 h-7 rounded-full object-cover shrink-0" />
+                            <span className="text-xs font-medium truncate">{c.name}</span>
+                          </div>
+                          {isSelected ? (
+                            <UserCheck className="w-4 h-4 text-[#25d366] shrink-0" />
+                          ) : (
+                            <div className="w-4 h-4 rounded-full border border-gray-600 shrink-0" />
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[#8596a0] text-xs font-semibold block mb-1">Add Member Usernames / Names</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Rahul, Priya, Alex (comma separated)"
+                  value={customMemberInput}
+                  onChange={e => setCustomMemberInput(e.target.value)}
+                  className="w-full bg-[#0b141a] border border-[#2a3942] focus:border-[#25d366] rounded-xl px-3.5 py-2.5 text-white focus:outline-none text-xs"
+                />
+                <span className="text-[11px] text-gray-400 mt-1 block">Separate multiple usernames with commas</span>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-3 border-t border-[#2a3942]">
+              <button
+                type="button"
+                onClick={() => setShowCreateGroupModal(false)}
+                className="px-4 py-2 rounded-xl bg-[#0b141a] hover:bg-[#182229] text-[#8596a0] transition-colors text-xs font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!groupNameInput.trim()}
+                className="px-5 py-2 rounded-xl bg-[#25d366] hover:bg-[#20ba5a] text-[#0b141a] font-bold transition-colors shadow disabled:opacity-50 text-xs flex items-center gap-1.5"
+              >
+                <Users className="w-4 h-4" />
+                Create Group
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Add Contact Modal */}
       {showAddModal && (

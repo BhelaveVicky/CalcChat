@@ -31,45 +31,45 @@ export const AndroidFrame: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-2 sm:p-6 font-sans select-none overflow-x-hidden">
+    <div className="min-h-[100dvh] bg-slate-950 flex flex-col items-center justify-center p-0 sm:p-6 font-sans select-none overflow-x-hidden w-full">
       {/* Top Controller Bar */}
-      <div className="w-full max-w-sm mb-3 flex items-center justify-between px-2 text-xs text-slate-400">
+      <div className="w-full max-w-sm my-2 flex items-center justify-between px-3 text-xs text-slate-400">
         <div className="flex items-center gap-2">
           <span className="flex h-2 w-2 relative">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
           </span>
-          <span className="font-mono text-slate-300">Vault Disguise Active</span>
+          <span className="font-mono text-slate-300 text-[11px] sm:text-xs">Vault Active</span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {isUnlocked && (
             <button
               onClick={lockVault}
-              className="flex items-center gap-1 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 px-2.5 py-1 rounded-md transition-colors border border-rose-500/30"
+              className="flex items-center gap-1 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 px-2 py-1 rounded-md transition-colors border border-rose-500/30 text-[11px] sm:text-xs"
             >
-              <Shield className="w-3.5 h-3.5" />
-              Quick Lock
+              <Shield className="w-3 h-3" />
+              Lock
             </button>
           )}
           <button
             onClick={toggleFrame}
-            className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-md transition-colors border border-slate-700"
+            className="flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded-md transition-colors border border-slate-700 text-[11px] sm:text-xs"
             title="Expand to Full Responsive View"
           >
-            <Maximize2 className="w-3.5 h-3.5 text-emerald-400" />
+            <Maximize2 className="w-3 h-3 text-emerald-400" />
             Full Screen
           </button>
         </div>
       </div>
 
-      {/* Android Device Mockup Shell */}
-      <div className="relative w-full max-w-[400px] h-[840px] max-h-[92vh] bg-black rounded-[46px] p-[11px] shadow-[0_0_50px_-12px_rgba(16,185,129,0.25)] border-[4px] border-slate-800 flex flex-col overflow-hidden">
-        {/* Hardware side buttons simulation */}
-        <div className="absolute -right-[15px] top-[180px] w-[4px] h-[45px] bg-slate-700 rounded-r-md"></div>
-        <div className="absolute -right-[15px] top-[240px] w-[4px] h-[90px] bg-slate-700 rounded-r-md"></div>
+      {/* Android Device Mockup Shell - Full width/height on mobile, Framed mockup on tablet/desktop */}
+      <div className="relative w-full h-[calc(100dvh-48px)] sm:h-[840px] sm:max-h-[90vh] sm:max-w-[420px] bg-black rounded-none sm:rounded-[46px] p-0 sm:p-[11px] shadow-none sm:shadow-[0_0_50px_-12px_rgba(16,185,129,0.25)] border-0 sm:border-[4px] border-slate-800 flex flex-col overflow-hidden">
+        {/* Hardware side buttons simulation (hidden on mobile) */}
+        <div className="hidden sm:block absolute -right-[15px] top-[180px] w-[4px] h-[45px] bg-slate-700 rounded-r-md"></div>
+        <div className="hidden sm:block absolute -right-[15px] top-[240px] w-[4px] h-[90px] bg-slate-700 rounded-r-md"></div>
         
         {/* Inner AMOLED Screen */}
-        <div className="relative w-full h-full bg-slate-950 rounded-[36px] overflow-hidden flex flex-col border border-slate-900/80 shadow-inner">
+        <div className="relative w-full h-full bg-slate-950 rounded-none sm:rounded-[36px] overflow-hidden flex flex-col border-0 sm:border border-slate-900/80 shadow-inner">
           
           {/* Android Status Bar */}
           <div className="w-full h-8 px-6 pt-1 flex items-center justify-between text-slate-200 text-xs font-medium z-40 bg-transparent shrink-0">

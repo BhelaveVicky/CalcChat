@@ -1,312 +1,1567 @@
-import React, { useState } from 'react';
-import { Plus, Camera, Eye, Download, Shield, Upload, FileText, Video, Image as ImageIcon, X, Send, Lock } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { 
+  Plus, Camera, Eye, Download, Shield, Upload, FileText, Video, Image as ImageIcon, X, Send, Lock, 
+  ChevronLeft, ChevronRight, Pause, Play, Volume2, VolumeX, MoreVertical, Pencil, Type, Palette, 
+  Smile, Trash2, ShieldCheck, Check, ChevronDown, Share2, Sparkles, Heart, EyeOff, RotateCw,
+  Move, ZoomIn, ZoomOut, Sliders, RefreshCw, Maximize2, ArrowUp, ArrowDown, ArrowLeft, ArrowRight
+} from 'lucide-react';
 import { useVault } from '../context/VaultContext';
-import { useSettings } from '../context/SettingsContext';
-import { MediaAttachment } from '../types';
 
-interface StatusItem {
+export interface StatusSlide {
+  id: string;
+  image?: string;
+  text?: string;
+  bgColor?: string;
+  time: string;
+  caption?: string;
+  viewsCount?: number;
+  viewers?: { name: string; avatar: string; time: string }[];
+  filter?: string;
+  rotation?: number;
+  zoom?: number;
+  positionX?: number;
+  positionY?: number;
+  fitMode?: 'cover' | 'contain' | 'fill';
+  photoTextOverlay?: string;
+  photoTextColor?: string;
+  canvasBg?: string;
+  privacySetting?: 'contacts' | 'except' | 'only' | 'private';
+  privacyContacts?: string[];
+}
+
+export interface StatusUser {
   id: string;
   name: string;
   time: string;
   avatar: string;
-  storyImage: string;
-  isHighlighted?: boolean;
+  isViewed?: boolean;
+  isMuted?: boolean;
+  slides: StatusSlide[];
 }
 
 export const MediaGallery: React.FC = () => {
-  const { messages, sendMessage, contacts, user, settings: vaultSettings } = useVault();
-  const { settings: globalSettings } = useSettings();
+  const { sendMessage, contacts, user, settings: vaultSettings } = useVault();
 
-  const isDark = globalSettings.darkMode && vaultSettings.theme !== 'material-light' && vaultSettings.theme !== 'light';
+  const isDark = vaultSettings.theme !== 'material-light' && vaultSettings.theme !== 'light';
 
-  const [activeStory, setActiveStory] = useState<StatusItem | null>(null);
-  const [replyText, setReplyText] = useState('');
-  const [showVaultMedia, setShowVaultMedia] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  // State for Privacy Settings
+  const [privacySetting, setPrivacySetting] = useState<'contacts' | 'only'>('contacts');
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [selectedPrivacyContactIds, setSelectedPrivacyContactIds] = useState<string[]>([]);
+  const [privacySearchQuery, setPrivacySearchQuery] = useState('');
+  const [privacyToast, setPrivacyToast] = useState<string | null>(null);
 
-  // Exact statuses matching user screenshot
-  const statuses: StatusItem[] = [
+  const availableContacts = contacts.filter(c => !c.isGroup && !c.isSelf);
+
+  const togglePrivacyContact = (contactId: string) => {
+    setSelectedPrivacyContactIds(prev =>
+      prev.includes(contactId) ? prev.filter(id => id !== contactId) : [...prev, contactId]
+    );
+  };
+
+  const getPrivacyLabel = () => {
+    if (privacySetting === 'contacts') return 'My all contacts';
+    if (privacySetting === 'only') {
+      return selectedPrivacyContactIds.length > 0 
+        ? `Only (${selectedPrivacyContactIds.length})` 
+        : 'Only share with...';
+    }
+    return 'My all contacts';
+  };
+
+  // State for Creator Studio (Text or Image Status)
+  const [showCreatorModal, setShowCreatorModal] = useState(false);
+  const [creatorType, setCreatorType] = useState<'text' | 'media'>('text');
+  const [statusText, setStatusText] = useState('');
+  const [statusBgColor, setStatusBgColor] = useState('from-[#00a8ff] to-[#0284c7]');
+  const [statusCaption, setStatusCaption] = useState('');
+  const [selectedMediaUrl, setSelectedMediaUrl] = useState<string | null>(null);
+  const [selectedFilter, setSelectedFilter] = useState<'normal' | 'vintage' | 'mono' | 'cyber' | 'warm' | 'dramatic'>('normal');
+
+  // Photo Custom Position & Editing States
+  const [photoRotation, setPhotoRotation] = useState<number>(0);
+  const [photoZoom, setPhotoZoom] = useState<number>(1);
+  const [photoPositionX, setPhotoPositionX] = useState<number>(0);
+  const [photoPositionY, setPhotoPositionY] = useState<number>(0);
+  const [photoFitMode, setPhotoFitMode] = useState<'cover' | 'contain' | 'fill'>('contain');
+  const [photoTextOverlay, setPhotoTextOverlay] = useState<string>('');
+  const [photoTextColor, setPhotoTextColor] = useState<string>('#ffffff');
+  const [photoCanvasBg, setPhotoCanvasBg] = useState<string>('#000000');
+  const [activePhotoTool, setActivePhotoTool] = useState<'adjust' | 'filter' | 'text' | 'bg'>('adjust');
+
+  const resetPhotoEditor = () => {
+    setPhotoRotation(0);
+    setPhotoZoom(1);
+    setPhotoPositionX(0);
+    setPhotoPositionY(0);
+    setPhotoFitMode('contain');
+    setPhotoTextOverlay('');
+    setPhotoTextColor('#ffffff');
+    setPhotoCanvasBg('#000000');
+    setSelectedFilter('normal');
+    setActivePhotoTool('adjust');
+  };
+
+  // Muted updates toggle
+  const [showMutedSection, setShowMutedSection] = useState(false);
+
+  // My Status slides state (persistently initialized with default and user additions)
+  const [mySlides, setMySlides] = useState<StatusSlide[]>([
+    {
+      id: 'my_slide_1',
+      image: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=800&auto=format&fit=crop&q=80',
+      time: 'Today at 10:15 am',
+      caption: 'Secured status update 🔒',
+      viewsCount: 14,
+      viewers: [
+        { name: 'प्रकाश भोंगाडे', avatar: 'https://images.unsplash.com/photo-1511895426328-dc8714191300?w=300&auto=format&fit=crop&q=80', time: '10:20 am' },
+        { name: 'Ishant Pandhre', avatar: 'https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?w=300&auto=format&fit=crop&q=80', time: '10:32 am' },
+        { name: 'harsh meshram', avatar: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&auto=format&fit=crop&q=80', time: '11:05 am' }
+      ]
+    }
+  ]);
+
+  // Contacts Status List State
+  const [contactsStatus, setContactsStatus] = useState<StatusUser[]>([
+    {
+      id: 's0',
+      name: 'प्रकाश भोंगाडे',
+      time: 'Today at 11:54 am',
+      avatar: 'https://images.unsplash.com/photo-1511895426328-dc8714191300?w=300&auto=format&fit=crop&q=80',
+      isViewed: false,
+      slides: [
+        {
+          id: 'pb_1',
+          image: 'https://images.unsplash.com/photo-1511895426328-dc8714191300?w=800&auto=format&fit=crop&q=80',
+          time: 'Today at 11:54 am',
+          caption: 'Family gathering & celebrations 🌸'
+        },
+        {
+          id: 'pb_2',
+          image: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=800&auto=format&fit=crop&q=80',
+          time: 'Today at 11:50 am',
+          caption: 'Beautiful morning vibes ☀️'
+        }
+      ]
+    },
     {
       id: 's1',
       name: 'Unkaun Number',
       time: 'Today at 9:20 am',
       avatar: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=300&auto=format&fit=crop&q=80',
-      storyImage: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=800&auto=format&fit=crop&q=80',
-      isHighlighted: true
+      isViewed: false,
+      slides: [
+        {
+          id: 'un_1',
+          image: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=800&auto=format&fit=crop&q=80',
+          time: 'Today at 9:20 am'
+        }
+      ]
     },
     {
       id: 's2',
       name: 'Ishant Pandhre',
       time: 'Today at 9:13 am',
       avatar: 'https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?w=300&auto=format&fit=crop&q=80',
-      storyImage: 'https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?w=800&auto=format&fit=crop&q=80'
+      isViewed: false,
+      slides: [
+        {
+          id: 'ip_1',
+          image: 'https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?w=800&auto=format&fit=crop&q=80',
+          time: 'Today at 9:13 am'
+        }
+      ]
     },
     {
       id: 's3',
       name: 'Ashwani Yadav Sir',
-      time: 'Today at 9:10 am',
+      time: 'Yesterday at 9:10 pm',
       avatar: 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=300&auto=format&fit=crop&q=80',
-      storyImage: 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=800&auto=format&fit=crop&q=80'
+      isViewed: true,
+      slides: [
+        {
+          id: 'ay_1',
+          image: 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=800&auto=format&fit=crop&q=80',
+          time: 'Yesterday at 9:10 pm'
+        }
+      ]
     },
     {
       id: 's4',
       name: 'निरूता डोंगरवार',
-      time: 'Today at 9:09 am',
-      avatar: 'https://images.unsplash.com/photo-1511895426328-dc8714191300?w=300&auto=format&fit=crop&q=80',
-      storyImage: 'https://images.unsplash.com/photo-1511895426328-dc8714191300?w=800&auto=format&fit=crop&q=80'
-    },
-    {
-      id: 's5',
-      name: 'Pandhare',
-      time: 'Today at 5:45 am',
-      avatar: 'https://images.unsplash.com/photo-1604608672516-f6c0db7f9e80?w=300&auto=format&fit=crop&q=80',
-      storyImage: 'https://images.unsplash.com/photo-1604608672516-f6c0db7f9e80?w=800&auto=format&fit=crop&q=80'
-    },
-    {
-      id: 's6',
-      name: 'harsh meshram',
-      time: 'Yesterday at 6:01 pm',
-      avatar: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&auto=format&fit=crop&q=80',
-      storyImage: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&auto=format&fit=crop&q=80'
+      time: 'Yesterday at 6:45 pm',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+      isViewed: true,
+      isMuted: true,
+      slides: [
+        {
+          id: 'nd_1',
+          image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&auto=format&fit=crop&q=80',
+          time: 'Yesterday at 6:45 pm'
+        }
+      ]
     }
-  ];
+  ]);
 
-  const myStatusItem: StatusItem = {
-    id: 'my',
-    name: 'My status',
-    time: 'Yesterday at 11:54 am',
-    avatar: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=300&auto=format&fit=crop&q=80',
-    storyImage: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=800&auto=format&fit=crop&q=80'
-  };
+  // Active Story Viewer State
+  const [activeUserIndex, setActiveUserIndex] = useState<number | null>(null); // -1 = My Status, null = none, 0..N = contacts
+  const [currentSlideIndex, setCurrentSlideIndex] = useState<number>(0);
+  const [progress, setProgress] = useState<number>(0);
+  const [isPaused, setIsPaused] = useState<boolean>(false);
+  const [isMuted, setIsMuted] = useState<boolean>(false);
+  const [replyText, setReplyText] = useState('');
+  const [showViewersSheet, setShowViewersSheet] = useState(false);
+  const [reactionBubble, setReactionBubble] = useState<string | null>(null);
 
-  // Collect all media across all messages for the secret vault toggle
-  const allMedia: { attachment: MediaAttachment; chatName: string; timestamp: string }[] = [];
-  Object.keys(messages).forEach(contactId => {
-    const msgs = messages[contactId] || [];
-    const contactName = contacts.find(c => c.id === contactId)?.name || 'Private Channel';
-    msgs.forEach(m => {
-      if (m.media) {
-        allMedia.push({
-          attachment: m.media,
-          chatName: contactName,
-          timestamp: m.timestamp,
-        });
+  const activeUser: StatusUser | null = activeUserIndex === -1 
+    ? {
+        id: 'my',
+        name: 'My Status',
+        time: mySlides[mySlides.length - 1]?.time || 'Just now',
+        avatar: user.avatar,
+        slides: mySlides
       }
-    });
-  });
+    : (activeUserIndex !== null ? contactsStatus[activeUserIndex] : null);
 
-  const handleUploadStatus = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const activeSlide: StatusSlide | null = activeUser?.slides[currentSlideIndex] || null;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const isImg = file.type.startsWith('image/');
-      const isVid = file.type.startsWith('video/');
-      const type = isImg ? 'image' : isVid ? 'video' : 'file';
+  // Auto-play timer for active story
+  useEffect(() => {
+    if (activeUserIndex === null || !activeUser || isPaused) return;
 
-      const attachment: MediaAttachment = {
-        id: 'gal_' + Date.now(),
-        type,
-        name: file.name,
-        url: reader.result as string,
-        size: (file.size / 1024).toFixed(1) + ' KB',
-      };
+    const intervalTime = 50;
+    const increment = (intervalTime / 5000) * 100;
 
-      const targetChannel = contacts[0]?.id || 'contact_novak';
-      sendMessage(targetChannel, `Status Upload: ${file.name}`, attachment);
-      alert(`✅ Status "${file.name}" uploaded and saved to secret vault.`);
-    };
-    reader.readAsDataURL(file);
+    const timer = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 100) {
+          handleNextSlide();
+          return 0;
+        }
+        return prev + increment;
+      });
+    }, intervalTime);
+
+    return () => clearInterval(timer);
+  }, [activeUserIndex, currentSlideIndex, isPaused, activeUser]);
+
+  // Mark status as viewed when opened
+  useEffect(() => {
+    if (activeUserIndex !== null && activeUserIndex >= 0) {
+      setContactsStatus((prev) => 
+        prev.map((item, idx) => idx === activeUserIndex ? { ...item, isViewed: true } : item)
+      );
+    }
+  }, [activeUserIndex]);
+
+  // Navigation handlers
+  const handleNextSlide = () => {
+    if (!activeUser) return;
+
+    if (currentSlideIndex < activeUser.slides.length - 1) {
+      setCurrentSlideIndex((prev) => prev + 1);
+      setProgress(0);
+    } else {
+      if (activeUserIndex === -1) {
+        if (contactsStatus.length > 0) {
+          setActiveUserIndex(0);
+          setCurrentSlideIndex(0);
+          setProgress(0);
+        } else {
+          closeStoryViewer();
+        }
+      } else if (activeUserIndex !== null && activeUserIndex < contactsStatus.length - 1) {
+        setActiveUserIndex(activeUserIndex + 1);
+        setCurrentSlideIndex(0);
+        setProgress(0);
+      } else {
+        closeStoryViewer();
+      }
+    }
   };
 
+  const handlePrevSlide = () => {
+    if (!activeUser) return;
+
+    if (currentSlideIndex > 0) {
+      setCurrentSlideIndex((prev) => prev - 1);
+      setProgress(0);
+    } else {
+      if (activeUserIndex !== null && activeUserIndex > 0) {
+        const prevIdx = activeUserIndex - 1;
+        setActiveUserIndex(prevIdx);
+        setCurrentSlideIndex(contactsStatus[prevIdx].slides.length - 1);
+        setProgress(0);
+      } else if (activeUserIndex === 0) {
+        setActiveUserIndex(-1);
+        setCurrentSlideIndex(mySlides.length - 1);
+        setProgress(0);
+      } else {
+        closeStoryViewer();
+      }
+    }
+  };
+
+  const closeStoryViewer = () => {
+    setActiveUserIndex(null);
+    setCurrentSlideIndex(0);
+    setProgress(0);
+    setIsPaused(false);
+    setShowViewersSheet(false);
+  };
+
+  // Keyboard Navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (activeUserIndex === null) return;
+      if (e.key === 'ArrowRight') handleNextSlide();
+      if (e.key === 'ArrowLeft') handlePrevSlide();
+      if (e.key === 'Escape') closeStoryViewer();
+      if (e.key === ' ') {
+        e.preventDefault();
+        setIsPaused((p) => !p);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeUserIndex, currentSlideIndex, activeUser]);
+
+  // Send Reply directly into contact chat
   const handleSendReply = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!replyText.trim() || !activeStory) return;
+    if (!replyText.trim() || !activeUser) return;
     const targetChannel = contacts[0]?.id || 'contact_novak';
-    sendMessage(targetChannel, `Replied to ${activeStory.name}'s status: "${replyText}"`);
+    sendMessage(targetChannel, `Replied to status: "${replyText}"`);
     setReplyText('');
-    setActiveStory(null);
-    alert(`Encrypted reply sent to ${activeStory.name}`);
+    closeStoryViewer();
   };
 
+  // Send Reaction
+  const handleSendReaction = (emoji: string) => {
+    setReactionBubble(emoji);
+    setTimeout(() => setReactionBubble(null), 1200);
+    if (activeUser && activeUser.id !== 'my') {
+      const targetChannel = contacts[0]?.id || 'contact_novak';
+      sendMessage(targetChannel, `Reacted ${emoji} to status`);
+    }
+  };
+
+  // Add new status from file picker or creator
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setSelectedMediaUrl(url);
+      setCreatorType('media');
+      resetPhotoEditor();
+      setShowCreatorModal(true);
+    }
+  };
+
+  const handlePublishStatus = () => {
+    const newSlide: StatusSlide = {
+      id: `my_slide_${Date.now()}`,
+      image: creatorType === 'media' && selectedMediaUrl ? selectedMediaUrl : undefined,
+      text: creatorType === 'text' ? statusText : undefined,
+      bgColor: creatorType === 'text' ? statusBgColor : undefined,
+      time: 'Just now',
+      caption: statusCaption,
+      viewsCount: 0,
+      viewers: [],
+      filter: selectedFilter,
+      rotation: photoRotation,
+      zoom: photoZoom,
+      positionX: photoPositionX,
+      positionY: photoPositionY,
+      fitMode: photoFitMode,
+      photoTextOverlay: photoTextOverlay,
+      photoTextColor: photoTextColor,
+      canvasBg: photoCanvasBg,
+      privacySetting: privacySetting,
+      privacyContacts: [...selectedPrivacyContactIds]
+    };
+
+    setMySlides((prev) => [...prev, newSlide]);
+    setShowCreatorModal(false);
+    setStatusText('');
+    setStatusCaption('');
+    setSelectedMediaUrl(null);
+    resetPhotoEditor();
+
+    const label = getPrivacyLabel();
+    setPrivacyToast(`Status uploaded (${label})`);
+    setTimeout(() => setPrivacyToast(null), 3500);
+  };
+
+  const handleToggleMute = (statusId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setContactsStatus((prev) => 
+      prev.map((c) => c.id === statusId ? { ...c, isMuted: !c.isMuted } : c)
+    );
+  };
+
+  const handleDeleteMySlide = (slideId: string) => {
+    setMySlides((prev) => prev.filter((s) => s.id !== slideId));
+    if (mySlides.length <= 1) {
+      closeStoryViewer();
+    } else {
+      setCurrentSlideIndex(0);
+    }
+  };
+
+  const unreadStatuses = contactsStatus.filter((s) => !s.isViewed && !s.isMuted);
+  const viewedStatuses = contactsStatus.filter((s) => s.isViewed && !s.isMuted);
+  const mutedStatuses = contactsStatus.filter((s) => s.isMuted);
+
+  const bgColorsList = [
+    'from-[#00a8ff] to-[#0284c7]',
+    'from-purple-600 to-indigo-800',
+    'from-rose-500 to-pink-700',
+    'from-amber-500 to-orange-700',
+    'from-blue-600 to-cyan-800',
+    'from-[#202c33] to-[#111b21]'
+  ];
+
   return (
-    <div className={`flex-1 flex flex-col overflow-y-auto no-scrollbar font-sans select-none relative pb-12 h-full min-h-0 transition-colors ${
-      isDark ? 'bg-[#0b141a] text-[#e9edef]' : 'bg-white text-gray-900'
-    }`}>
+    <div className={`flex-1 flex flex-col h-full overflow-y-auto ${
+      isDark ? 'bg-[#111b21] text-[#e9edef]' : 'bg-gray-50 text-gray-900'
+    } select-none relative`}>
       
-      {/* My Status Row */}
-      <div className="pt-2 px-4 pb-3">
-        <div 
-          onClick={() => setActiveStory(myStatusItem)}
-          className="flex items-center justify-between cursor-pointer group py-1.5"
-        >
-          <div className="flex items-center gap-3.5 min-w-0">
-            <div className="relative shrink-0">
-              <div className={`w-13 h-13 rounded-full p-[2px] border-2 shrink-0 ${
-                isDark ? 'border-[#8596a0]/30' : 'border-gray-300'
-              }`}>
-                <img 
-                  src={myStatusItem.avatar} 
-                  alt="My status" 
-                  className="w-full h-full rounded-full object-cover"
-                />
-              </div>
-              <label 
-                onClick={(e) => e.stopPropagation()}
-                className={`absolute bottom-0 right-0 bg-[#00a884] text-[#0b141a] rounded-full p-1 border-2 cursor-pointer hover:scale-110 transition-transform shadow ${
-                  isDark ? 'border-[#0b141a]' : 'border-white'
-                }`}
-                title="Add status"
-              >
-                <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                <input type="file" className="hidden" onChange={handleUploadStatus} />
-              </label>
-            </div>
-
-            <div className="min-w-0">
-              <h3 className={`font-semibold text-base truncate ${
-                isDark ? 'text-[#e9edef]' : 'text-gray-900'
-              }`}>
-                My status
-              </h3>
-              <p className={`text-xs sm:text-sm truncate mt-0.5 ${
-                isDark ? 'text-[#8596a0]' : 'text-gray-500'
-              }`}>
-                Yesterday at 11:54 am
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <label 
-              onClick={(e) => e.stopPropagation()}
-              className={`p-2 rounded-full cursor-pointer transition-colors ${
-                isDark ? 'text-[#8596a0] hover:text-[#e9edef] hover:bg-[#202c33]' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-              }`}
-              title="Camera"
-            >
-              <Camera className="w-5 h-5" />
-              <input type="file" className="hidden" onChange={handleUploadStatus} />
-            </label>
-          </div>
+      {/* Top Title Bar */}
+      <div className={`px-4 py-3 flex items-center justify-between border-b ${
+        isDark ? 'border-[#202c33] bg-[#111b21]' : 'border-gray-200 bg-white'
+      } sticky top-0 z-20`}>
+        <div className="flex items-center gap-2">
+          <h2 className="text-xl font-bold tracking-tight">Status</h2>
+          <span className="bg-[#00a8ff]/20 text-[#00a8ff] text-xs font-semibold px-2 py-0.5 rounded-full">
+            Encrypted
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowPrivacyModal(true)}
+            className={`p-2 rounded-full transition-colors ${
+              isDark ? 'hover:bg-[#202c33] text-[#8596a0]' : 'hover:bg-gray-100 text-gray-600'
+            }`}
+            title="Status Privacy"
+          >
+            <ShieldCheck className="w-5 h-5 text-[#00a8ff]" />
+          </button>
         </div>
       </div>
 
-      {/* Section Header: Recent */}
-      <div className={`px-4 py-2 text-xs sm:text-sm font-semibold tracking-wide select-none ${
-        isDark ? 'text-[#8596a0]' : 'text-gray-500'
-      }`}>
-        Recent
-      </div>
+      <div className="p-3 sm:p-4 space-y-4 max-w-2xl mx-auto w-full">
 
-      {/* Statuses List */}
-      <div className="space-y-1">
-        {statuses.map((status) => (
-          <div
-            key={status.id}
-            onClick={() => setActiveStory(status)}
-            className={`transition-all cursor-pointer ${
-              status.isHighlighted 
-                ? (isDark ? 'bg-[#182229] rounded-2xl mx-2.5 px-3 py-3 my-1 border border-[#202c33]/60' : 'bg-gray-100 rounded-2xl mx-2.5 px-3 py-3 my-1 border border-gray-200 shadow-sm')
-                : (isDark ? 'px-4 py-3 hover:bg-[#202c33]/40 active:bg-[#202c33]' : 'px-4 py-3 hover:bg-gray-50 active:bg-gray-100')
-            }`}
-          >
-            <div className="flex items-center gap-3.5 min-w-0">
-              {/* Green Ring Avatar */}
+        {/* My Status Card */}
+        <div className={`p-3.5 rounded-2xl transition-all shadow-xs border ${
+          isDark ? 'bg-[#202c33]/70 border-[#2a3942]/50 hover:bg-[#202c33]' : 'bg-white border-gray-200 hover:shadow-md'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div 
+              onClick={() => {
+                if (mySlides.length > 0) {
+                  setActiveUserIndex(-1);
+                  setCurrentSlideIndex(0);
+                  setProgress(0);
+                } else {
+                  setCreatorType('text');
+                  setShowCreatorModal(true);
+                }
+              }}
+              className="flex items-center gap-3.5 min-w-0 cursor-pointer flex-1"
+            >
               <div className="relative shrink-0">
-                <div className="w-13 h-13 rounded-full p-[2.5px] border-[2.5px] border-[#00a884] shrink-0 flex items-center justify-center">
-                  <img
-                    src={status.avatar}
-                    alt={status.name}
+                <div className={`w-14 h-14 rounded-full p-[2px] border-2 ${
+                  mySlides.length > 0 ? 'border-[#00a8ff]' : 'border-gray-300 dark:border-[#2a3942]'
+                } flex items-center justify-center overflow-hidden`}>
+                  <img 
+                    src={user.avatar} 
+                    alt="My status" 
                     className="w-full h-full rounded-full object-cover"
                   />
                 </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCreatorType('text');
+                    setShowCreatorModal(true);
+                  }}
+                  className="absolute bottom-0 right-0 w-5 h-5 bg-[#00a8ff] text-[#0b141a] rounded-full flex items-center justify-center font-bold text-xs shadow-md border-2 border-white dark:border-[#111b21]"
+                  title="Add status"
+                >
+                  <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                </button>
               </div>
 
               <div className="min-w-0 flex-1">
-                <h4 className={`font-semibold text-base truncate ${
-                  isDark ? 'text-[#e9edef]' : 'text-gray-900'
-                }`}>
-                  {status.name}
-                </h4>
+                <h3 className="font-semibold text-base leading-tight truncate">My status</h3>
                 <p className={`text-xs sm:text-sm truncate mt-0.5 ${
                   isDark ? 'text-[#8596a0]' : 'text-gray-500'
                 }`}>
-                  {status.time}
+                  {mySlides.length > 0 
+                    ? `${mySlides.length} update${mySlides.length > 1 ? 's' : ''} • Tap to view` 
+                    : 'Tap to add status update'}
                 </p>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
 
-      {/* Story Viewer Overlay Modal */}
-      {activeStory && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between animate-fade-in text-white">
-          {/* Story Top Bar */}
-          <div className="p-3 bg-gradient-to-b from-black/80 via-black/40 to-transparent z-10 space-y-2">
-            {/* Story Progress Indicator */}
-            <div className="w-full h-1 bg-white/30 rounded-full overflow-hidden">
-              <div className="h-full bg-white w-full animate-story-progress"></div>
-            </div>
-
-            <div className="flex items-center justify-between pt-1">
-              <div className="flex items-center gap-3">
-                <img src={activeStory.avatar} alt={activeStory.name} className="w-9 h-9 rounded-full object-cover border border-white/20" />
-                <div>
-                  <h4 className="font-semibold text-sm leading-tight">{activeStory.name}</h4>
-                  <p className="text-[11px] text-white/70">{activeStory.time}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setActiveStory(null)}
-                className="p-2 hover:bg-white/10 rounded-full transition-colors text-white/90"
+            {/* Quick Actions for My Status */}
+            <div className="flex items-center gap-1 shrink-0">
+              <label 
+                className={`p-2.5 rounded-full cursor-pointer transition-colors ${
+                  isDark ? 'bg-[#111b21] hover:bg-[#2a3942] text-[#00a8ff]' : 'bg-sky-50 hover:bg-sky-100 text-sky-700'
+                }`}
+                title="Camera status"
               >
-                <X className="w-6 h-6" />
+                <Camera className="w-5 h-5" />
+                <input type="file" accept="image/*,video/*" onChange={handleFileUpload} className="hidden" />
+              </label>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setCreatorType('text');
+                  setShowCreatorModal(true);
+                }}
+                className={`p-2.5 rounded-full cursor-pointer transition-colors ${
+                  isDark ? 'bg-[#111b21] hover:bg-[#2a3942] text-[#8596a0]' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                }`}
+                title="Text status"
+              >
+                <Pencil className="w-5 h-5" />
               </button>
             </div>
           </div>
+        </div>
 
-          {/* Story Image / Content */}
-          <div 
-            onClick={() => setActiveStory(null)}
-            className="flex-1 flex items-center justify-center relative px-2 overflow-hidden cursor-pointer"
-          >
-            <img 
-              src={activeStory.storyImage} 
-              alt="Story Content" 
-              className="max-w-full max-h-[80vh] object-contain select-none"
-            />
+        {/* Section: Recent Updates */}
+        {unreadStatuses.length > 0 && (
+          <div className="space-y-2">
+            <h4 className={`text-xs font-bold uppercase tracking-wider px-1 ${
+              isDark ? 'text-[#8596a0]' : 'text-gray-500'
+            }`}>
+              Recent updates ({unreadStatuses.length})
+            </h4>
+
+            <div className="space-y-1.5">
+              {unreadStatuses.map((status) => {
+                const globalIdx = contactsStatus.findIndex((s) => s.id === status.id);
+                return (
+                  <div
+                    key={status.id}
+                    onClick={() => {
+                      setActiveUserIndex(globalIdx);
+                      setCurrentSlideIndex(0);
+                      setProgress(0);
+                    }}
+                    className={`p-3 rounded-2xl transition-all cursor-pointer flex items-center justify-between border ${
+                      isDark ? 'bg-[#202c33]/50 hover:bg-[#202c33] border-[#2a3942]/40' : 'bg-white hover:bg-gray-100/80 border-gray-200/80 shadow-2xs'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="relative shrink-0">
+                        <div className="w-13 h-13 rounded-full p-[2.5px] border-[2.5px] border-[#00a8ff] flex items-center justify-center">
+                          <img
+                            src={status.avatar}
+                            alt={status.name}
+                            className="w-full h-full rounded-full object-cover"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="min-w-0">
+                        <h4 className="font-semibold text-sm sm:text-base leading-tight truncate">{status.name}</h4>
+                        <p className={`text-xs sm:text-sm mt-0.5 truncate ${
+                          isDark ? 'text-[#8596a0]' : 'text-gray-500'
+                        }`}>
+                          {status.time}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={(e) => handleToggleMute(status.id, e)}
+                      className={`p-2 rounded-full transition-colors opacity-0 hover:opacity-100 group-hover:opacity-100 ${
+                        isDark ? 'hover:bg-[#111b21] text-[#8596a0]' : 'hover:bg-gray-200 text-gray-500'
+                      }`}
+                      title="Mute status"
+                    >
+                      <EyeOff className="w-4 h-4" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Section: Viewed Updates */}
+        {viewedStatuses.length > 0 && (
+          <div className="space-y-2 pt-2">
+            <h4 className={`text-xs font-bold uppercase tracking-wider px-1 ${
+              isDark ? 'text-[#8596a0]' : 'text-gray-500'
+            }`}>
+              Viewed updates ({viewedStatuses.length})
+            </h4>
+
+            <div className="space-y-1.5">
+              {viewedStatuses.map((status) => {
+                const globalIdx = contactsStatus.findIndex((s) => s.id === status.id);
+                return (
+                  <div
+                    key={status.id}
+                    onClick={() => {
+                      setActiveUserIndex(globalIdx);
+                      setCurrentSlideIndex(0);
+                      setProgress(0);
+                    }}
+                    className={`p-3 rounded-2xl transition-all cursor-pointer flex items-center justify-between border ${
+                      isDark ? 'bg-[#111b21]/50 hover:bg-[#202c33]/50 border-[#2a3942]/30' : 'bg-gray-50 hover:bg-gray-100 border-gray-200/60'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="relative shrink-0">
+                        <div className={`w-13 h-13 rounded-full p-[2.5px] border-[2px] ${
+                          isDark ? 'border-[#8596a0]/40' : 'border-gray-300'
+                        } flex items-center justify-center`}>
+                          <img
+                            src={status.avatar}
+                            alt={status.name}
+                            className="w-full h-full rounded-full object-cover grayscale-20"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="min-w-0">
+                        <h4 className={`font-semibold text-sm sm:text-base leading-tight truncate ${
+                          isDark ? 'text-[#8596a0]' : 'text-gray-700'
+                        }`}>{status.name}</h4>
+                        <p className={`text-xs sm:text-sm mt-0.5 truncate ${
+                          isDark ? 'text-[#8596a0]/70' : 'text-gray-400'
+                        }`}>
+                          {status.time}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Section: Muted Updates */}
+        {mutedStatuses.length > 0 && (
+          <div className="space-y-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setShowMutedSection(!showMutedSection)}
+              className={`w-full py-2 px-1 flex items-center justify-between font-bold text-xs uppercase tracking-wider ${
+                isDark ? 'text-[#8596a0]' : 'text-gray-500'
+              }`}
+            >
+              <span>Muted updates ({mutedStatuses.length})</span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${showMutedSection ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showMutedSection && (
+              <div className="space-y-1.5 animate-fade-in">
+                {mutedStatuses.map((status) => {
+                  const globalIdx = contactsStatus.findIndex((s) => s.id === status.id);
+                  return (
+                    <div
+                      key={status.id}
+                      onClick={() => {
+                        setActiveUserIndex(globalIdx);
+                        setCurrentSlideIndex(0);
+                        setProgress(0);
+                      }}
+                      className={`p-3 rounded-2xl transition-all cursor-pointer flex items-center justify-between border opacity-60 hover:opacity-100 ${
+                        isDark ? 'bg-[#111b21] border-[#2a3942]/30' : 'bg-gray-100 border-gray-200'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <img src={status.avatar} alt={status.name} className="w-11 h-11 rounded-full object-cover" />
+                        <div className="min-w-0">
+                          <h4 className="font-semibold text-sm truncate">{status.name}</h4>
+                          <p className="text-xs text-gray-500">{status.time}</p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={(e) => handleToggleMute(status.id, e)}
+                        className="text-xs text-[#00a8ff] font-semibold hover:underline"
+                      >
+                        Unmute
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+      </div>
+
+      {/* Floating Action Buttons for Quick Create on Mobile */}
+      <div className="fixed bottom-20 right-4 z-30 flex flex-col gap-3">
+        <button
+          type="button"
+          onClick={() => {
+            setCreatorType('text');
+            setShowCreatorModal(true);
+          }}
+          className={`w-11 h-11 rounded-full shadow-lg flex items-center justify-center transition-transform active:scale-90 ${
+            isDark ? 'bg-[#202c33] text-[#e9edef] border border-[#2a3942]' : 'bg-white text-gray-700 border border-gray-200'
+          }`}
+          title="Create text status"
+        >
+          <Pencil className="w-5 h-5" />
+        </button>
+
+        <label 
+          className="w-13 h-13 rounded-2xl bg-[#00a8ff] text-[#0b141a] shadow-xl flex items-center justify-center cursor-pointer transition-transform active:scale-90 border border-[#00a8ff]/40"
+          title="Upload image / video"
+        >
+          <Camera className="w-6 h-6 stroke-[2.2]" />
+          <input type="file" accept="image/*,video/*" onChange={handleFileUpload} className="hidden" />
+        </label>
+      </div>
+
+      {/* Status Viewer Modal */}
+      {activeUser && activeSlide && (
+        <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between animate-fade-in text-white select-none">
+          
+          {/* Top Header */}
+          <div className="p-3 pt-3 bg-gradient-to-b from-black/80 via-black/40 to-transparent z-40 space-y-2.5">
+            
+            {/* Segmented Progress Bars */}
+            <div className="w-full flex items-center gap-1 px-0.5">
+              {activeUser.slides.map((slide, idx) => (
+                <div 
+                  key={slide.id} 
+                  className="flex-1 h-1 bg-white/30 rounded-full overflow-hidden"
+                >
+                  <div 
+                    className="h-full bg-white transition-all duration-75 ease-linear rounded-full"
+                    style={{
+                      width: idx < currentSlideIndex 
+                        ? '100%' 
+                        : idx === currentSlideIndex 
+                          ? `${progress}%` 
+                          : '0%'
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* User Info & Controls */}
+            <div className="flex items-center justify-between pt-1">
+              <div className="flex items-center gap-3 min-w-0">
+                <img 
+                  src={activeUser.avatar} 
+                  alt={activeUser.name} 
+                  className="w-9 h-9 rounded-full object-cover border border-white/20 shrink-0" 
+                />
+                <div className="min-w-0">
+                  <h4 className="font-semibold text-sm sm:text-base leading-tight truncate">{activeUser.name}</h4>
+                  <p className="text-[11px] sm:text-xs text-white/80 truncate">{activeSlide.time}</p>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-1 shrink-0">
+                {activeUser.id === 'my' && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteMySlide(activeSlide.id)}
+                    className="p-1.5 hover:bg-white/10 rounded-full text-rose-400 transition-colors"
+                    title="Delete status slide"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setIsPaused(!isPaused)}
+                  className="p-1.5 hover:bg-white/10 rounded-full text-white/90 transition-colors"
+                  title={isPaused ? "Play" : "Pause"}
+                >
+                  {isPaused ? <Play className="w-5 h-5 fill-current" /> : <Pause className="w-5 h-5 fill-current" />}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsMuted(!isMuted)}
+                  className="p-1.5 hover:bg-white/10 rounded-full text-white/90 transition-colors"
+                  title={isMuted ? "Unmute" : "Mute"}
+                >
+                  {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={closeStoryViewer}
+                  className="p-1.5 hover:bg-white/10 rounded-full text-white/90 transition-colors"
+                  title="Close"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
           </div>
 
-          {/* Story Reply Footer */}
-          <form onSubmit={handleSendReply} className="p-3 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex items-center gap-2 z-10">
-            <input
-              type="text"
-              placeholder="Reply..."
-              value={replyText}
-              onChange={(e) => setReplyText(e.target.value)}
-              className="flex-1 bg-[#202c33]/90 border border-white/20 rounded-full px-4 py-2.5 text-sm text-white placeholder-white/60 focus:outline-none focus:border-[#00a884] backdrop-blur"
+          {/* Story Main Viewport */}
+          <div className="flex-1 flex items-center justify-center relative px-2 overflow-hidden">
+            
+            {/* Display Text Status or Image Status */}
+            {activeSlide.text ? (
+              <div className={`w-full max-w-md h-[70vh] rounded-3xl bg-gradient-to-br ${activeSlide.bgColor || 'from-[#00a8ff] to-[#0284c7]'} flex items-center justify-center p-8 text-center shadow-2xl relative overflow-hidden`}>
+                <p className="text-2xl sm:text-3xl font-bold tracking-wide text-white leading-relaxed drop-shadow">
+                  {activeSlide.text}
+                </p>
+              </div>
+            ) : (
+              <div 
+                className="relative w-full max-w-md h-[72vh] rounded-2xl overflow-hidden flex items-center justify-center border border-white/10 shadow-2xl transition-all"
+                style={{ backgroundColor: activeSlide.canvasBg || '#000000' }}
+              >
+                <img 
+                  src={activeSlide.image} 
+                  alt="Story Content" 
+                  className={`transition-all duration-200 select-none pointer-events-none ${
+                    activeSlide.filter === 'vintage' ? 'sepia contrast-125' :
+                    activeSlide.filter === 'mono' ? 'grayscale' :
+                    activeSlide.filter === 'cyber' ? 'hue-rotate-90 saturate-200' :
+                    activeSlide.filter === 'warm' ? 'brightness-105 saturate-150' :
+                    activeSlide.filter === 'dramatic' ? 'contrast-150 brightness-90' : ''
+                  }`}
+                  style={{
+                    transform: `rotate(${activeSlide.rotation || 0}deg) scale(${activeSlide.zoom || 1}) translate(${activeSlide.positionX || 0}px, ${activeSlide.positionY || 0}px)`,
+                    objectFit: activeSlide.fitMode || 'contain',
+                    maxHeight: '100%',
+                    maxWidth: '100%',
+                    width: activeSlide.fitMode === 'cover' || activeSlide.fitMode === 'fill' ? '100%' : 'auto',
+                    height: activeSlide.fitMode === 'cover' || activeSlide.fitMode === 'fill' ? '100%' : 'auto',
+                  }}
+                />
+
+                {/* Text overlay on image if specified */}
+                {activeSlide.photoTextOverlay && (
+                  <div 
+                    className="absolute z-20 px-4 py-2 rounded-xl backdrop-blur-md bg-black/40 font-bold text-center max-w-[85%] shadow-lg drop-shadow border border-white/10 pointer-events-none"
+                    style={{ color: activeSlide.photoTextColor || '#ffffff' }}
+                  >
+                    {activeSlide.photoTextOverlay}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Reaction Emoji Animation Bubble */}
+            {reactionBubble && (
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-7xl animate-bounce z-50">
+                {reactionBubble}
+              </div>
+            )}
+
+            {/* Optional Caption Overlay */}
+            {activeSlide.caption && (
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-md px-5 py-2.5 rounded-2xl max-w-sm text-center text-sm sm:text-base font-medium text-white z-30 shadow-lg border border-white/10">
+                {activeSlide.caption}
+              </div>
+            )}
+
+            {/* Interactive Touch Areas (Mobile Tap Left/Right) */}
+            <div 
+              onClick={handlePrevSlide}
+              onMouseDown={() => setIsPaused(true)}
+              onMouseUp={() => setIsPaused(false)}
+              onTouchStart={() => setIsPaused(true)}
+              onTouchEnd={() => setIsPaused(false)}
+              className="absolute left-0 top-0 w-1/2 h-full z-20 cursor-pointer opacity-0"
+              title="Previous slide"
             />
+            <div 
+              onClick={handleNextSlide}
+              onMouseDown={() => setIsPaused(true)}
+              onMouseUp={() => setIsPaused(false)}
+              onTouchStart={() => setIsPaused(true)}
+              onTouchEnd={() => setIsPaused(false)}
+              className="absolute right-0 top-0 w-1/2 h-full z-20 cursor-pointer opacity-0"
+              title="Next slide"
+            />
+
+            {/* Desktop Side Arrows */}
             <button
-              type="submit"
-              disabled={!replyText.trim()}
-              className="bg-[#00a884] disabled:opacity-40 hover:bg-[#008f6f] text-[#0b141a] p-2.5 rounded-full font-bold transition-all shadow"
+              type="button"
+              onClick={handlePrevSlide}
+              className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-black/50 hover:bg-black/80 backdrop-blur text-white items-center justify-center cursor-pointer border border-white/20 transition-transform hover:scale-110 shadow-xl"
             >
-              <Send className="w-5 h-5 ml-0.5" />
+              <ChevronLeft className="w-7 h-7" />
             </button>
-          </form>
+            <button
+              type="button"
+              onClick={handleNextSlide}
+              className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-black/50 hover:bg-black/80 backdrop-blur text-white items-center justify-center cursor-pointer border border-white/20 transition-transform hover:scale-110 shadow-xl"
+            >
+              <ChevronRight className="w-7 h-7" />
+            </button>
+          </div>
+
+          {/* Bottom Bar: Owner View Count or Reply Controls */}
+          {activeUser.id === 'my' ? (
+            <div className="p-3 bg-gradient-to-t from-black/90 via-black/60 to-transparent flex flex-col items-center justify-center z-40">
+              <button
+                type="button"
+                onClick={() => setShowViewersSheet(!showViewersSheet)}
+                className="flex items-center gap-2 bg-white/15 hover:bg-white/25 px-5 py-2 rounded-full backdrop-blur transition-all font-medium text-xs sm:text-sm cursor-pointer border border-white/20"
+              >
+                <Eye className="w-4 h-4 text-[#00a8ff]" />
+                <span>Seen by {activeSlide.viewsCount || 0}</span>
+                <ChevronDown className={`w-4 h-4 transition-transform ${showViewersSheet ? 'rotate-180' : ''}`} />
+              </button>
+            </div>
+          ) : (
+            <div className="p-3 bg-gradient-to-t from-black/90 via-black/60 to-transparent flex flex-col gap-2 z-40">
+              {/* Quick Reaction Bar */}
+              <div className="flex items-center justify-center gap-3 py-1">
+                {['❤️', '😂', '😍', '😮', '😢', '👍', '🔥'].map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => handleSendReaction(emoji)}
+                    className="text-2xl hover:scale-125 transition-transform active:scale-95 p-1"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+
+              {/* Reply Input Form */}
+              <form onSubmit={handleSendReply} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Reply..."
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  onFocus={() => setIsPaused(true)}
+                  onBlur={() => setIsPaused(false)}
+                  className="flex-1 bg-[#202c33]/90 border border-white/20 rounded-full px-4 py-2.5 text-sm text-white placeholder-white/60 focus:outline-none focus:border-[#00a8ff] backdrop-blur"
+                />
+                <button
+                  type="submit"
+                  disabled={!replyText.trim()}
+                  className="bg-[#00a8ff] disabled:opacity-40 hover:bg-[#0088cc] text-[#0b141a] p-2.5 rounded-full font-bold transition-all shadow cursor-pointer"
+                >
+                  <Send className="w-5 h-5 ml-0.5" />
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* Owner Viewers List Sheet */}
+          {showViewersSheet && activeUser.id === 'my' && (
+            <div className="absolute bottom-0 left-0 right-0 max-h-[50vh] bg-[#111b21] rounded-t-3xl p-4 border-t border-[#202c33] z-50 overflow-y-auto animate-slide-up text-white">
+              <div className="flex items-center justify-between pb-3 border-b border-[#202c33]">
+                <h4 className="font-bold text-sm flex items-center gap-2">
+                  <Eye className="w-4 h-4 text-[#00a8ff]" />
+                  <span>Views ({activeSlide.viewers?.length || 0})</span>
+                </h4>
+                <button type="button" onClick={() => setShowViewersSheet(false)}>
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+
+              <div className="py-2 space-y-3">
+                {activeSlide.viewers && activeSlide.viewers.length > 0 ? (
+                  activeSlide.viewers.map((viewer, idx) => (
+                    <div key={idx} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <img src={viewer.avatar} alt={viewer.name} className="w-9 h-9 rounded-full object-cover" />
+                        <div>
+                          <p className="text-sm font-semibold">{viewer.name}</p>
+                          <p className="text-xs text-gray-400">{viewer.time}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-center text-xs text-gray-400 py-4">No views yet</p>
+                )}
+              </div>
+            </div>
+          )}
+
         </div>
       )}
 
-      {/* Lightbox Preview Modal */}
-      {previewUrl && (
-        <div
-          onClick={() => setPreviewUrl(null)}
-          className="fixed inset-0 z-50 bg-black/95 backdrop-blur flex items-center justify-center p-4 cursor-zoom-out animate-fade-in"
-        >
-          <img src={previewUrl} alt="Preview" className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl" />
+      {/* Creator Studio Modal (Text / Media Status Creation & Photo Editor) */}
+      {showCreatorModal && (
+        <div className="fixed inset-0 z-50 bg-[#0b141a]/95 backdrop-blur-md flex flex-col justify-between p-3 sm:p-4 text-white animate-fade-in overflow-y-auto">
+          {/* Header */}
+          <div className="flex items-center justify-between z-10 py-1">
+            <button
+              type="button"
+              onClick={() => {
+                setShowCreatorModal(false);
+                setSelectedMediaUrl(null);
+                resetPhotoEditor();
+              }}
+              className="p-2 hover:bg-white/10 rounded-full transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            {creatorType === 'media' && (
+              <h3 className="font-bold text-sm sm:text-base flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-[#00a8ff]" />
+                <span>Photo Editor & Positioning</span>
+              </h3>
+            )}
+
+            <div className="flex items-center gap-2">
+              {creatorType === 'text' && (
+                <div className="flex items-center gap-1 bg-white/10 p-1 rounded-full">
+                  {bgColorsList.map((bg, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setStatusBgColor(bg)}
+                      className={`w-6 h-6 rounded-full bg-gradient-to-br ${bg} border-2 ${
+                        statusBgColor === bg ? 'border-white scale-110' : 'border-transparent'
+                      }`}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {creatorType === 'media' && (
+                <button
+                  type="button"
+                  onClick={resetPhotoEditor}
+                  className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-full text-xs font-semibold flex items-center gap-1 text-gray-200 transition-colors"
+                  title="Reset image modifications"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Reset</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Main Workspace Canvas */}
+          <div className="flex-1 flex flex-col items-center justify-center py-2 px-1 my-auto">
+            {creatorType === 'text' ? (
+              <div className={`w-full max-w-md h-80 rounded-3xl bg-gradient-to-br ${statusBgColor} p-6 flex items-center justify-center shadow-2xl`}>
+                <textarea
+                  placeholder="Type a status..."
+                  value={statusText}
+                  onChange={(e) => setStatusText(e.target.value)}
+                  className="w-full bg-transparent text-center text-2xl font-bold text-white placeholder-white/60 focus:outline-none resize-none"
+                  rows={4}
+                  maxLength={200}
+                />
+              </div>
+            ) : (
+              <div className="w-full max-w-md flex flex-col items-center gap-3">
+                {/* Live Photo Workspace Canvas Frame */}
+                <div 
+                  className="relative w-full h-[45vh] sm:h-[52vh] max-h-[520px] rounded-2xl overflow-hidden flex items-center justify-center border border-white/20 shadow-2xl transition-all relative"
+                  style={{ backgroundColor: photoCanvasBg }}
+                >
+                  {selectedMediaUrl ? (
+                    <img 
+                      src={selectedMediaUrl} 
+                      alt="Status Preview" 
+                      className={`transition-all duration-150 select-none ${
+                        selectedFilter === 'vintage' ? 'sepia contrast-125' :
+                        selectedFilter === 'mono' ? 'grayscale' :
+                        selectedFilter === 'cyber' ? 'hue-rotate-90 saturate-200' :
+                        selectedFilter === 'warm' ? 'brightness-105 saturate-150' :
+                        selectedFilter === 'dramatic' ? 'contrast-150 brightness-90' : ''
+                      }`}
+                      style={{
+                        transform: `rotate(${photoRotation}deg) scale(${photoZoom}) translate(${photoPositionX}px, ${photoPositionY}px)`,
+                        objectFit: photoFitMode,
+                        maxHeight: '100%',
+                        maxWidth: '100%',
+                        width: photoFitMode === 'cover' || photoFitMode === 'fill' ? '100%' : 'auto',
+                        height: photoFitMode === 'cover' || photoFitMode === 'fill' ? '100%' : 'auto',
+                      }}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center text-gray-400 gap-2">
+                      <ImageIcon className="w-12 h-12 stroke-1" />
+                      <p className="text-sm">Select an image to edit</p>
+                    </div>
+                  )}
+
+                  {/* Text Overlay on Canvas */}
+                  {photoTextOverlay && (
+                    <div 
+                      className="absolute z-20 px-4 py-2 rounded-xl backdrop-blur-md bg-black/50 font-bold text-center max-w-[85%] shadow-lg drop-shadow border border-white/20 pointer-events-none"
+                      style={{ color: photoTextColor }}
+                    >
+                      {photoTextOverlay}
+                    </div>
+                  )}
+                </div>
+
+                {/* Photo Editor Tabs & Toolbar */}
+                <div className="w-full bg-[#111b21] border border-[#202c33] rounded-2xl p-3 space-y-3 shadow-xl">
+                  {/* Tool Category Selector */}
+                  <div className="flex items-center justify-around border-b border-[#202c33] pb-2 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setActivePhotoTool('adjust')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition-all ${
+                        activePhotoTool === 'adjust' ? 'bg-[#00a8ff] text-[#0b141a] font-bold' : 'text-gray-300 hover:bg-white/5'
+                      }`}
+                    >
+                      <Move className="w-3.5 h-3.5" />
+                      <span>Position & Scale</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setActivePhotoTool('filter')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition-all ${
+                        activePhotoTool === 'filter' ? 'bg-[#00a8ff] text-[#0b141a] font-bold' : 'text-gray-300 hover:bg-white/5'
+                      }`}
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Filter</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setActivePhotoTool('text')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition-all ${
+                        activePhotoTool === 'text' ? 'bg-[#00a8ff] text-[#0b141a] font-bold' : 'text-gray-300 hover:bg-white/5'
+                      }`}
+                    >
+                      <Type className="w-3.5 h-3.5" />
+                      <span>Sticker/Text</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setActivePhotoTool('bg')}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition-all ${
+                        activePhotoTool === 'bg' ? 'bg-[#00a8ff] text-[#0b141a] font-bold' : 'text-gray-300 hover:bg-white/5'
+                      }`}
+                    >
+                      <Palette className="w-3.5 h-3.5" />
+                      <span>Canvas Bg</span>
+                    </button>
+                  </div>
+
+                  {/* Tool Active Panel */}
+                  {activePhotoTool === 'adjust' && (
+                    <div className="space-y-3 pt-1 text-xs">
+                      {/* Zoom & Rotate Controls */}
+                      <div className="grid grid-cols-2 gap-3 items-center">
+                        {/* Zoom Control */}
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-gray-300 text-[11px]">
+                            <span className="flex items-center gap-1"><ZoomIn className="w-3 h-3 text-[#00a8ff]" /> Zoom</span>
+                            <span className="font-mono text-[#00a8ff]">{Math.round(photoZoom * 100)}%</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button 
+                              type="button" 
+                              onClick={() => setPhotoZoom((z) => Math.max(0.5, +(z - 0.1).toFixed(1)))}
+                              className="p-1 bg-white/10 hover:bg-white/20 rounded"
+                            >
+                              <ZoomOut className="w-3.5 h-3.5" />
+                            </button>
+                            <input 
+                              type="range" 
+                              min="0.5" 
+                              max="2.5" 
+                              step="0.05"
+                              value={photoZoom}
+                              onChange={(e) => setPhotoZoom(parseFloat(e.target.value))}
+                              className="flex-1 accent-[#00a8ff] h-1.5 bg-gray-700 rounded-lg cursor-pointer"
+                            />
+                            <button 
+                              type="button" 
+                              onClick={() => setPhotoZoom((z) => Math.min(2.5, +(z + 0.1).toFixed(1)))}
+                              className="p-1 bg-white/10 hover:bg-white/20 rounded"
+                            >
+                              <ZoomIn className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Rotation Control */}
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-gray-300 text-[11px]">
+                            <span className="flex items-center gap-1"><RotateCw className="w-3 h-3 text-[#00a8ff]" /> Rotation</span>
+                            <span className="font-mono text-[#00a8ff]">{photoRotation}°</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {[0, 90, 180, 270].map((deg) => (
+                              <button
+                                key={deg}
+                                type="button"
+                                onClick={() => setPhotoRotation(deg)}
+                                className={`flex-1 py-1 rounded text-[10px] font-bold transition-colors ${
+                                  photoRotation === deg ? 'bg-[#00a8ff] text-[#0b141a]' : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                                }`}
+                              >
+                                {deg}°
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Directional Shift & Fit Mode */}
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-[#202c33]">
+                        {/* 4-way Nudge buttons */}
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] text-gray-400 mr-1">Shift:</span>
+                          <button 
+                            type="button" 
+                            onClick={() => setPhotoPositionY((y) => y - 15)}
+                            className="p-1 bg-white/10 hover:bg-white/20 rounded" 
+                            title="Nudge Up"
+                          >
+                            <ArrowUp className="w-3.5 h-3.5" />
+                          </button>
+                          <button 
+                            type="button" 
+                            onClick={() => setPhotoPositionY((y) => y + 15)}
+                            className="p-1 bg-white/10 hover:bg-white/20 rounded" 
+                            title="Nudge Down"
+                          >
+                            <ArrowDown className="w-3.5 h-3.5" />
+                          </button>
+                          <button 
+                            type="button" 
+                            onClick={() => setPhotoPositionX((x) => x - 15)}
+                            className="p-1 bg-white/10 hover:bg-white/20 rounded" 
+                            title="Nudge Left"
+                          >
+                            <ArrowLeft className="w-3.5 h-3.5" />
+                          </button>
+                          <button 
+                            type="button" 
+                            onClick={() => setPhotoPositionX((x) => x + 15)}
+                            className="p-1 bg-white/10 hover:bg-white/20 rounded" 
+                            title="Nudge Right"
+                          >
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setPhotoPositionX(0); setPhotoPositionY(0); }}
+                            className="text-[10px] bg-white/10 hover:bg-white/20 px-1.5 py-1 rounded text-gray-300 ml-1"
+                          >
+                            Center
+                          </button>
+                        </div>
+
+                        {/* Fit Mode */}
+                        <div className="flex items-center gap-1">
+                          {(['contain', 'cover', 'fill'] as const).map((mode) => (
+                            <button
+                              key={mode}
+                              type="button"
+                              onClick={() => setPhotoFitMode(mode)}
+                              className={`px-2 py-1 rounded text-[10px] capitalize font-medium ${
+                                photoFitMode === mode ? 'bg-[#00a8ff] text-[#0b141a] font-bold' : 'bg-white/10 text-gray-300'
+                              }`}
+                            >
+                              {mode}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Filter Panel */}
+                  {activePhotoTool === 'filter' && (
+                    <div className="flex items-center justify-around gap-1.5 py-1 text-xs overflow-x-auto">
+                      {[
+                        { id: 'normal', label: 'Normal' },
+                        { id: 'vintage', label: 'Vintage' },
+                        { id: 'mono', label: 'B&W Mono' },
+                        { id: 'cyber', label: 'Cyber' },
+                        { id: 'warm', label: 'Warm Sun' },
+                        { id: 'dramatic', label: 'Dramatic' }
+                      ].map((f) => (
+                        <button
+                          key={f.id}
+                          type="button"
+                          onClick={() => setSelectedFilter(f.id as any)}
+                          className={`px-3 py-1.5 rounded-xl font-medium shrink-0 transition-colors ${
+                            selectedFilter === f.id ? 'bg-[#00a8ff] text-[#0b141a] font-bold' : 'bg-white/10 text-gray-200 hover:bg-white/20'
+                          }`}
+                        >
+                          {f.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Text Overlay Panel */}
+                  {activePhotoTool === 'text' && (
+                    <div className="space-y-2 py-1 text-xs">
+                      <input
+                        type="text"
+                        placeholder="Type text/sticker to put on photo..."
+                        value={photoTextOverlay}
+                        onChange={(e) => setPhotoTextOverlay(e.target.value)}
+                        className="w-full bg-[#202c33] border border-white/20 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-400 focus:outline-none focus:border-[#00a8ff]"
+                      />
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-gray-400">Color:</span>
+                        {['#ffffff', '#00a8ff', '#ff3b30', '#ffcc00', '#38bdf8', '#a855f7', '#000000'].map((c) => (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => setPhotoTextColor(c)}
+                            className={`w-6 h-6 rounded-full border-2 ${
+                              photoTextColor === c ? 'border-white scale-110' : 'border-transparent'
+                            }`}
+                            style={{ backgroundColor: c }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Canvas Bg Panel */}
+                  {activePhotoTool === 'bg' && (
+                    <div className="flex items-center justify-between py-1 text-xs">
+                      <span className="text-gray-300 text-[11px]">Background Canvas Color:</span>
+                      <div className="flex items-center gap-1.5">
+                        {[
+                          { color: '#000000', label: 'Black' },
+                          { color: '#111b21', label: 'WhatsApp Dark' },
+                          { color: '#0f382c', label: 'Emerald' },
+                          { color: '#1e1b4b', label: 'Navy' },
+                          { color: '#31102f', label: 'Plum' },
+                          { color: '#1f2937', label: 'Slate' }
+                        ].map((b) => (
+                          <button
+                            key={b.color}
+                            type="button"
+                            onClick={() => setPhotoCanvasBg(b.color)}
+                            className={`w-6 h-6 rounded-full border-2 transition-transform ${
+                              photoCanvasBg === b.color ? 'border-white scale-110' : 'border-transparent'
+                            }`}
+                            style={{ backgroundColor: b.color }}
+                            title={b.label}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Bottom Controls */}
+          <div className="max-w-md mx-auto w-full space-y-2 pt-2">
+            <input
+              type="text"
+              placeholder="Add a caption..."
+              value={statusCaption}
+              onChange={(e) => setStatusCaption(e.target.value)}
+              className="w-full bg-[#202c33] border border-white/20 rounded-2xl px-4 py-2.5 text-sm text-white placeholder-gray-400 focus:outline-none focus:border-[#00a8ff]"
+            />
+
+            <div className="flex items-center justify-between pt-1">
+              <button
+                type="button"
+                onClick={() => setShowPrivacyModal(true)}
+                className="text-xs text-gray-300 hover:text-[#00a8ff] flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 transition-all cursor-pointer"
+                title="Click to set status privacy & select friends"
+              >
+                <Lock className="w-3.5 h-3.5 text-[#00a8ff]" />
+                <span>Status privacy: <strong className="text-white font-bold">{getPrivacyLabel()}</strong></span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handlePublishStatus}
+                disabled={creatorType === 'text' && !statusText.trim()}
+                className="bg-[#00a8ff] text-[#0b141a] px-6 py-2.5 rounded-full font-bold text-sm flex items-center gap-2 hover:bg-[#0088cc] active:scale-95 disabled:opacity-40 transition-all cursor-pointer shadow-lg"
+              >
+                <span>Send</span>
+                <Send className="w-4 h-4 fill-current" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Privacy Settings Modal */}
+      {showPrivacyModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+          <div className={`w-full max-w-md rounded-3xl p-5 sm:p-6 shadow-2xl border max-h-[90vh] flex flex-col ${
+            isDark ? 'bg-[#111b21] border-[#202c33] text-[#e9edef]' : 'bg-white border-gray-200 text-gray-900'
+          }`}>
+            <div className="flex items-center justify-between pb-3 border-b border-gray-200 dark:border-[#202c33] shrink-0">
+              <h3 className="font-bold text-lg flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-[#00a8ff]" />
+                Status Privacy
+              </h3>
+              <button type="button" onClick={() => setShowPrivacyModal(false)} className="p-1 rounded-full hover:bg-gray-500/20 cursor-pointer">
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+
+            <div className="py-3 space-y-3 overflow-y-auto flex-1 pr-1">
+              <p className="text-xs text-gray-500 dark:text-[#8596a0]">
+                Who can see my status updates? Select friends to customize access.
+              </p>
+
+              {[
+                { id: 'contacts', label: 'My all contacts', desc: 'All your saved contacts can view' },
+                { id: 'only', label: 'Only share with...', desc: 'Select specific contacts to share with' }
+              ].map((opt) => (
+                <label 
+                  key={opt.id}
+                  className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-colors ${
+                    privacySetting === opt.id 
+                      ? 'border-[#00a8ff] bg-[#00a8ff]/10' 
+                      : (isDark ? 'border-[#202c33] hover:bg-[#202c33]' : 'border-gray-200 hover:bg-gray-50')
+                  }`}
+                >
+                  <div>
+                    <p className="font-semibold text-sm">{opt.label}</p>
+                    <p className="text-xs text-gray-500 dark:text-[#8596a0]">{opt.desc}</p>
+                  </div>
+                  <input
+                    type="radio"
+                    name="privacy"
+                    checked={privacySetting === opt.id}
+                    onChange={() => setPrivacySetting(opt.id as any)}
+                    className="accent-[#00a8ff] w-4 h-4 cursor-pointer"
+                  />
+                </label>
+              ))}
+
+              {/* Contact Picker Section when Only share with... is selected */}
+              {privacySetting === 'only' && (
+                <div className={`mt-3 p-3.5 rounded-2xl border space-y-2.5 animate-fade-in ${
+                  isDark ? 'bg-[#0b141a] border-[#202c33]' : 'bg-gray-50 border-gray-200'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold text-[#00a8ff]">
+                      Share status ONLY with these contacts:
+                    </p>
+                    <span className="text-[11px] text-[#00a8ff] font-bold bg-[#00a8ff]/10 px-2 py-0.5 rounded-full">
+                      {selectedPrivacyContactIds.length} selected
+                    </span>
+                  </div>
+
+                  {/* Search Box */}
+                  <div className="relative flex items-center">
+                    <input
+                      type="text"
+                      value={privacySearchQuery}
+                      onChange={(e) => setPrivacySearchQuery(e.target.value)}
+                      placeholder="Search contacts..."
+                      className={`w-full text-xs px-3 py-2 rounded-xl border text-e9edef focus:outline-none focus:border-[#00a8ff] ${
+                        isDark ? 'bg-[#111b21] border-[#202c33] text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                      }`}
+                    />
+                  </div>
+
+                  {/* Quick Select All / Deselect All */}
+                  <div className="flex items-center justify-between text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPrivacyContactIds(availableContacts.map(c => c.id))}
+                      className="text-[#00a8ff] hover:underline font-semibold cursor-pointer"
+                    >
+                      Select All ({availableContacts.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPrivacyContactIds([])}
+                      className="text-gray-400 hover:text-gray-200 font-medium cursor-pointer"
+                    >
+                      Clear Selection
+                    </button>
+                  </div>
+
+                  {/* Scrollable Contacts Checklist */}
+                  <div className="max-h-44 overflow-y-auto space-y-1.5 pr-1 text-xs">
+                    {availableContacts
+                      .filter(c => c.name.toLowerCase().includes(privacySearchQuery.toLowerCase()))
+                      .map(contact => {
+                        const isChecked = selectedPrivacyContactIds.includes(contact.id);
+                        return (
+                          <div
+                            key={contact.id}
+                            onClick={() => togglePrivacyContact(contact.id)}
+                            className={`flex items-center justify-between p-2 rounded-xl cursor-pointer transition-all ${
+                              isChecked 
+                                ? 'bg-[#00a8ff]/20 border border-[#00a8ff]/50' 
+                                : (isDark ? 'bg-[#1f2c34]/40 hover:bg-[#1f2c34]' : 'bg-white hover:bg-gray-100 border border-gray-200')
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <img
+                                src={contact.avatar}
+                                alt={contact.name}
+                                className="w-8 h-8 rounded-full object-cover shrink-0 border border-[#00a8ff]/30"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <p className={`font-semibold truncate text-xs ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                  {contact.name}
+                                </p>
+                                <p className="text-[10px] text-gray-400 truncate">
+                                  {contact.username || contact.status || 'Contact'}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors shrink-0 ${
+                              isChecked ? 'bg-[#00a8ff] border-[#00a8ff] text-[#0b141a]' : 'border-gray-500'
+                            }`}>
+                              {isChecked && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowPrivacyModal(false)}
+              className="w-full bg-[#00a8ff] text-[#0b141a] font-bold py-3 rounded-2xl hover:bg-[#0088cc] transition-all cursor-pointer mt-3 shrink-0 shadow-lg"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {privacyToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#00a8ff] text-[#0b141a] px-5 py-2.5 rounded-full text-xs font-bold shadow-2xl animate-fade-in z-50 flex items-center gap-2 border border-white/20">
+          <ShieldCheck className="w-4 h-4" />
+          <span>{privacyToast}</span>
         </div>
       )}
 

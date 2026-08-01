@@ -1,308 +1,1678 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { User as FirebaseUser } from 'firebase/auth';
-import { Contact, MediaAttachment, Message, UserProfile, VaultSettings } from '../types';
-import { DEFAULT_SETTINGS, DEFAULT_USER, INITIAL_CONTACTS, INITIAL_MESSAGES } from '../data/initialData';
-import { firebaseAuth, googleProvider, firebaseDb } from '../lib/firebase';
-import { signInWithRedirect as firebaseSignInWithRedirect, getRedirectResult, signOut as firebaseSignOut } from 'firebase/auth';
-import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { 
+  onAuthStateChanged, signInWithPopup, signOut, 
+  signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile as updateAuthProfile,
+  User as FirebaseUser 
+} from 'firebase/auth';
+import { 
+  collection, doc, getDoc, setDoc, updateDoc, deleteDoc, 
+  onSnapshot, query, where, orderBy, serverTimestamp, 
+  addDoc, getDocs, writeBatch, arrayUnion, runTransaction
+} from 'firebase/firestore';
+import { 
+  CallInfo, CallLog, CallType, CallDirection, CallStatus, Contact, MediaAttachment, Message, 
+  UserProfile, VaultSettings, FriendRequest, FriendStatus, StatusUpdate 
+} from '../types';
+import { DEFAULT_SETTINGS, DEFAULT_USER } from '../data/initialData';
+import { isFirebaseConfigured, firebaseAuth, googleProvider, db } from '../lib/firebase';
+import { compressImage } from '../lib/mediaCompressor';
+import { playMessageArrivalSound } from '../lib/soundUtils';
+
+export interface ActiveCallState {
+  id: string;
+  contactId: string;
+  type: CallType;
+  direction: CallDirection;
+  status: 'ringing' | 'incoming' | 'connecting' | 'connected' | 'ended' | 'rejected' | 'busy' | 'cancelled';
+  durationSeconds: number;
+  isMuted: boolean;
+  isVideoOff: boolean;
+  isSpeakerOn: boolean;
+  isFrontCamera: boolean;
+  signalBars: number;
+  localStream?: MediaStream | null;
+  remoteStream?: MediaStream | null;
+  connectionQuality?: 'excellent' | 'good' | 'poor' | 'reconnecting';
+}
 
 interface VaultContextType {
   isUnlocked: boolean;
   user: UserProfile;
   settings: VaultSettings;
   contacts: Contact[];
+  friendUids: string[];
+  unreadTotal: number;
   messages: Record<string, Message[]>;
+  callLogs: CallLog[];
+  activeCall: ActiveCallState | null;
+  callPermissionError: string | null;
+  clearCallPermissionError: () => void;
   activeContactId: string | null;
   activeTab: 'chats' | 'gallery' | 'profile' | 'settings' | 'calls';
   unlockedLocks: Record<string, boolean>;
+  blockedContactIds: string[];
+  customNicknames: Record<string, string>;
   authUser: FirebaseUser | null;
   authReady: boolean;
   authError: string | null;
+  isFirebaseConfigured: boolean;
+  needsUsername: boolean;
+  pendingFriendRequests: FriendRequest[];
+  sentFriendRequests: FriendRequest[];
+  allRegisteredUsers: any[];
+  statusUpdates: StatusUpdate[];
+  completeUsernameSetup: (username: string, displayName: string) => Promise<void>;
+  sendFriendRequest: (targetUserId: string) => Promise<void>;
+  acceptFriendRequest: (requestId: string, senderId: string) => Promise<void>;
+  rejectFriendRequest: (requestId: string) => Promise<void>;
+  unfriendContact: (contactId: string) => Promise<void>;
+  isFriend: (contactId: string) => boolean;
+  searchFirebaseUsers: (term: string) => Promise<Array<{
+    id: string;
+    name: string;
+    username: string;
+    avatar: string;
+    status: string;
+    isOnline: boolean;
+    friendStatus: FriendStatus;
+    requestId?: string;
+  }>>;
+  postStatusUpdate: (text?: string, mediaUrl?: string, mediaType?: 'image' | 'video') => Promise<void>;
   unlockVault: (code: string) => boolean;
   lockVault: () => void;
   signInWithGoogle: () => Promise<void>;
+  signInWithEmail: (email: string, pass: string) => Promise<void>;
+  signUpWithEmail: (email: string, pass: string, name: string) => Promise<void>;
   signOutGoogle: () => Promise<void>;
   setActiveContactId: (id: string | null) => void;
   setActiveTab: (tab: 'chats' | 'gallery' | 'profile' | 'settings' | 'calls') => void;
-  sendMessage: (receiverId: string, text: string, media?: MediaAttachment) => void;
+  sendMessage: (receiverId: string, text: string, media?: MediaAttachment, replyTo?: Message['replyTo']) => Promise<void>;
+  editMessage: (contactId: string, msgId: string, newText: string) => Promise<void>;
+  deleteMessage: (contactId: string, msgId: string) => Promise<void>;
+  deleteForEveryone: (contactId: string, msgId: string) => Promise<void>;
+  toggleStarMessage: (contactId: string, msgId: string) => void;
+  togglePinMessage: (contactId: string, msgId: string) => void;
+  forwardMessage: (msg: Message, targetContactIds: string[]) => void;
+  setTypingStatus: (contactId: string, isTyping: boolean) => void;
+  setCustomNickname: (contactId: string, nickname: string) => Promise<void>;
+  clearCustomNickname: (contactId: string) => Promise<void>;
+  getContactDisplayName: (contactOrId: Contact | string | null | undefined) => string;
+  startCall: (contactId: string, type: CallType) => Promise<void>;
+  acceptCall: () => void;
+  rejectCall: () => void;
+  cancelCall: () => void;
+  endCall: () => void;
+  toggleMuteCall: () => void;
+  toggleVideoCall: () => void;
+  toggleSpeakerCall: () => void;
+  switchCameraCall: () => void;
+  clearCallLogs: () => void;
   updateSettings: (newSettings: Partial<VaultSettings>) => void;
-  updateProfile: (newProfile: Partial<UserProfile>) => void;
+  updateProfile: (newProfile: Partial<UserProfile>) => Promise<void>;
   addContact: (name: string, status: string, isAi: boolean) => void;
-  deleteMessage: (contactId: string, msgId: string) => void;
+  createGroup: (groupName: string, memberNames: string[]) => string;
   clearChatHistory: (contactId: string) => void;
+  clearAllChatHistory: () => void;
   togglePinContact: (contactId: string) => void;
   toggleLockContact: (contactId: string) => void;
+  toggleArchiveContact: (contactId: string) => void;
   unlockChatLock: (contactId: string) => void;
-  blockedContactIds: string[];
-  unreadTotal: number;
   blockContact: (contactId: string) => void;
   unblockContact: (contactId: string) => void;
-  clearAllChatHistory: () => void;
-  toggleArchiveContact: (contactId: string) => void;
-  startCall: (contactId: string, type: 'voice' | 'video') => void;
-  createGroup: (name: string, members: string[]) => string;
-  activeCall: { contactId: string; type: 'voice' | 'video' } | null;
-  endCall: () => void;
 }
 
 const VaultContext = createContext<VaultContextType | undefined>(undefined);
 
-const STORAGE_KEY_USER = 'calc_vault_user_v1';
-const STORAGE_KEY_SETTINGS = 'calc_vault_settings_v1';
-const STORAGE_KEY_CONTACTS = 'calc_vault_contacts_v1';
-const STORAGE_KEY_MESSAGES = 'calc_vault_messages_v1';
-const CHANNEL_NAME = 'calc_vault_sync_channel';
+const fallbackVaultContext: VaultContextType = {
+  isUnlocked: false,
+  user: DEFAULT_USER,
+  settings: DEFAULT_SETTINGS,
+  contacts: [],
+  friendUids: [],
+  unreadTotal: 0,
+  messages: {},
+  callLogs: [],
+  activeCall: null,
+  callPermissionError: null,
+  clearCallPermissionError: () => {},
+  activeContactId: null,
+  activeTab: 'chats',
+  unlockedLocks: {},
+  blockedContactIds: [],
+  customNicknames: {},
+  authUser: null,
+  authReady: false,
+  authError: null,
+  isFirebaseConfigured: false,
+  needsUsername: false,
+  pendingFriendRequests: [],
+  sentFriendRequests: [],
+  allRegisteredUsers: [],
+  statusUpdates: [],
+  completeUsernameSetup: async () => {},
+  sendFriendRequest: async () => {},
+  acceptFriendRequest: async () => {},
+  rejectFriendRequest: async () => {},
+  unfriendContact: async () => {},
+  isFriend: () => false,
+  searchFirebaseUsers: async () => [],
+  postStatusUpdate: async () => {},
+  unlockVault: () => false,
+  lockVault: () => {},
+  signInWithGoogle: async () => {},
+  signInWithEmail: async () => {},
+  signUpWithEmail: async () => {},
+  signOutGoogle: async () => {},
+  setActiveContactId: () => {},
+  setActiveTab: () => {},
+  sendMessage: async () => {},
+  editMessage: async () => {},
+  deleteMessage: async () => {},
+  deleteForEveryone: async () => {},
+  toggleStarMessage: () => {},
+  togglePinMessage: () => {},
+  forwardMessage: () => {},
+  setTypingStatus: () => {},
+  setCustomNickname: async () => {},
+  clearCustomNickname: async () => {},
+  getContactDisplayName: () => 'User',
+  startCall: async () => {},
+  acceptCall: () => {},
+  rejectCall: () => {},
+  cancelCall: () => {},
+  endCall: () => {},
+  toggleMuteCall: () => {},
+  toggleVideoCall: () => {},
+  toggleSpeakerCall: () => {},
+  switchCameraCall: () => {},
+  clearCallLogs: () => {},
+  updateSettings: () => {},
+  updateProfile: async () => {},
+  addContact: () => {},
+  createGroup: () => '',
+  clearChatHistory: () => {},
+  clearAllChatHistory: () => {},
+  togglePinContact: () => {},
+  toggleLockContact: () => {},
+  toggleArchiveContact: () => {},
+  unlockChatLock: () => {},
+  blockContact: () => {},
+  unblockContact: () => {},
+};
+
+const ICE_SERVERS: RTCConfiguration = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
+  ],
+};
+
+const isPermissionDeniedError = (error: unknown): boolean => {
+  const code = typeof error === 'object' && error && 'code' in error ? String((error as { code?: unknown }).code || '') : '';
+  const message = error instanceof Error ? error.message : String(error || '');
+  return /permission-denied|missing or insufficient permissions|code-permission-denied/i.test(`${code} ${message}`);
+};
 
 export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
   const [activeContactId, setActiveContactId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'chats' | 'gallery' | 'profile' | 'settings' | 'calls'>('chats');
   const [unlockedLocks, setUnlockedLocks] = useState<Record<string, boolean>>({});
+  
   const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
   const [authReady, setAuthReady] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [needsUsername, setNeedsUsername] = useState<boolean>(false);
 
-  const [user, setUser] = useState<UserProfile>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_USER);
-    return saved ? JSON.parse(saved) : DEFAULT_USER;
-  });
-
+  const [user, setUser] = useState<UserProfile>(DEFAULT_USER);
   const [settings, setSettings] = useState<VaultSettings>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_SETTINGS);
-    return saved ? JSON.parse(saved) : DEFAULT_SETTINGS;
+    try {
+      const saved = localStorage.getItem('secret_vault_settings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return { ...DEFAULT_SETTINGS, ...parsed, passcode: parsed.passcode || '1234' };
+      }
+    } catch (e) {
+      console.error('Error loading settings from localStorage:', e);
+    }
+    return DEFAULT_SETTINGS;
   });
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [friendUids, setFriendUids] = useState<string[]>([]);
+  const [pendingFriendRequests, setPendingFriendRequests] = useState<FriendRequest[]>([]);
+  const [sentFriendRequests, setSentFriendRequests] = useState<FriendRequest[]>([]);
+  const [allRegisteredUsers, setAllRegisteredUsers] = useState<any[]>([]);
+  const [messages, setMessages] = useState<Record<string, Message[]>>({});
+  const [callLogs, setCallLogs] = useState<CallLog[]>([]);
+  const [activeCall, setActiveCall] = useState<ActiveCallState | null>(null);
+  const [callPermissionError, setCallPermissionError] = useState<string | null>(null);
+  const [statusUpdates, setStatusUpdates] = useState<StatusUpdate[]>([]);
+  const [blockedContactIds, setBlockedContactIds] = useState<string[]>([]);
+  const [customNicknames, setCustomNicknames] = useState<Record<string, string>>({});
 
-  const [contacts, setContacts] = useState<Contact[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_CONTACTS);
-    return saved ? JSON.parse(saved) : INITIAL_CONTACTS;
-  });
+  const unreadTotal = contacts.reduce((total, contact) => total + (contact.unreadCount || 0), 0);
 
-  const [messages, setMessages] = useState<Record<string, Message[]>>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_MESSAGES);
-    return saved ? JSON.parse(saved) : INITIAL_MESSAGES;
-  });
+  const clearCallPermissionError = () => setCallPermissionError(null);
 
-  const [blockedContactIds, setBlockedContactIds] = useState<string[]>(() => {
-    const saved = localStorage.getItem('calc_vault_blocked_v1');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const handleFirestoreError = (scope: string, error: unknown, onPermissionDenied?: () => void) => {
+    if (isPermissionDeniedError(error)) {
+      onPermissionDenied?.();
+      return;
+    }
+    console.error(scope, error);
+  };
 
-  const [activeCall, setActiveCall] = useState<{ contactId: string; type: 'voice' | 'video' } | null>(null);
-
-  const unreadTotal = contacts.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
-
-  // Firebase Auth State Listener
+  const activeCallRef = useRef<ActiveCallState | null>(null);
   useEffect(() => {
-    let isMounted = true;
+    activeCallRef.current = activeCall;
+  }, [activeCall]);
 
-    // Set up auth state listener immediately
-    const unsubscribe = firebaseAuth.onAuthStateChanged(async (user) => {
-      if (!isMounted) return;
-      
-      console.log('🔥 Auth state changed:', user ? 'User logged in' : 'User logged out');
-      setAuthUser(user);
-      setAuthReady(true);
+  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
+  const remoteStreamRef = useRef<MediaStream | null>(null);
+  const callDocUnsubRef = useRef<(() => void) | null>(null);
+  const candidatesUnsubRef = useRef<(() => void) | null>(null);
 
-      if (user) {
-        // Save user to Firestore
-        await saveUserToFirebase(user);
-        
-        // Load user data from Firestore
-        await loadUserDataFromFirebase(user.uid);
-        
-        // Update user profile with Firebase data
-        setUser(prev => ({
-          ...prev,
-          name: user.displayName || prev.name,
-          avatar: user.photoURL || prev.avatar,
-          email: user.email || prev.email,
-          providerId: user.providerData[0]?.providerId || prev.providerId,
-          firebaseUid: user.uid,
-          isAdmin: user.email === 'bhelavevicky66@gmail.com',
-        }));
-      }
-    });
-
-    // Handle redirect result on page load (separate from auth state)
-    getRedirectResult(firebaseAuth).then((result) => {
-      if (result && result.user && isMounted) {
-        console.log('✅ Redirect sign-in successful:', result.user);
-        // Auth state will be handled by onAuthStateChanged
-      }
-    }).catch((error) => {
-      console.error('❌ Redirect result error:', error);
-      // Ignore redirect errors - might be normal page load without redirect
-    });
-
+  // Real-time call duration timer
+  useEffect(() => {
+    let timer: NodeJS.Timeout | null = null;
+    if (activeCall && activeCall.status === 'connected') {
+      timer = setInterval(() => {
+        setActiveCall(prev => prev ? { ...prev, durationSeconds: prev.durationSeconds + 1 } : null);
+      }, 1000);
+    }
     return () => {
-      isMounted = false;
-      unsubscribe();
+      if (timer) clearInterval(timer);
     };
+  }, [activeCall?.status]);
+
+  // Auth state listener & User Profile loading
+  useEffect(() => {
+    if (!firebaseAuth) {
+      setAuthReady(true);
+      return;
+    }
+
+    const applyFallbackUser = (fbUser: FirebaseUser, requireUsername = true) => {
+      setUser({
+        id: fbUser.uid,
+        name: fbUser.displayName || 'User',
+        username: fbUser.email?.split('@')[0] || 'user',
+        avatar: fbUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+        status: 'Available on Secret Vault',
+        isOnline: true,
+        email: fbUser.email || '',
+        providerId: 'google.com',
+        firebaseUid: fbUser.uid,
+      });
+      setNeedsUsername(requireUsername);
+      setContacts([]);
+      setMessages({});
+      setFriendUids([]);
+      setPendingFriendRequests([]);
+      setSentFriendRequests([]);
+      setAllRegisteredUsers([]);
+      setCustomNicknames({});
+    };
+
+    const ensureUserDocument = async (fbUser: FirebaseUser) => {
+      const userRef = doc(db, 'users', fbUser.uid);
+      const photoURL = fbUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
+
+      await setDoc(userRef, {
+        uid: fbUser.uid,
+        email: fbUser.email || '',
+        displayName: fbUser.displayName || fbUser.email?.split('@')[0] || 'User',
+        username: fbUser.email?.split('@')[0]?.toLowerCase() || '',
+        usernameLower: fbUser.email?.split('@')[0]?.toLowerCase() || '',
+        photoURL,
+        avatar: photoURL,
+        status: 'Available on Secret Vault',
+        about: 'Available on CalcChat',
+        online: true,
+        lastSeen: 'Online',
+        lastLogin: serverTimestamp(),
+        isProfileComplete: false,
+      }, { merge: true });
+    };
+
+    const unsubscribe = onAuthStateChanged(firebaseAuth, async (fbUser) => {
+      try {
+        setAuthUser(fbUser);
+
+        if (!fbUser) {
+          setUser(DEFAULT_USER);
+          setNeedsUsername(false);
+          setContacts([]);
+          setMessages({});
+          setFriendUids([]);
+          setPendingFriendRequests([]);
+          setSentFriendRequests([]);
+          setAllRegisteredUsers([]);
+          setCustomNicknames({});
+          return;
+        }
+
+        // Stay in setup mode until we positively confirm a profile exists.
+        setNeedsUsername(true);
+
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+          setAuthError('Firestore is offline. Loading local session.');
+          applyFallbackUser(fbUser, true);
+          return;
+        }
+
+        // Fetch or listen to users/{uid}
+        const userRef = doc(db, 'users', fbUser.uid);
+        try {
+          await ensureUserDocument(fbUser);
+        } catch (seedError) {
+          if (!isPermissionDeniedError(seedError)) {
+            console.warn('User doc seed error:', seedError);
+          }
+        }
+
+        const snap = await getDoc(userRef).catch((readError) => {
+          if (isPermissionDeniedError(readError)) {
+            return null;
+          }
+          throw readError;
+        });
+
+        if (snap && snap.exists() && (snap.data()?.username || snap.data()?.isProfileComplete)) {
+          const uData = snap.data();
+          setUser({
+            id: fbUser.uid,
+            name: uData.displayName || fbUser.displayName || 'User',
+            username: uData.username,
+            avatar: uData.photoURL || fbUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+            status: uData.status || 'Available on Secret Vault',
+            isOnline: true,
+            email: fbUser.email || '',
+            providerId: 'google.com',
+            firebaseUid: fbUser.uid,
+          });
+          setNeedsUsername(false);
+
+          if (uData.settings) {
+            setSettings(prev => {
+              const updated = { ...prev, ...uData.settings, passcode: uData.settings.passcode || prev.passcode || '1234' };
+              try {
+                localStorage.setItem('secret_vault_settings', JSON.stringify(updated));
+              } catch (e) {}
+              return updated;
+            });
+          }
+
+          // Update last login and online status in Firestore
+          await updateDoc(userRef, {
+            online: true,
+            lastSeen: 'Online',
+            lastLogin: serverTimestamp(),
+          }).catch(() => {});
+        } else {
+          applyFallbackUser(fbUser, true);
+        }
+      } catch (error) {
+        console.error('Auth profile load error:', error);
+        setAuthError('Unable to load profile data right now.');
+        if (fbUser) {
+          applyFallbackUser(fbUser, true);
+        } else {
+          setUser(DEFAULT_USER);
+          setNeedsUsername(false);
+        }
+      } finally {
+        setAuthReady(true);
+      }
+    }, (error) => {
+      console.error('Auth listener error:', error);
+      setAuthError('Authentication state could not be loaded.');
+      setAuthReady(true);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  const saveUserToFirebase = async (firebaseUser: FirebaseUser) => {
-    try {
-      const userRef = doc(firebaseDb, 'users', firebaseUser.uid);
-      const userDoc = await getDoc(userRef);
-      
-      const userData = {
-        firebaseUid: firebaseUser.uid,
-        email: firebaseUser.email,
-        name: firebaseUser.displayName,
-        avatar: firebaseUser.photoURL,
-        providerId: firebaseUser.providerData[0]?.providerId,
-        isAdmin: firebaseUser.email === 'bhelavevicky66@gmail.com',
-        updatedAt: new Date().toISOString(),
+  // Real-time listener for Custom Nicknames
+  useEffect(() => {
+    if (!authUser || needsUsername) return;
+
+    const nickQuery = query(
+      collection(db, 'customNicknames'),
+      where('ownerUid', '==', authUser.uid)
+    );
+
+    const unsub = onSnapshot(nickQuery, (snapshot) => {
+      const nMap: Record<string, string> = {};
+      snapshot.docs.forEach(d => {
+        const data = d.data();
+        if (data.contactUid && data.nickname) {
+          nMap[data.contactUid] = data.nickname;
+        }
+      });
+      setCustomNicknames(nMap);
+    }, (err) => handleFirestoreError('Nicknames snapshot error:', err, () => setCustomNicknames({})));
+
+    return () => unsub();
+  }, [authUser, needsUsername]);
+
+  // Real-time listener for All Registered Users
+  useEffect(() => {
+    if (!authUser || needsUsername) {
+      setAllRegisteredUsers([]);
+      return;
+    }
+
+    const usersQuery = query(collection(db, 'users'));
+    const unsub = onSnapshot(usersQuery, (snapshot) => {
+      const uList: any[] = [];
+      snapshot.docs.forEach(docSnap => {
+        const data = docSnap.data();
+        uList.push({
+          uid: docSnap.id,
+          id: docSnap.id,
+          displayName: data.displayName || data.username || 'User',
+          username: data.username || '',
+          photoURL: data.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+          avatar: data.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+          about: data.about || data.status || 'Available on CalcChat',
+          status: data.status || data.about || 'Available on CalcChat',
+          online: Boolean(data.online),
+          isOnline: Boolean(data.online),
+          lastSeen: data.lastSeen || 'Offline',
+          friends: Array.isArray(data.friends) ? data.friends : [],
+        });
+      });
+      setAllRegisteredUsers(uList);
+    }, (err) => handleFirestoreError('All users snapshot error:', err, () => setAllRegisteredUsers([])));
+
+    return () => unsub();
+  }, [authUser, needsUsername]);
+
+  // Real-time listener for Pending & Sent Friend Requests
+  useEffect(() => {
+    if (!authUser || needsUsername) return;
+
+    // Pending incoming requests
+    const incomingReqQuery = query(
+      collection(db, 'friendRequests'),
+      where('receiverId', '==', authUser.uid),
+      where('status', '==', 'pending')
+    );
+
+    const unsubInc = onSnapshot(incomingReqQuery, (snapshot) => {
+      const reqs: FriendRequest[] = [];
+      snapshot.docs.forEach(d => {
+        reqs.push({ id: d.id, ...d.data() } as FriendRequest);
+      });
+      setPendingFriendRequests(reqs);
+    }, (err) => handleFirestoreError('Incoming requests snapshot error:', err, () => setPendingFriendRequests([])));
+
+    // Sent requests
+    const sentReqQuery = query(
+      collection(db, 'friendRequests'),
+      where('senderId', '==', authUser.uid),
+      where('status', '==', 'pending')
+    );
+
+    const unsubSent = onSnapshot(sentReqQuery, (snapshot) => {
+      const reqs: FriendRequest[] = [];
+      snapshot.docs.forEach(d => {
+        reqs.push({ id: d.id, ...d.data() } as FriendRequest);
+      });
+      setSentFriendRequests(reqs);
+    }, (err) => handleFirestoreError('Sent requests snapshot error:', err, () => setSentFriendRequests([])));
+
+    return () => {
+      unsubInc();
+      unsubSent();
+    };
+  }, [authUser, needsUsername]);
+
+  // Real-time listener for Confirmed Friends
+  useEffect(() => {
+    if (!authUser || needsUsername) return;
+
+    const friendsQuery1 = query(
+      collection(db, 'friends'),
+      where('user1Id', '==', authUser.uid)
+    );
+    const friendsQuery2 = query(
+      collection(db, 'friends'),
+      where('user2Id', '==', authUser.uid)
+    );
+
+    let uids1: string[] = [];
+    let uids2: string[] = [];
+
+    const updateCombinedFriends = async () => {
+      const combined = Array.from(new Set([...uids1, ...uids2]));
+      setFriendUids(combined);
+
+      const selfContact: Contact = {
+        id: authUser.uid,
+        name: user.name ? `${user.name} (You)` : 'You (Message Yourself)',
+        username: user.username,
+        avatar: user.avatar || authUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+        status: 'Message yourself • Personal Notes',
+        isOnline: true,
+        lastSeen: 'Online',
+        unreadCount: 0,
+        isSelf: true,
       };
 
-      if (userDoc.exists()) {
-        await updateDoc(userRef, userData);
-      } else {
-        await setDoc(userRef, {
-          ...userData,
-          createdAt: new Date().toISOString(),
-          settings: DEFAULT_SETTINGS,
-          contacts: INITIAL_CONTACTS,
-          messages: INITIAL_MESSAGES,
+      if (combined.length === 0) {
+        setContacts([selfContact]);
+        return;
+      }
+
+      // Fetch user docs for all friend UIDs
+      try {
+        const fetchedContacts: Contact[] = [selfContact];
+        for (const fUid of combined) {
+          if (fUid === authUser.uid) continue;
+          const uDoc = await getDoc(doc(db, 'users', fUid));
+          if (uDoc.exists()) {
+            const data = uDoc.data();
+            fetchedContacts.push({
+              id: fUid,
+              name: data.displayName || data.username || 'User',
+              username: data.username,
+              avatar: data.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+              status: data.status || 'Available on Secret Vault',
+              isOnline: Boolean(data.online),
+              lastSeen: data.lastSeen || 'Offline',
+              unreadCount: 0,
+            });
+          }
+        }
+        setContacts(fetchedContacts);
+      } catch (err) {
+        console.error('Error fetching friend user profiles:', err);
+      }
+    };
+
+    const unsub1 = onSnapshot(friendsQuery1, (snapshot) => {
+      uids1 = snapshot.docs.map(d => d.data().user2Id);
+      updateCombinedFriends();
+    });
+
+    const unsub2 = onSnapshot(friendsQuery2, (snapshot) => {
+      uids2 = snapshot.docs.map(d => d.data().user1Id);
+      updateCombinedFriends();
+    });
+
+    return () => {
+      unsub1();
+      unsub2();
+    };
+  }, [authUser, needsUsername]);
+
+  // Real-time listener for Messages with Confirmed Friends & Self Chat
+  useEffect(() => {
+    if (!authUser || needsUsername) {
+      setMessages({});
+      return;
+    }
+
+    const unsubs: Array<() => void> = [];
+    const chatPartnerUids = Array.from(new Set([authUser.uid, ...friendUids]));
+
+    chatPartnerUids.forEach(friendId => {
+      const chatId = [authUser.uid, friendId].sort().join('_');
+      const msgQuery = query(
+        collection(db, 'chats', chatId, 'messages'),
+        orderBy('createdAt', 'asc')
+      );
+
+      const unsub = onSnapshot(msgQuery, (snapshot) => {
+        // Play sound for new incoming message if not initial load
+        if (!snapshot.metadata.hasPendingWrites) {
+          snapshot.docChanges().forEach((change) => {
+            if (change.type === 'added') {
+              const data = change.doc.data();
+              if (data.senderId && data.senderId !== authUser.uid) {
+                playMessageArrivalSound(data.senderId);
+              }
+            }
+          });
+        }
+
+        const msgsList: Message[] = snapshot.docs
+          .map((d): Message | null => {
+            const data = d.data();
+            const deletedForArr: string[] = data.deletedFor || [];
+            if (authUser && deletedForArr.includes(authUser.uid)) {
+              return null;
+            }
+
+            const timeStr = data.createdAt?.toDate
+              ? data.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              : 'Just now';
+
+            return {
+              id: d.id,
+              senderId: data.senderId,
+              receiverId: data.receiverId,
+              text: data.text || '',
+              timestamp: timeStr,
+              createdAt: data.createdAt,
+              type: data.type || 'text',
+              callInfo: data.callInfo,
+              media: data.media,
+              isSent: true,
+              isDelivered: true,
+              isRead: Boolean(data.isRead),
+              isStarred: Boolean(data.isStarred),
+              replyTo: data.replyTo,
+              deletedForEveryone: Boolean(data.deletedForEveryone),
+              deletedFor: deletedForArr,
+            };
+          })
+          .filter((m): m is Message => m !== null);
+
+        setMessages(prev => ({
+          ...prev,
+          [friendId]: msgsList
+        }));
+        }, (err) => handleFirestoreError(`Messages snapshot error for chatId: ${chatId}`, err, () => {
+          setMessages(prev => ({
+            ...prev,
+            [friendId]: prev[friendId] || []
+          }));
+        }));
+
+      unsubs.push(unsub);
+    });
+
+    return () => {
+      unsubs.forEach(u => u());
+    };
+  }, [authUser, needsUsername, friendUids]);
+
+  // Real-time listener for Friend Status Updates
+  useEffect(() => {
+    if (!authUser || needsUsername) return;
+
+    const statusQuery = query(
+      collection(db, 'status'),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsub = onSnapshot(statusQuery, (snapshot) => {
+      const allowedUids = new Set([authUser.uid, ...friendUids]);
+      const list: StatusUpdate[] = [];
+
+      snapshot.docs.forEach(d => {
+        const data = d.data();
+        if (allowedUids.has(data.userId)) {
+          list.push({
+            id: d.id,
+            userId: data.userId,
+            userName: data.userName,
+            userAvatar: data.userAvatar,
+            text: data.text,
+            mediaUrl: data.mediaUrl,
+            mediaType: data.mediaType,
+            createdAt: data.createdAt,
+            expiresAt: data.expiresAt,
+            likes: data.likes || [],
+            repliesCount: data.repliesCount || 0,
+          });
+        }
+      });
+
+      setStatusUpdates(list);
+    }, (err) => handleFirestoreError('Status snapshot error:', err, () => setStatusUpdates([])));
+
+    return () => unsub();
+  }, [authUser, needsUsername, friendUids]);
+
+  // Check if contactId is in friends list
+  const isFriend = (contactId: string): boolean => {
+    if (authUser && contactId === authUser.uid) return true;
+    return friendUids.includes(contactId);
+  };
+
+  // Complete Username Setup
+  const completeUsernameSetup = async (username: string, displayName: string) => {
+    if (!authUser) return;
+
+    const uLower = username.toLowerCase();
+    const userRef = doc(db, 'users', authUser.uid);
+    const photoURL = authUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
+
+    await runTransaction(db, async (transaction) => {
+      const usernameRef = doc(db, 'usernames', uLower);
+      const usernameSnap = await transaction.get(usernameRef);
+
+      if (usernameSnap.exists() && usernameSnap.data()?.uid !== authUser.uid) {
+        throw new Error('Username is already taken');
+      }
+
+      transaction.set(usernameRef, {
+        uid: authUser.uid,
+        username: uLower,
+        createdAt: serverTimestamp(),
+      });
+
+      transaction.set(userRef, {
+        uid: authUser.uid,
+        username: uLower,
+        usernameLower: uLower,
+        displayName: displayName || uLower,
+        photoURL,
+        avatar: photoURL,
+        email: authUser.email || '',
+        createdAt: serverTimestamp(),
+        lastLogin: serverTimestamp(),
+        lastSeen: 'Online',
+        online: true,
+        status: 'Available on Secret Vault',
+        about: 'Available on CalcChat',
+        isProfileComplete: true,
+        settings: settings,
+      }, { merge: true });
+    });
+
+    setUser({
+      id: authUser.uid,
+      name: displayName || uLower,
+      username: uLower,
+      avatar: photoURL,
+      status: 'Available on Secret Vault',
+      isOnline: true,
+      email: authUser.email || '',
+      providerId: 'google.com',
+      firebaseUid: authUser.uid,
+    });
+
+    setNeedsUsername(false);
+  };
+
+  // Search real Firestore users
+  const searchFirebaseUsers = async (term: string) => {
+    if (!authUser || !term.trim()) return [];
+
+    const cleanTerm = term.trim().toLowerCase();
+    const usersRef = collection(db, 'users');
+    const snapshot = await getDocs(usersRef);
+
+    const results: Array<{
+      id: string;
+      name: string;
+      username: string;
+      avatar: string;
+      status: string;
+      isOnline: boolean;
+      friendStatus: FriendStatus;
+      requestId?: string;
+    }> = [];
+
+    snapshot.docs.forEach(docSnap => {
+      const data = docSnap.data();
+      const uid = docSnap.id || data.uid;
+
+      const uName = (data.username || '').toLowerCase();
+      const dName = (data.displayName || '').toLowerCase();
+      const customNick = (customNicknames[uid] || '').toLowerCase();
+
+      if (uName.includes(cleanTerm) || dName.includes(cleanTerm) || customNick.includes(cleanTerm)) {
+        let fStatus: FriendStatus = 'none';
+        let reqId: string | undefined = undefined;
+
+        if (uid === authUser.uid) {
+          fStatus = 'self';
+        } else if (friendUids.includes(uid)) {
+          fStatus = 'friends';
+        } else {
+          const pendingSent = sentFriendRequests.find(r => r.receiverId === uid);
+          if (pendingSent) {
+            fStatus = 'pending_sent';
+            reqId = pendingSent.id;
+          } else {
+            const pendingRec = pendingFriendRequests.find(r => r.senderId === uid);
+            if (pendingRec) {
+              fStatus = 'pending_received';
+              reqId = pendingRec.id;
+            }
+          }
+        }
+
+        results.push({
+          id: uid,
+          name: uid === authUser.uid 
+            ? `${data.displayName || data.username} (You)`
+            : (customNicknames[uid] || data.displayName || data.username),
+          username: data.username,
+          avatar: data.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+          status: uid === authUser.uid ? 'Message yourself • Personal Notes' : (data.status || 'Available'),
+          isOnline: Boolean(data.online),
+          friendStatus: fStatus,
+          requestId: reqId,
         });
       }
-    } catch (error) {
-      console.error('Error saving user to Firebase:', error);
-    }
+    });
+
+    return results;
   };
 
-  const loadUserDataFromFirebase = async (uid: string) => {
-    try {
-      const userRef = doc(firebaseDb, 'users', uid);
-      const userDoc = await getDoc(userRef);
-      
-      if (userDoc.exists()) {
-        const data = userDoc.data();
-        if (data.settings) setSettings(data.settings);
-        if (data.contacts) setContacts(data.contacts);
-        if (data.messages) setMessages(data.messages);
+  // Send Friend Request
+  const sendFriendRequest = async (targetUserOrId: string | any) => {
+    if (!authUser || needsUsername) return;
+
+    const targetUid = typeof targetUserOrId === 'string' ? targetUserOrId : targetUserOrId?.uid || targetUserOrId?.id;
+    if (!targetUid || targetUid === authUser.uid) return;
+
+    // Check duplicate request
+    const alreadySent = sentFriendRequests.some(r => r.receiverId === targetUid && r.status === 'pending');
+    if (alreadySent) return;
+
+    let targetData: any = typeof targetUserOrId === 'object' ? targetUserOrId : null;
+    if (!targetData) {
+      const uDoc = await getDoc(doc(db, 'users', targetUid));
+      if (uDoc.exists()) {
+        targetData = uDoc.data();
       }
-    } catch (error) {
-      console.error('Error loading user data from Firebase:', error);
     }
+
+    const sName = user.name || user.username || authUser.displayName || 'User';
+    const sPhoto = user.avatar || authUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
+    const rName = targetData?.displayName || targetData?.name || targetData?.username || 'User';
+    const rPhoto = targetData?.photoURL || targetData?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
+
+    await addDoc(collection(db, 'friendRequests'), {
+      senderId: authUser.uid,
+      senderName: sName,
+      senderDisplayName: sName,
+      senderPhoto: sPhoto,
+      senderPhotoURL: sPhoto,
+      senderUsername: user.username || '',
+      receiverId: targetUid,
+      receiverName: rName,
+      receiverDisplayName: rName,
+      receiverPhoto: rPhoto,
+      receiverPhotoURL: rPhoto,
+      receiverUsername: targetData?.username || '',
+      status: 'pending',
+      createdAt: serverTimestamp(),
+    });
+
+    const myDocRef = doc(db, 'users', authUser.uid);
+    await updateDoc(myDocRef, {
+      following: arrayUnion(targetUid)
+    }).catch(() => {});
+
+    setUser(prev => ({
+      ...prev,
+      following: Array.from(new Set([...(prev.following || []), targetUid]))
+    }));
   };
 
-  // Save to LocalStorage whenever state changes
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user));
-  }, [user]);
+  // Accept Friend Request
+  const acceptFriendRequest = async (requestId: string, senderId: string) => {
+    if (!authUser) return;
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(settings));
-    // Sync to Firestore
-    if (authUser) {
-      saveSettingsToFirebase(authUser.uid, settings);
-    }
-  }, [settings]);
+    // Update request status to accepted
+    await updateDoc(doc(db, 'friendRequests', requestId), {
+      status: 'accepted',
+    }).catch(() => {});
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_CONTACTS, JSON.stringify(contacts));
-    // Sync to Firestore
-    if (authUser) {
-      saveContactsToFirebase(authUser.uid, contacts);
-    }
-  }, [contacts]);
+    // Add both users to each other's friends list
+    const myDocRef = doc(db, 'users', authUser.uid);
+    const senderDocRef = doc(db, 'users', senderId);
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify(messages));
-    // Sync to Firestore
-    if (authUser) {
-      saveMessagesToFirebase(authUser.uid, messages);
-    }
-  }, [messages]);
+    await updateDoc(myDocRef, {
+      friends: arrayUnion(senderId),
+      following: arrayUnion(senderId),
+      followers: arrayUnion(senderId),
+    }).catch(() => {});
 
-  const saveSettingsToFirebase = async (uid: string, settings: VaultSettings) => {
+    await updateDoc(senderDocRef, {
+      friends: arrayUnion(authUser.uid),
+      following: arrayUnion(authUser.uid),
+      followers: arrayUnion(authUser.uid),
+    }).catch(() => {});
+
+    // Create friendship document in friends collection
+    const friendshipId = [authUser.uid, senderId].sort().join('_');
+    await setDoc(doc(db, 'friends', friendshipId), {
+      user1Id: authUser.uid,
+      user2Id: senderId,
+      createdAt: serverTimestamp(),
+    }, { merge: true });
+
+    // Automatically create a private chat in chats collection
+    const chatId = friendshipId;
+    await setDoc(doc(db, 'chats', chatId), {
+      participants: [authUser.uid, senderId],
+      lastMessage: '',
+      updatedAt: serverTimestamp(),
+      createdAt: serverTimestamp(),
+    }, { merge: true });
+
+    // Update local user state
+    setUser(prev => ({
+      ...prev,
+      friends: Array.from(new Set([...(prev.friends || []), senderId])),
+      following: Array.from(new Set([...(prev.following || []), senderId])),
+      followers: Array.from(new Set([...(prev.followers || []), senderId])),
+    }));
+  };
+
+  // Reject Friend Request
+  const rejectFriendRequest = async (requestId: string) => {
+    if (!authUser) return;
     try {
-      const userRef = doc(firebaseDb, 'users', uid);
-      await updateDoc(userRef, { settings });
-    } catch (error) {
-      console.error('Error saving settings to Firebase:', error);
+      await deleteDoc(doc(db, 'friendRequests', requestId));
+    } catch (err) {
+      await updateDoc(doc(db, 'friendRequests', requestId), {
+        status: 'rejected',
+      }).catch(() => {});
     }
   };
 
-  const saveContactsToFirebase = async (uid: string, contacts: Contact[]) => {
+  // Unfriend Contact
+  const unfriendContact = async (contactId: string) => {
+    if (!authUser) return;
+
+    const friendshipId = [authUser.uid, contactId].sort().join('_');
+    await deleteDoc(doc(db, 'friends', friendshipId)).catch(() => {});
+  };
+
+  // Post Status Update
+  const postStatusUpdate = async (text?: string, mediaUrl?: string, mediaType?: 'image' | 'video') => {
+    if (!authUser) return;
+
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 Hours
+
+    await addDoc(collection(db, 'status'), {
+      userId: authUser.uid,
+      userName: user.name,
+      userAvatar: user.avatar,
+      text: text || '',
+      mediaUrl: mediaUrl || '',
+      mediaType: mediaType || 'image',
+      createdAt: serverTimestamp(),
+      expiresAt,
+      likes: [],
+      repliesCount: 0,
+    });
+  };
+
+  // Send Message in Firestore
+  const sendMessage = async (receiverId: string, text: string, media?: MediaAttachment, replyTo?: Message['replyTo']) => {
+    if (!authUser || !isFriend(receiverId)) {
+      throw new Error('You must become friends before you can chat.');
+    }
+
+    const chatId = [authUser.uid, receiverId].sort().join('_');
+    const msgRef = collection(db, 'chats', chatId, 'messages');
+
+    const isSelfChat = receiverId === authUser.uid;
+
+    let finalMedia = media ? { ...media } : null;
+
+    if (finalMedia && finalMedia.url) {
+      if (finalMedia.type === 'image' && finalMedia.url.length > 400000) {
+        try {
+          const compressed = await compressImage(finalMedia.url, 1024, 450000);
+          if (compressed) {
+            finalMedia.url = compressed;
+          }
+        } catch (e) {
+          console.warn('Failed to compress image payload:', e);
+        }
+      }
+      // Safety guard: if dataUrl length still exceeds 700,000 chars (~500KB)
+      if (finalMedia.url.length > 700000) {
+        finalMedia.url = '';
+        finalMedia.name = `${finalMedia.name} (File exceeds 500KB size limit)`;
+      }
+    }
+
     try {
-      const userRef = doc(firebaseDb, 'users', uid);
-      await updateDoc(userRef, { contacts });
-    } catch (error) {
-      console.error('Error saving contacts to Firebase:', error);
+      await addDoc(msgRef, {
+        senderId: authUser.uid,
+        receiverId,
+        text: text || '',
+        type: finalMedia ? finalMedia.type : 'text',
+        media: finalMedia,
+        replyTo: replyTo || null,
+        isRead: isSelfChat ? true : false,
+        createdAt: serverTimestamp(),
+      });
+    } catch (err: any) {
+      console.error('Error sending message to Firestore:', err);
+      if (err?.message?.includes('exceeds the maximum allowed size') || err?.code === 'invalid-argument') {
+        // Retry without heavy attachment
+        await addDoc(msgRef, {
+          senderId: authUser.uid,
+          receiverId,
+          text: (text || '') + ' [Attachment exceeded cloud size limit]',
+          type: 'text',
+          media: null,
+          replyTo: replyTo || null,
+          isRead: isSelfChat ? true : false,
+          createdAt: serverTimestamp(),
+        });
+      } else {
+        throw err;
+      }
+    }
+
+    // Update chat lastMessage
+    await setDoc(doc(db, 'chats', chatId), {
+      participants: isSelfChat ? [authUser.uid] : [authUser.uid, receiverId],
+      lastMessage: text || (finalMedia ? `[${finalMedia.type}]` : ''),
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+  };
+
+  // Edit Message
+  const editMessage = async (contactId: string, msgId: string, newText: string) => {
+    if (!authUser) return;
+    const chatId = [authUser.uid, contactId].sort().join('_');
+    await updateDoc(doc(db, 'chats', chatId, 'messages', msgId), {
+      text: newText,
+      isEdited: true,
+    });
+  };
+
+  // Delete Message (Delete for Me)
+  const deleteMessage = async (contactId: string, msgId: string) => {
+    if (!authUser) return;
+    const chatId = [authUser.uid, contactId].sort().join('_');
+    await updateDoc(doc(db, 'chats', chatId, 'messages', msgId), {
+      deletedFor: arrayUnion(authUser.uid)
+    }).catch(async () => {
+      // Fallback if doc update fails or schema issue
+      await deleteDoc(doc(db, 'chats', chatId, 'messages', msgId)).catch(() => {});
+    });
+  };
+
+  // Delete For Everyone
+  const deleteForEveryone = async (contactId: string, msgId: string) => {
+    if (!authUser) return;
+    const chatId = [authUser.uid, contactId].sort().join('_');
+    await updateDoc(doc(db, 'chats', chatId, 'messages', msgId), {
+      text: 'This message was deleted',
+      media: null,
+      callInfo: null,
+      deletedForEveryone: true,
+      isStarred: false,
+    });
+  };
+
+  // Set Custom Nickname
+  const setCustomNickname = async (contactId: string, nickname: string) => {
+    if (!authUser) return;
+    const trimmed = nickname.trim().slice(0, 30);
+    const docId = `${authUser.uid}_${contactId}`;
+
+    if (!trimmed) {
+      await deleteDoc(doc(db, 'customNicknames', docId)).catch(() => {});
+    } else {
+      await setDoc(doc(db, 'customNicknames', docId), {
+        ownerUid: authUser.uid,
+        contactUid: contactId,
+        nickname: trimmed,
+        updatedAt: serverTimestamp(),
+      });
     }
   };
 
-  const saveMessagesToFirebase = async (uid: string, messages: Record<string, Message[]>) => {
-    try {
-      const userRef = doc(firebaseDb, 'users', uid);
-      await updateDoc(userRef, { messages });
-    } catch (error) {
-      console.error('Error saving messages to Firebase:', error);
-    }
+  // Clear Custom Nickname
+  const clearCustomNickname = async (contactId: string) => {
+    if (!authUser) return;
+    const docId = `${authUser.uid}_${contactId}`;
+    await deleteDoc(doc(db, 'customNicknames', docId)).catch(() => {});
   };
 
-  // Broadcast channel for multi-tab real-time sync
+  // Helper display name
+  const getContactDisplayName = (contactOrId: Contact | string | null | undefined): string => {
+    if (!contactOrId) return '';
+    if (typeof contactOrId === 'string') {
+      if (customNicknames[contactOrId]) return customNicknames[contactOrId];
+      const found = contacts.find(c => c.id === contactOrId);
+      return found ? found.name : contactOrId;
+    }
+    if (customNicknames[contactOrId.id]) {
+      return customNicknames[contactOrId.id];
+    }
+    return contactOrId.name;
+  };
+
+  // Cleanup Call Resources
+  const cleanupCall = (finalStatus: CallStatus | 'cancelled' | 'busy' | 'rejected' | 'ended' = 'ended') => {
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
+      localStreamRef.current = null;
+    }
+    if (remoteStreamRef.current) {
+      remoteStreamRef.current.getTracks().forEach((track) => track.stop());
+      remoteStreamRef.current = null;
+    }
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close();
+      peerConnectionRef.current = null;
+    }
+    if (callDocUnsubRef.current) {
+      callDocUnsubRef.current();
+      callDocUnsubRef.current = null;
+    }
+    if (candidatesUnsubRef.current) {
+      candidatesUnsubRef.current();
+      candidatesUnsubRef.current = null;
+    }
+
+    const currentCall = activeCallRef.current;
+    if (currentCall) {
+      const mins = Math.floor(currentCall.durationSeconds / 60);
+      const secs = currentCall.durationSeconds % 60;
+      const durStr = `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
+
+      let resolvedStatus: CallStatus = 'ended';
+      if (finalStatus === 'rejected') resolvedStatus = 'rejected';
+      else if (finalStatus === 'cancelled') resolvedStatus = 'cancelled';
+      else if (finalStatus === 'busy') resolvedStatus = 'busy';
+      else if (currentCall.status !== 'connected') resolvedStatus = 'missed';
+
+      const info: CallInfo = {
+        id: currentCall.id,
+        type: currentCall.type,
+        direction: currentCall.direction,
+        status: resolvedStatus,
+        callerId: currentCall.direction === 'outgoing' ? user.id : currentCall.contactId,
+        receiverId: currentCall.direction === 'outgoing' ? currentCall.contactId : user.id,
+        duration: durStr,
+      };
+
+      recordCallInChat(currentCall.contactId, info);
+    }
+
+    setActiveCall(null);
+  };
+
+  // Real-time listener for incoming Firestore calls
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.BroadcastChannel) return;
-    const channel = new BroadcastChannel(CHANNEL_NAME);
+    if (!authUser || needsUsername) return;
 
-    channel.onmessage = (event) => {
-      const { type, payload } = event.data;
-      if (type === 'SYNC_MESSAGES') {
-        setMessages(payload.messages);
-        setContacts(payload.contacts);
-      } else if (type === 'SYNC_SETTINGS') {
-        setSettings(payload);
-      } else if (type === 'SYNC_USER') {
-        setUser(payload);
-      } else if (type === 'LOCK_VAULT') {
-        setIsUnlocked(false);
-        setActiveContactId(null);
+    const incomingQuery = query(
+      collection(db, 'calls'),
+      where('receiverId', '==', authUser.uid),
+      where('status', 'in', ['ringing', 'connecting', 'connected'])
+    );
+
+    const unsub = onSnapshot(incomingQuery, (snapshot) => {
+      snapshot.docs.forEach((docSnap) => {
+        const data = docSnap.data();
+        const callId = docSnap.id;
+
+        if (blockedContactIds.includes(data.callerId)) {
+          updateDoc(doc(db, 'calls', callId), { status: 'rejected' }).catch(() => {});
+          return;
+        }
+
+        if (!isFriend(data.callerId)) {
+          updateDoc(doc(db, 'calls', callId), { status: 'rejected' }).catch(() => {});
+          return;
+        }
+
+        if (activeCallRef.current && activeCallRef.current.id !== callId) {
+          if (data.status === 'ringing') {
+            updateDoc(doc(db, 'calls', callId), { status: 'busy' }).catch(() => {});
+          }
+          return;
+        }
+
+        if (!activeCallRef.current && data.status === 'ringing') {
+          setActiveCall({
+            id: callId,
+            contactId: data.callerId,
+            type: data.type || 'voice',
+            direction: 'incoming',
+            status: 'incoming',
+            durationSeconds: 0,
+            isMuted: false,
+            isVideoOff: false,
+            isSpeakerOn: true,
+            isFrontCamera: true,
+            signalBars: 4,
+            localStream: null,
+            remoteStream: null,
+            connectionQuality: 'excellent',
+          });
+        } else if (activeCallRef.current && activeCallRef.current.id === callId) {
+          if (data.status === 'rejected' || data.status === 'cancelled' || data.status === 'ended' || data.status === 'busy') {
+            cleanupCall(data.status);
+          }
+        }
+      });
+    });
+
+    return () => unsub();
+  }, [authUser, needsUsername, blockedContactIds]);
+
+  // Extract call logs from chat history automatically
+  useEffect(() => {
+    const logsMap = new Map<string, CallLog>();
+    Object.entries(messages).forEach(([contactId, msgList]) => {
+      if (Array.isArray(msgList)) {
+        msgList.forEach(m => {
+        if ((m.type === 'voice_call' || m.type === 'video_call') && m.callInfo) {
+          const info = m.callInfo;
+          const isOutgoing = m.senderId === authUser?.uid;
+          logsMap.set(m.id, {
+            id: m.id,
+            contactId,
+            type: info.type,
+            direction: isOutgoing ? 'outgoing' : 'incoming',
+            status: info.status,
+            timestamp: m.timestamp,
+            duration: info.duration || '00:00',
+            isMissed: info.status === 'missed' || info.status === 'rejected' || info.status === 'busy',
+          });
+        }
+      });
+      }
+    });
+    const sorted = Array.from(logsMap.values()).reverse();
+    setCallLogs(sorted);
+  }, [messages, authUser?.uid]);
+
+  // Calling logic with WebRTC and Firestore signaling
+  const startCall = async (contactId: string, type: CallType) => {
+    if (!authUser) {
+      return;
+    }
+
+    if (authUser && contactId === authUser.uid) {
+      throw new Error('You cannot start a call with yourself.');
+    }
+
+    if (!isFriend(contactId)) {
+      throw new Error('Become friends to start a call.');
+    }
+
+    if (activeCallRef.current) {
+      throw new Error('You are already in an active call.');
+    }
+
+    setCallPermissionError(null);
+
+    let localStream: MediaStream;
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+        video: type === 'video' ? {
+          facingMode: 'user',
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        } : false,
+      });
+    } catch (err: any) {
+      console.warn('getUserMedia error when starting call:', err);
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        const errMsg = `Microphone or camera permission was blocked. Please enable access in browser settings.`;
+        setCallPermissionError(errMsg);
+      } else if (err.name === 'NotFoundError') {
+        setCallPermissionError('No microphone or camera device found.');
+      } else {
+        setCallPermissionError('Unable to access microphone or camera.');
+      }
+      return;
+    }
+
+    localStreamRef.current = localStream;
+
+    const callDocRef = doc(collection(db, 'calls'));
+    const callId = callDocRef.id;
+
+    const pc = new RTCPeerConnection(ICE_SERVERS);
+    peerConnectionRef.current = pc;
+
+    localStream.getTracks().forEach((track) => {
+      pc.addTrack(track, localStream);
+    });
+
+    pc.ontrack = (event) => {
+      if (event.streams && event.streams[0]) {
+        remoteStreamRef.current = event.streams[0];
+        setActiveCall((prev) => prev ? { ...prev, remoteStream: event.streams[0] } : null);
       }
     };
 
-    return () => {
-      channel.close();
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        addDoc(collection(db, 'calls', callId, 'callerCandidates'), event.candidate.toJSON()).catch(() => {});
+      }
     };
-  }, []);
 
-  const broadcastSync = (type: string, payload: any) => {
-    if (typeof window !== 'undefined' && window.BroadcastChannel) {
-      const channel = new BroadcastChannel(CHANNEL_NAME);
-      channel.postMessage({ type, payload });
-      channel.close();
+    pc.oniceconnectionstatechange = () => {
+      const state = pc.iceConnectionState;
+      if (state === 'connected' || state === 'completed') {
+        setActiveCall(prev => prev ? { ...prev, connectionQuality: 'excellent', signalBars: 4 } : null);
+      } else if (state === 'disconnected') {
+        setActiveCall(prev => prev ? { ...prev, connectionQuality: 'reconnecting', signalBars: 1 } : null);
+      } else if (state === 'failed') {
+        setActiveCall(prev => prev ? { ...prev, connectionQuality: 'poor', signalBars: 0 } : null);
+      }
+    };
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    await setDoc(callDocRef, {
+      callerId: authUser.uid,
+      callerName: user.name,
+      callerAvatar: user.avatar,
+      receiverId: contactId,
+      type,
+      status: 'ringing',
+      offer: { type: offer.type, sdp: offer.sdp },
+      createdAt: serverTimestamp(),
+    });
+
+    const initialCallState: ActiveCallState = {
+      id: callId,
+      contactId,
+      type,
+      direction: 'outgoing',
+      status: 'ringing',
+      durationSeconds: 0,
+      isMuted: false,
+      isVideoOff: false,
+      isSpeakerOn: true,
+      isFrontCamera: true,
+      signalBars: 4,
+      localStream,
+      remoteStream: null,
+      connectionQuality: 'excellent',
+    };
+
+    setActiveCall(initialCallState);
+
+    callDocUnsubRef.current = onSnapshot(callDocRef, async (snap) => {
+      if (!snap.exists()) {
+        cleanupCall('cancelled');
+        return;
+      }
+      const data = snap.data();
+      if (data.status === 'rejected' || data.status === 'busy' || data.status === 'cancelled' || data.status === 'ended') {
+        cleanupCall(data.status);
+        return;
+      }
+
+      if (data.answer && pc.signalingState !== 'stable' && !pc.currentRemoteDescription) {
+        try {
+          await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+          setActiveCall(prev => prev ? { ...prev, status: 'connected' } : null);
+
+          candidatesUnsubRef.current = onSnapshot(collection(db, 'calls', callId, 'receiverCandidates'), (candidateSnap) => {
+            candidateSnap.docChanges().forEach(async (change) => {
+              if (change.type === 'added') {
+                const candData = change.doc.data();
+                try {
+                  await pc.addIceCandidate(new RTCIceCandidate(candData));
+                } catch (e) {
+                  console.warn('Error adding receiver ICE candidate:', e);
+                }
+              }
+            });
+          });
+        } catch (err) {
+          console.error('Error setting remote description:', err);
+        }
+      }
+    });
+  };
+
+  const acceptCall = async () => {
+    if (!activeCallRef.current || activeCallRef.current.direction !== 'incoming') return;
+    const callId = activeCallRef.current.id;
+    const callType = activeCallRef.current.type;
+
+    setCallPermissionError(null);
+
+    let localStream: MediaStream;
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+        video: callType === 'video' ? {
+          facingMode: 'user',
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        } : false,
+      });
+    } catch (err: any) {
+      console.warn('getUserMedia error when accepting call:', err);
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        const errMsg = `Microphone or camera permission was blocked. Please enable access in browser settings.`;
+        setCallPermissionError(errMsg);
+      } else {
+        setCallPermissionError('Unable to access microphone or camera.');
+      }
+      await updateDoc(doc(db, 'calls', callId), { status: 'rejected' }).catch(() => {});
+      cleanupCall('rejected');
+      return;
+    }
+
+    localStreamRef.current = localStream;
+    setActiveCall(prev => prev ? { ...prev, localStream, status: 'connecting' } : null);
+
+    await updateDoc(doc(db, 'calls', callId), { status: 'connecting' }).catch(() => {});
+
+    const pc = new RTCPeerConnection(ICE_SERVERS);
+    peerConnectionRef.current = pc;
+
+    localStream.getTracks().forEach((track) => {
+      pc.addTrack(track, localStream);
+    });
+
+    pc.ontrack = (event) => {
+      if (event.streams && event.streams[0]) {
+        remoteStreamRef.current = event.streams[0];
+        setActiveCall((prev) => prev ? { ...prev, remoteStream: event.streams[0] } : null);
+      }
+    };
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        addDoc(collection(db, 'calls', callId, 'receiverCandidates'), event.candidate.toJSON()).catch(() => {});
+      }
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      const state = pc.iceConnectionState;
+      if (state === 'connected' || state === 'completed') {
+        setActiveCall(prev => prev ? { ...prev, connectionQuality: 'excellent', signalBars: 4 } : null);
+      } else if (state === 'disconnected') {
+        setActiveCall(prev => prev ? { ...prev, connectionQuality: 'reconnecting', signalBars: 1 } : null);
+      } else if (state === 'failed') {
+        setActiveCall(prev => prev ? { ...prev, connectionQuality: 'poor', signalBars: 0 } : null);
+      }
+    };
+
+    const callSnap = await getDoc(doc(db, 'calls', callId));
+    if (!callSnap.exists()) {
+      cleanupCall('cancelled');
+      return;
+    }
+    const callData = callSnap.data();
+    if (!callData.offer) {
+      cleanupCall('cancelled');
+      return;
+    }
+
+    await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+
+    await updateDoc(doc(db, 'calls', callId), {
+      answer: { type: answer.type, sdp: answer.sdp },
+      status: 'connected',
+    });
+
+    setActiveCall(prev => prev ? { ...prev, status: 'connected' } : null);
+
+    candidatesUnsubRef.current = onSnapshot(collection(db, 'calls', callId, 'callerCandidates'), (candidateSnap) => {
+      candidateSnap.docChanges().forEach(async (change) => {
+        if (change.type === 'added') {
+          const candData = change.doc.data();
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(candData));
+          } catch (e) {
+            console.warn('Error adding caller ICE candidate:', e);
+          }
+        }
+      });
+    });
+
+    callDocUnsubRef.current = onSnapshot(doc(db, 'calls', callId), (snap) => {
+      if (!snap.exists()) {
+        cleanupCall('ended');
+        return;
+      }
+      const data = snap.data();
+      if (data.status === 'ended' || data.status === 'rejected' || data.status === 'cancelled') {
+        cleanupCall(data.status);
+      }
+    });
+  };
+
+  const recordCallInChat = async (contactId: string, callInfo: CallInfo) => {
+    if (!authUser || !isFriend(contactId)) return;
+
+    const chatId = [authUser.uid, contactId].sort().join('_');
+    let textLabel = `${callInfo.type === 'video' ? '📹 Video Call' : '📞 Voice Call'}`;
+    if (callInfo.status === 'missed') {
+      textLabel = `❌ Missed ${callInfo.type === 'video' ? 'Video' : 'Voice'} Call`;
+    } else if (callInfo.status === 'rejected') {
+      textLabel = '❌ Rejected Call';
+    } else if (callInfo.status === 'cancelled') {
+      textLabel = '❌ Call Cancelled';
+    } else if (callInfo.status === 'busy') {
+      textLabel = '📞 Busy';
+    } else if (callInfo.duration) {
+      textLabel = `${callInfo.direction === 'outgoing' ? '📞 Outgoing' : '📞 Incoming'} ${callInfo.type === 'video' ? 'Video' : 'Voice'} Call (Duration: ${callInfo.duration})`;
+    }
+
+    const msgRef = collection(db, 'chats', chatId, 'messages');
+    await addDoc(msgRef, {
+      senderId: callInfo.direction === 'outgoing' ? authUser.uid : contactId,
+      receiverId: callInfo.direction === 'outgoing' ? contactId : authUser.uid,
+      text: textLabel,
+      type: callInfo.type === 'video' ? 'video_call' : 'voice_call',
+      callInfo,
+      isRead: true,
+      createdAt: serverTimestamp(),
+    }).catch(() => {});
+  };
+
+  const rejectCall = () => {
+    if (!activeCallRef.current) return;
+    const callId = activeCallRef.current.id;
+    updateDoc(doc(db, 'calls', callId), { status: 'rejected' }).catch(() => {});
+    cleanupCall('rejected');
+  };
+
+  const cancelCall = () => {
+    if (!activeCallRef.current) return;
+    const callId = activeCallRef.current.id;
+    updateDoc(doc(db, 'calls', callId), { status: 'cancelled' }).catch(() => {});
+    cleanupCall('cancelled');
+  };
+
+  const endCall = () => {
+    if (!activeCallRef.current) return;
+    const callId = activeCallRef.current.id;
+    updateDoc(doc(db, 'calls', callId), { status: 'ended' }).catch(() => {});
+    cleanupCall('ended');
+  };
+
+  const toggleMuteCall = () => {
+    if (!activeCallRef.current) return;
+    const newMuted = !activeCallRef.current.isMuted;
+    if (localStreamRef.current) {
+      localStreamRef.current.getAudioTracks().forEach((track) => {
+        track.enabled = !newMuted;
+      });
+    }
+    setActiveCall(prev => prev ? { ...prev, isMuted: newMuted } : null);
+  };
+
+  const toggleVideoCall = () => {
+    if (!activeCallRef.current) return;
+    const newVideoOff = !activeCallRef.current.isVideoOff;
+    if (localStreamRef.current) {
+      localStreamRef.current.getVideoTracks().forEach((track) => {
+        track.enabled = !newVideoOff;
+      });
+    }
+    setActiveCall(prev => prev ? { ...prev, isVideoOff: newVideoOff } : null);
+  };
+
+  const toggleSpeakerCall = () => {
+    if (!activeCallRef.current) return;
+    setActiveCall(prev => prev ? { ...prev, isSpeakerOn: !prev.isSpeakerOn } : null);
+  };
+
+  const switchCameraCall = async () => {
+    if (!activeCallRef.current || activeCallRef.current.type !== 'video' || !localStreamRef.current) return;
+    const nextIsFront = !activeCallRef.current.isFrontCamera;
+    const facingMode = nextIsFront ? 'user' : 'environment';
+
+    try {
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode },
+      });
+      const newVideoTrack = newStream.getVideoTracks()[0];
+
+      const oldVideoTrack = localStreamRef.current.getVideoTracks()[0];
+      if (oldVideoTrack) {
+        oldVideoTrack.stop();
+        localStreamRef.current.removeTrack(oldVideoTrack);
+      }
+
+      localStreamRef.current.addTrack(newVideoTrack);
+
+      if (peerConnectionRef.current) {
+        const senders = peerConnectionRef.current.getSenders();
+        const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+        if (videoSender) {
+          await videoSender.replaceTrack(newVideoTrack);
+        }
+      }
+
+      setActiveCall(prev => prev ? { ...prev, isFrontCamera: nextIsFront, localStream: localStreamRef.current } : null);
+    } catch (err) {
+      console.warn('Switch camera error:', err);
     }
   };
 
-  // Auto-lock timer
-  useEffect(() => {
-    if (!isUnlocked || settings.autoLockMinutes <= 0) return;
-
-    let timeout: NodeJS.Timeout;
-    const resetTimer = () => {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => {
-        lockVault();
-      }, settings.autoLockMinutes * 60 * 1000);
-    };
-
-    window.addEventListener('mousemove', resetTimer);
-    window.addEventListener('keydown', resetTimer);
-    window.addEventListener('touchstart', resetTimer);
-    resetTimer();
-
-    return () => {
-      clearTimeout(timeout);
-      window.removeEventListener('mousemove', resetTimer);
-      window.removeEventListener('keydown', resetTimer);
-      window.removeEventListener('touchstart', resetTimer);
-    };
-  }, [isUnlocked, settings.autoLockMinutes]);
+  const clearCallLogs = () => {
+    setCallLogs([]);
+  };
 
   const unlockVault = (code: string): boolean => {
-    if (code === settings.passcode) {
+    const activePasscode = settings.passcode || '1234';
+    if (code === activePasscode) {
+      setActiveTab('chats');
+      setActiveContactId(null);
       setIsUnlocked(true);
       return true;
     }
@@ -312,282 +1682,141 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const lockVault = () => {
     setIsUnlocked(false);
     setActiveContactId(null);
-    broadcastSync('LOCK_VAULT', null);
+    setActiveTab('chats');
   };
 
-  const markChatRead = (contactId: string) => {
-    setContacts(prev => prev.map(c => c.id === contactId ? { ...c, unreadCount: 0 } : c));
-    setMessages(prev => {
-      const msgs = prev[contactId] || [];
-      return {
-        ...prev,
-        [contactId]: msgs.map(m => ({ ...m, isRead: true }))
-      };
-    });
-  };
-
-  const handleSetActiveContactId = (id: string | null) => {
-    setActiveContactId(id);
-    if (id) {
-      markChatRead(id);
-    }
-  };
-
-  const sendMessage = (receiverId: string, text: string, media?: MediaAttachment) => {
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const newMsg: Message = {
-      id: 'msg_' + Date.now() + Math.random().toString(36).substring(2, 6),
-      senderId: user.id,
-      receiverId,
-      text,
-      timestamp: timeStr,
-      media,
-      isRead: true,
-    };
-
-    const updatedMessages = {
-      ...messages,
-      [receiverId]: [...(messages[receiverId] || []), newMsg],
-    };
-
-    const updatedContacts = contacts.map(c => {
-      if (c.id === receiverId) {
-        return { ...c, lastSeen: 'Just now' };
-      }
-      return c;
-    });
-
-    setMessages(updatedMessages);
-    setContacts(updatedContacts);
-    broadcastSync('SYNC_MESSAGES', { messages: updatedMessages, contacts: updatedContacts });
-
-    // Check if AI Bot reply needed
-    const contact = contacts.find(c => c.id === receiverId);
-    if (contact?.isAiBot) {
-      setTimeout(() => {
-        triggerAiBotReply(receiverId, text);
-      }, 1200 + Math.random() * 1000);
-    }
-  };
-
-  const triggerAiBotReply = (botId: string, userText: string) => {
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    
-    let botReplyText = 'Roger that. Message received and encrypted.';
-    const lower = userText.toLowerCase();
-
-    if (botId === 'contact_novak') {
-      if (lower.includes('hello') || lower.includes('hi') || lower.includes('hey')) {
-        botReplyText = 'Agent Cipher! Status report: All surveillance channels are quiet. The calculator vault holds steady.';
-      } else if (lower.includes('password') || lower.includes('passcode') || lower.includes('code')) {
-        botReplyText = `Your current access passcode is "${settings.passcode}". Keep it memorized. Never write it down.`;
-      } else if (lower.includes('help') || lower.includes('tips')) {
-        botReplyText = 'Need backup? You can attach classified photos or secret documents using the + button. Or use the Emergency Erase in Settings if compromised.';
-      } else if (lower.includes('media') || lower.includes('photo') || lower.includes('file')) {
-        botReplyText = 'All uploaded media is stored securely inside the Media Vault tab. You can download or view it privately.';
-      } else {
-        const replies = [
-          'Copy that. Storing this record in the encrypted SQLite matrix.',
-          'Understood. I am running background diagnostics on our Flask proxy layer.',
-          'Affirmative. No unauthorized access attempts detected on your profile.',
-          'Message acknowledged. Standing by for further operational directives 🛡️',
-        ];
-        botReplyText = replies[Math.floor(Math.random() * replies.length)];
-      }
-    } else {
-      botReplyText = `Vault Bot processed your query: "${userText}". All systems operational!`;
-    }
-
-    setMessages(prev => {
-      const cur = prev[botId] || [];
-      const replyMsg: Message = {
-        id: 'msg_bot_' + Date.now(),
-        senderId: botId,
-        receiverId: user.id,
-        text: botReplyText,
-        timestamp: timeStr,
-        isRead: activeContactId === botId,
-      };
-      const nMsgs = { ...prev, [botId]: [...cur, replyMsg] };
-
-      setContacts(prevC => {
-        const nContacts = prevC.map(c => {
-          if (c.id === botId) {
-            return {
-              ...c,
-              unreadCount: activeContactId === botId ? 0 : c.unreadCount + 1,
-            };
-          }
-          return c;
-        });
-        broadcastSync('SYNC_MESSAGES', { messages: nMsgs, contacts: nContacts });
-        return nContacts;
-      });
-
-      return nMsgs;
-    });
-  };
-
-  const updateSettings = (newSettings: Partial<VaultSettings>) => {
-    setSettings(prev => {
-      const updated = { ...prev, ...newSettings };
-      broadcastSync('SYNC_SETTINGS', updated);
-      return updated;
-    });
-  };
-
-  const updateProfile = (newProfile: Partial<UserProfile>) => {
-    setUser(prev => {
-      const updated = authUser
-        ? {
-            ...prev,
-            ...newProfile,
-            name: authUser.displayName || prev.name,
-            avatar: authUser.photoURL || prev.avatar,
-            email: authUser.email || prev.email,
-            providerId: authUser.providerData[0]?.providerId || prev.providerId,
-            firebaseUid: authUser.uid,
-          }
-        : { ...prev, ...newProfile };
-      broadcastSync('SYNC_USER', updated);
-      return updated;
-    });
-  };
-
- const signInWithGoogle = async () => {
-  try {
-    console.log("========== GOOGLE LOGIN START ==========");
-    console.log("Current URL:", window.location.href);
-    console.log("Firebase Auth:", firebaseAuth);
-    console.log("Google Provider:", googleProvider);
-
+  const signInWithGoogle = async () => {
     setAuthError(null);
-
-    // Use popup for immediate authentication without page reload
-    const { signInWithPopup } = await import('firebase/auth');
-    await signInWithPopup(firebaseAuth, googleProvider);
-
-    console.log("✅ Sign-in successful");
-  } catch (error: any) {
-    console.error("❌ Google Sign In Error");
-    console.error("Error Code:", error.code);
-    console.error("Error Message:", error.message);
-    console.error("Full Error:", error);
-
-    setAuthError(error.message || "Google Sign In Failed");
-
-    throw error;
-  }
-};
-  const signOutGoogle = async () => {
-    try {
-      await firebaseSignOut(firebaseAuth);
-      setAuthUser(null);
-      setUser(DEFAULT_USER);
-      setAuthError(null);
-    } catch (error: any) {
-      console.error('Google sign-out error:', error);
-      setAuthError(error.message || 'Failed to sign out');
-      throw error;
+    if (firebaseAuth && googleProvider) {
+      try {
+        await signInWithPopup(firebaseAuth, googleProvider);
+      } catch (error: any) {
+        console.error('Sign in failed:', error);
+        setAuthError(error.message);
+        throw error;
+      }
     }
   };
 
-  const addContact = (name: string, status: string, isAi: boolean) => {
-    const newId = 'contact_' + Date.now();
-    const avatars = [
-      'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=150&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=150&auto=format&fit=crop&q=80',
-    ];
-    const newContact: Contact = {
-      id: newId,
-      name,
-      status: status || 'Available on Secure Vault',
-      avatar: avatars[Math.floor(Math.random() * avatars.length)],
-      isOnline: true,
-      isAiBot: isAi,
-      unreadCount: 0,
-    };
-
-    setContacts(prev => [newContact, ...prev]);
-    setMessages(prev => ({ ...prev, [newId]: [] }));
+  const signInWithEmail = async (email: string, pass: string) => {
+    setAuthError(null);
+    if (firebaseAuth) {
+      try {
+        await signInWithEmailAndPassword(firebaseAuth, email, pass);
+      } catch (error: any) {
+        console.error('Email sign in failed:', error);
+        setAuthError(error.message);
+        throw error;
+      }
+    }
   };
 
-  const deleteMessage = (contactId: string, msgId: string) => {
-    setMessages(prev => ({
-      ...prev,
-      [contactId]: (prev[contactId] || []).filter(m => m.id !== msgId)
-    }));
+  const signUpWithEmail = async (email: string, pass: string, name: string) => {
+    setAuthError(null);
+    if (firebaseAuth) {
+      try {
+        const res = await createUserWithEmailAndPassword(firebaseAuth, email, pass);
+        if (res.user) {
+          await updateAuthProfile(res.user, { displayName: name });
+        }
+      } catch (error: any) {
+        console.error('Email registration failed:', error);
+        setAuthError(error.message);
+        throw error;
+      }
+    }
   };
 
-  const clearChatHistory = (contactId: string) => {
-    setMessages(prev => ({ ...prev, [contactId]: [] }));
+  const signOutGoogle = async () => {
+    setAuthError(null);
+    if (firebaseAuth) {
+      try {
+        await signOut(firebaseAuth);
+        setAuthUser(null);
+      } catch (error: any) {
+        console.error('Sign out failed:', error);
+        setAuthError(error.message);
+      }
+    }
   };
 
+  const updateSettings = async (newSettings: Partial<VaultSettings>) => {
+    let settingsToApply = { ...newSettings };
+    if (settingsToApply.chatWallpaper && settingsToApply.chatWallpaper.startsWith('data:image/')) {
+      try {
+        const compressed = await compressImage(settingsToApply.chatWallpaper, 800, 200000);
+        if (compressed) {
+          settingsToApply.chatWallpaper = compressed;
+        }
+      } catch (err) {
+        console.warn('Failed to compress chat wallpaper:', err);
+      }
+    }
+
+    let updatedSettings: VaultSettings = DEFAULT_SETTINGS;
+    setSettings(prev => {
+      updatedSettings = { ...prev, ...settingsToApply };
+      try {
+        localStorage.setItem('secret_vault_settings', JSON.stringify(updatedSettings));
+      } catch (e) {
+        console.error('Error saving settings to localStorage:', e);
+      }
+      return updatedSettings;
+    });
+
+    if (authUser) {
+      let safeSettings = { ...updatedSettings };
+      if (safeSettings.chatWallpaper && safeSettings.chatWallpaper.length > 300000) {
+        try {
+          const recompressed = await compressImage(safeSettings.chatWallpaper, 600, 150000);
+          if (recompressed) {
+            safeSettings.chatWallpaper = recompressed;
+          }
+        } catch (_) {}
+      }
+
+      await updateDoc(doc(db, 'users', authUser.uid), {
+        settings: safeSettings,
+      }).catch(err => console.error('Failed to sync settings to Firestore:', err));
+    }
+  };
+
+  const updateProfile = async (newProfile: Partial<UserProfile>) => {
+    setUser(prev => ({ ...prev, ...newProfile }));
+    if (authUser) {
+      await updateDoc(doc(db, 'users', authUser.uid), {
+        status: newProfile.status || user.status,
+        displayName: newProfile.name || user.name,
+      }).catch(() => {});
+    }
+  };
+
+  const addContact = () => {};
+  const createGroup = () => '';
+  const clearChatHistory = () => {};
+  const clearAllChatHistory = () => {};
   const togglePinContact = (contactId: string) => {
     setContacts(prev => prev.map(c => c.id === contactId ? { ...c, isPinned: !c.isPinned } : c));
   };
-
-  const toggleLockContact = (contactId: string) => {
-    setContacts(prev => prev.map(c => c.id === contactId ? { ...c, isLocked: !c.isLocked } : c));
-  };
-
-  const unlockChatLock = (contactId: string) => {
-    setUnlockedLocks(prev => ({ ...prev, [contactId]: true }));
-  };
-
-  const blockContact = (contactId: string) => {
-    setBlockedContactIds(prev => {
-      const next = prev.includes(contactId) ? prev : [...prev, contactId];
-      localStorage.setItem('calc_vault_blocked_v1', JSON.stringify(next));
-      return next;
-    });
-  };
-
-  const unblockContact = (contactId: string) => {
-    setBlockedContactIds(prev => {
-      const next = prev.filter(id => id !== contactId);
-      localStorage.setItem('calc_vault_blocked_v1', JSON.stringify(next));
-      return next;
-    });
-  };
-
-  const clearAllChatHistory = () => {
-    setMessages({});
-    localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify({}));
-  };
-
   const toggleArchiveContact = (contactId: string) => {
     setContacts(prev => prev.map(c => c.id === contactId ? { ...c, isArchived: !c.isArchived } : c));
   };
-
-  const startCall = (contactId: string, type: 'voice' | 'video') => {
-    setActiveCall({ contactId, type });
+  const toggleLockContact = (contactId: string) => {
+    setContacts(prev => prev.map(c => c.id === contactId ? { ...c, isLocked: !c.isLocked } : c));
   };
-
-  const endCall = () => {
-    setActiveCall(null);
+  const unlockChatLock = (contactId: string) => {
+    setUnlockedLocks(prev => ({ ...prev, [contactId]: true }));
   };
-
-  const createGroup = (name: string, members: string[]): string => {
-    const groupId = 'group_' + Date.now();
-    const newGroupContact: Contact = {
-      id: groupId,
-      name,
-      avatar: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=150&auto=format&fit=crop&q=80',
-      status: `Group with ${members.length} members`,
-      isOnline: false,
-      unreadCount: 0,
-      isGroup: true,
-      groupMembers: members,
-    };
-    setContacts(prev => [newGroupContact, ...prev]);
-    setMessages(prev => ({ ...prev, [groupId]: [] }));
-    return groupId;
+  const blockContact = (contactId: string) => {
+    setBlockedContactIds(prev => prev.includes(contactId) ? prev : [...prev, contactId]);
   };
+  const unblockContact = (contactId: string) => {
+    setBlockedContactIds(prev => prev.filter(id => id !== contactId));
+  };
+  const toggleStarMessage = () => {};
+  const togglePinMessage = () => {};
+  const forwardMessage = () => {};
+  const setTypingStatus = () => {};
 
   return (
     <VaultContext.Provider value={{
@@ -595,38 +1824,76 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       user,
       settings,
       contacts,
+      friendUids,
+      unreadTotal,
       messages,
+      callLogs,
+      activeCall,
+      callPermissionError,
+      clearCallPermissionError,
       activeContactId,
       activeTab,
       unlockedLocks,
+      blockedContactIds,
+      customNicknames,
       authUser,
       authReady,
       authError,
+      isFirebaseConfigured,
+      needsUsername,
+      pendingFriendRequests,
+      sentFriendRequests,
+      allRegisteredUsers,
+      statusUpdates,
+      completeUsernameSetup,
+      sendFriendRequest,
+      acceptFriendRequest,
+      rejectFriendRequest,
+      unfriendContact,
+      isFriend,
+      searchFirebaseUsers,
+      postStatusUpdate,
       unlockVault,
       lockVault,
       signInWithGoogle,
+      signInWithEmail,
+      signUpWithEmail,
       signOutGoogle,
-      setActiveContactId: handleSetActiveContactId,
+      setActiveContactId,
       setActiveTab,
       sendMessage,
+      editMessage,
+      deleteMessage,
+      deleteForEveryone,
+      toggleStarMessage,
+      togglePinMessage,
+      forwardMessage,
+      setTypingStatus,
+      setCustomNickname,
+      clearCustomNickname,
+      getContactDisplayName,
+      startCall,
+      acceptCall,
+      rejectCall,
+      cancelCall,
+      endCall,
+      toggleMuteCall,
+      toggleVideoCall,
+      toggleSpeakerCall,
+      switchCameraCall,
+      clearCallLogs,
       updateSettings,
       updateProfile,
       addContact,
-      deleteMessage,
+      createGroup,
       clearChatHistory,
+      clearAllChatHistory,
       togglePinContact,
       toggleLockContact,
+      toggleArchiveContact,
       unlockChatLock,
-      blockedContactIds,
-      unreadTotal,
       blockContact,
       unblockContact,
-      clearAllChatHistory,
-      toggleArchiveContact,
-      startCall,
-      createGroup,
-      activeCall,
-      endCall,
     }}>
       {children}
     </VaultContext.Provider>
@@ -635,6 +1902,5 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
 export const useVault = () => {
   const ctx = useContext(VaultContext);
-  if (!ctx) throw new Error('useVault must be used within a VaultProvider');
-  return ctx;
+  return ctx || fallbackVaultContext;
 };

@@ -1,29 +1,43 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   User, Key, Lock, MessageSquare, Bell, Keyboard, LogOut, Search, X, 
   Camera, Check, Eye, Edit3, RotateCw, ZoomIn, ZoomOut, RefreshCw,
   ChevronLeft, ChevronRight, Circle, Info, Smile, CheckCheck,
   Ban, UserPlus, Plus, ShieldAlert, Trash2, Code2, Heart, Sparkles,
-  Users, Phone
+  Users, Phone, ShieldCheck, Crown, Activity, BadgeCheck
 } from 'lucide-react';
+import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { useVault } from '../context/VaultContext';
 import { useSettings } from '../context/SettingsContext';
+import { CCLogo, CalcChatTitle } from './CalcChatBrand';
+import { compressImage } from '../lib/mediaCompressor';
+import { checkIsAdmin, VerifiedBadge, ADMIN_EMAILS } from '../lib/adminUtils';
+import { FollowersList } from './FollowersList';
+import { FollowingList } from './FollowingList';
 
 export const UserProfileView: React.FC = () => {
   const { 
-    user, updateProfile, signOutGoogle, lockVault, 
+    user, authUser, updateProfile, signOutGoogle, lockVault, 
     contacts, blockedContactIds, blockContact, unblockContact,
     settings: vaultSettings, updateSettings: updateVaultSettings,
     clearAllChatHistory
   } = useVault();
   const { settings, updateSettings: updateGlobalSettings } = useSettings();
-  const isDark = settings.darkMode;
+  const isDark = vaultSettings.theme !== 'material-light' && vaultSettings.theme !== 'light';
   const [search, setSearch] = useState('');
   const [snack, setSnack] = useState('');
+  const [customWallpaperUrl, setCustomWallpaperUrl] = useState('');
   
   const wallpaperInputRef = useRef<HTMLInputElement>(null);
 
+  const isAdmin = checkIsAdmin(user) || checkIsAdmin(authUser?.email);
+
   // Modals
+  const [showAdminModal, setShowAdminModal] = useState(false);
+  const [showFollowersListModal, setShowFollowersListModal] = useState(false);
+  const [showFollowingListModal, setShowFollowingListModal] = useState(false);
+  const [showPrivateFollowersNotice, setShowPrivateFollowersNotice] = useState(false);
   const [showProfileOptionsModal, setShowProfileOptionsModal] = useState(false);
   const [showViewProfileModal, setShowViewProfileModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -40,6 +54,73 @@ export const UserProfileView: React.FC = () => {
   const [notifyCalls, setNotifyCalls] = useState(true);
   const [showClearHistoryConfirmModal, setShowClearHistoryConfirmModal] = useState(false);
   const [blockSearch, setBlockSearch] = useState('');
+
+  // Admin User Search & Blue Tick Management States
+  const [adminUserSearch, setAdminUserSearch] = useState('');
+  const [adminUsersList, setAdminUsersList] = useState<any[]>([]);
+  const [isLoadingAdminUsers, setIsLoadingAdminUsers] = useState(false);
+
+  const loadAdminUsers = async () => {
+    if (!db) return;
+    setIsLoadingAdminUsers(true);
+    try {
+      const snap = await getDocs(collection(db, 'users'));
+      const list: any[] = [];
+      snap.forEach((docSnap) => {
+        const data = docSnap.data();
+        list.push({
+          id: docSnap.id,
+          uid: docSnap.id,
+          name: data.displayName || data.name || data.username || 'User',
+          username: data.username || '',
+          email: data.email || '',
+          avatar: data.photoURL || data.avatar || '',
+          isVerified: Boolean(
+            data.isVerified ||
+            data.verified ||
+            checkIsAdmin({ email: data.email, username: data.username, name: data.displayName })
+          ),
+        });
+      });
+      setAdminUsersList(list);
+    } catch (err) {
+      console.error('Error fetching admin users:', err);
+    } finally {
+      setIsLoadingAdminUsers(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showAdminModal) {
+      loadAdminUsers();
+    }
+  }, [showAdminModal]);
+
+  const handleToggleBlueTick = async (targetUser: any) => {
+    if (!db) return;
+    const newVerified = !targetUser.isVerified;
+    try {
+      await updateDoc(doc(db, 'users', targetUser.id), {
+        isVerified: newVerified,
+        verified: newVerified,
+        isVerifiedAdmin: newVerified,
+      });
+
+      setAdminUsersList((prev) =>
+        prev.map((u) => (u.id === targetUser.id ? { ...u, isVerified: newVerified } : u))
+      );
+
+      const targetHandle = targetUser.username ? `@${targetUser.username}` : targetUser.name;
+      setSnack(
+        newVerified
+          ? `Blue Tick granted to ${targetHandle}!`
+          : `Blue Tick removed for ${targetHandle}.`
+      );
+    } catch (err) {
+      console.error('Error updating blue tick:', err);
+      setSnack('Failed to update verification status.');
+    }
+  };
 
   // Privacy states
   const [privacyLastSeen, setPrivacyLastSeen] = useState('My contacts, Everyone');
@@ -171,6 +252,13 @@ export const UserProfileView: React.FC = () => {
   };
 
   const menuItems = [
+    ...(isAdmin ? [{
+      id: 'admin_panel',
+      icon: <ShieldCheck className="w-5 h-5 text-[#00a8ff]" />,
+      label: 'Admin Panel',
+      sub: 'System control, verified blue badge & security',
+      onClick: () => setShowAdminModal(true)
+    }] : []),
     {
       id: 'profile',
       icon: <User className="w-5 h-5 text-[#8696a0]" />,
@@ -272,20 +360,54 @@ export const UserProfileView: React.FC = () => {
               {userName ? userName.charAt(0).toLowerCase() : 'p'}
             </div>
           )}
-          {/* Green Online Status Dot */}
-          <span className={`w-4 h-4 bg-[#25d366] border-2 rounded-full absolute bottom-0.5 right-0.5 ${
+          {/* Sky Blue Online Status Dot */}
+          <span className={`w-4 h-4 bg-[#00a8ff] border-2 rounded-full absolute bottom-0.5 right-0.5 ${
             isDark ? 'border-[#0b141a]' : 'border-white'
           }`}></span>
         </div>
 
-        <h2 className={`text-xl font-bold mt-3 tracking-wide text-center ${
+        <h2 className={`text-xl font-bold mt-3 tracking-wide text-center flex items-center justify-center gap-1.5 ${
           isDark ? 'text-[#e9edef]' : 'text-gray-900'
         }`}>
-          {userName}
+          <span>{userName}</span>
+          {isAdmin && <VerifiedBadge className="w-5 h-5 shrink-0" />}
         </h2>
         <p className="text-xs text-[#0095f6] font-medium mt-0.5 text-center">
           @{userUsername}
         </p>
+
+        {/* Followers & Following Statistics */}
+        <div className="flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold mt-2.5 text-center">
+          <button
+            type="button"
+            onClick={() => {
+              if (isAdmin) {
+                setShowPrivateFollowersNotice(true);
+              } else {
+                setShowFollowersListModal(true);
+              }
+            }}
+            className={`hover:underline cursor-pointer transition-colors ${
+              isDark ? 'text-[#e9edef] hover:text-[#00a8ff]' : 'text-gray-900 hover:text-[#00a8ff]'
+            }`}
+          >
+            <span className="font-bold">{isAdmin ? '2K' : (Array.isArray(user.followers) ? user.followers.length : 0)}</span>{' '}
+            <span className={isDark ? 'text-[#8696a0]' : 'text-gray-500'}>followers</span>
+          </button>
+          
+          <span className={isDark ? 'text-[#8696a0]' : 'text-gray-400'}>•</span>
+
+          <button
+            type="button"
+            onClick={() => setShowFollowingListModal(true)}
+            className={`hover:underline cursor-pointer transition-colors ${
+              isDark ? 'text-[#e9edef] hover:text-[#00a8ff]' : 'text-gray-900 hover:text-[#00a8ff]'
+            }`}
+          >
+            <span className="font-bold">{Array.isArray(user.following) ? user.following.length : 0}</span>{' '}
+            <span className={isDark ? 'text-[#8696a0]' : 'text-gray-500'}>following</span>
+          </button>
+        </div>
       </div>
 
       {/* Menu Options List */}
@@ -538,7 +660,7 @@ export const UserProfileView: React.FC = () => {
                     : 'hover:bg-gray-100 text-gray-800'
                 }`}
               >
-                <div className="p-2.5 rounded-xl bg-[#00a884]/10 text-[#00a884]">
+                <div className="p-2.5 rounded-xl bg-[#00a8ff]/10 text-[#00a8ff]">
                   <Edit3 className="w-5 h-5" />
                 </div>
                 <div className="text-left">
@@ -902,7 +1024,7 @@ export const UserProfileView: React.FC = () => {
                     id: 'status',
                     title: 'Status',
                     current: privacyStatus,
-                    options: ['My contacts', '1 contact included', 'My contacts except...', 'Only share with...']
+                    options: ['My contacts', 'Only share with...']
                   })}
                   className={`w-full flex items-center justify-between p-3.5 rounded-2xl transition-colors text-left ${
                     isDark ? 'hover:bg-[#111b21]' : 'hover:bg-gray-50'
@@ -1264,17 +1386,16 @@ export const UserProfileView: React.FC = () => {
             </button>
 
             <div className="flex flex-col items-center text-center pt-2 pb-1">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#0095f6] to-[#00c853] p-0.5 shadow-lg mb-4 flex items-center justify-center">
-                <div className={`w-full h-full rounded-[14px] flex items-center justify-center ${
-                  isDark ? 'bg-[#111b21]' : 'bg-white'
-                }`}>
-                  <Code2 className="w-8 h-8 text-[#0095f6]" />
-                </div>
+              <div className="mb-3 flex justify-center">
+                <CCLogo className="w-16 h-16" />
+              </div>
+              <div className="mb-2">
+                <CalcChatTitle size="md" />
               </div>
 
-              <h2 className="text-xl font-bold mb-1">App Creator</h2>
+              <h2 className="text-[#0095f6] font-bold text-sm mb-1">App Creator</h2>
               <p className={`text-xs font-medium mb-5 ${isDark ? 'text-[#8696a0]' : 'text-gray-500'}`}>
-                Calculator Vault & Chat Platform
+                CalcChat Vault & Secure Messaging Platform
               </p>
 
               <div className={`w-full rounded-2xl p-4 mb-5 border text-left space-y-3 ${
@@ -1286,7 +1407,7 @@ export const UserProfileView: React.FC = () => {
                 </div>
                 <div className="flex items-center justify-between border-t border-gray-500/10 pt-2">
                   <span className={`text-xs ${isDark ? 'text-[#8696a0]' : 'text-gray-500'}`}>App Name:</span>
-                  <span className="text-xs font-semibold">Calculator Vault Messenger</span>
+                  <span className="text-xs font-semibold">CalcChat Vault Messenger</span>
                 </div>
                 <div className="flex items-center justify-between border-t border-gray-500/10 pt-2">
                   <span className={`text-xs ${isDark ? 'text-[#8696a0]' : 'text-gray-500'}`}>Version:</span>
@@ -1352,7 +1473,6 @@ export const UserProfileView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    updateGlobalSettings('darkMode', false);
                     updateVaultSettings({ theme: 'material-light' });
                     showSnack('Light theme applied');
                   }}
@@ -1374,7 +1494,6 @@ export const UserProfileView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    updateGlobalSettings('darkMode', true);
                     updateVaultSettings({ theme: 'material-dark' });
                     showSnack('Dark theme applied');
                   }}
@@ -1396,38 +1515,86 @@ export const UserProfileView: React.FC = () => {
 
             {/* Wallpaper Section */}
             <div>
-              <h3 className={`text-sm font-semibold mb-3 ${isDark ? 'text-[#8696a0]' : 'text-gray-800'}`}>
-                Wallpaper
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className={`text-sm font-semibold ${isDark ? 'text-[#8696a0]' : 'text-gray-800'}`}>
+                  Chat Wallpaper
+                </h3>
+                {vaultSettings?.chatWallpaper && vaultSettings.chatWallpaper !== 'default' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateVaultSettings({ chatWallpaper: 'default' });
+                      showSnack('Reset to default wallpaper');
+                    }}
+                    className="text-xs text-[#0095f6] hover:underline font-medium cursor-pointer"
+                  >
+                    Reset to Default
+                  </button>
+                )}
+              </div>
 
-              {/* 6 Preset Color Swatches */}
-              <div className="grid grid-cols-3 gap-3 mb-3">
+              {/* Current Active Wallpaper Preview */}
+              {vaultSettings?.chatWallpaper && vaultSettings.chatWallpaper !== 'default' && (
+                <div className={`mb-4 p-3 rounded-2xl border flex items-center gap-3 ${
+                  isDark ? 'bg-[#111b21] border-[#2a3942]' : 'bg-gray-50 border-gray-200'
+                }`}>
+                  <div 
+                    className="w-14 h-14 rounded-xl border border-gray-300 shadow-sm shrink-0 overflow-hidden relative"
+                    style={
+                      vaultSettings.chatWallpaper.startsWith('data:') || vaultSettings.chatWallpaper.startsWith('http') || vaultSettings.chatWallpaper.startsWith('blob:')
+                        ? { backgroundImage: `url("${vaultSettings.chatWallpaper}")`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                        : { backgroundColor: vaultSettings.chatWallpaper }
+                    }
+                  >
+                    <div className="absolute inset-0 bg-black/10 flex items-center justify-center">
+                      <Check className="w-4 h-4 text-white drop-shadow" />
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-xs font-bold truncate ${isDark ? 'text-[#e9edef]' : 'text-gray-900'}`}>
+                      Active Custom Wallpaper
+                    </p>
+                    <p className={`text-[11px] truncate ${isDark ? 'text-[#8696a0]' : 'text-gray-500'}`}>
+                      Applied to all personal and group chats
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Preset Color Swatches */}
+              <div className="grid grid-cols-4 gap-2.5 mb-4">
                 {[
-                  { name: 'Default', bg: '#f0f2f5', class: 'bg-[#f0f2f5]' },
-                  { name: 'Sky Blue', bg: '#e3f2fd', class: 'bg-[#e3f2fd]' },
-                  { name: 'Mint Green', bg: '#e8f5e9', class: 'bg-[#e8f5e9]' },
-                  { name: 'Lavender', bg: '#f3e5f5', class: 'bg-[#f3e5f5]' },
-                  { name: 'Warm Yellow', bg: '#fffde7', class: 'bg-[#fffde7]' },
-                  { name: 'Blush Pink', bg: '#fce4ec', class: 'bg-[#fce4ec]' },
+                  { name: 'Default', bg: 'default', color: isDark ? '#0b141a' : '#efeae2' },
+                  { name: 'Dark Charcoal', bg: '#111b21', color: '#111b21' },
+                  { name: 'Deep Slate', bg: '#1e293b', color: '#1e293b' },
+                  { name: 'Emerald Dark', bg: '#062c1b', color: '#062c1b' },
+                  { name: 'Sky Blue', bg: '#e3f2fd', color: '#e3f2fd' },
+                  { name: 'Mint Green', bg: '#e8f5e9', color: '#e8f5e9' },
+                  { name: 'Lavender', bg: '#f3e5f5', color: '#f3e5f5' },
+                  { name: 'Blush Pink', bg: '#fce4ec', color: '#fce4ec' },
                 ].map((swatch) => {
-                  const isSelected = (vaultSettings?.chatWallpaper || '#f0f2f5') === swatch.bg || ((!vaultSettings?.chatWallpaper || vaultSettings?.chatWallpaper === 'default') && swatch.name === 'Default');
+                  const isSelected = 
+                    (swatch.bg === 'default' && (!vaultSettings?.chatWallpaper || vaultSettings?.chatWallpaper === 'default')) ||
+                    vaultSettings?.chatWallpaper === swatch.bg;
                   return (
                     <button
                       key={swatch.name}
                       type="button"
+                      title={swatch.name}
                       onClick={() => {
                         updateVaultSettings({ chatWallpaper: swatch.bg });
                         showSnack(`Wallpaper set to ${swatch.name}`);
                       }}
-                      className={`h-16 rounded-xl border-2 transition-all cursor-pointer relative overflow-hidden ${swatch.class} ${
+                      className={`h-14 rounded-xl border-2 transition-all cursor-pointer relative overflow-hidden flex flex-col items-center justify-center ${
                         isSelected 
                           ? 'border-[#0095f6] ring-2 ring-[#0095f6]/30 shadow-md scale-[1.02]' 
                           : 'border-gray-300/40 hover:opacity-90'
                       }`}
+                      style={{ backgroundColor: swatch.color }}
                     >
                       {isSelected && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/10">
-                          <Check className="w-5 h-5 text-[#0095f6]" />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                          <Check className="w-5 h-5 text-white drop-shadow" />
                         </div>
                       )}
                     </button>
@@ -1445,10 +1612,12 @@ export const UserProfileView: React.FC = () => {
                   const file = e.target.files?.[0];
                   if (file) {
                     const reader = new FileReader();
-                    reader.onload = (event) => {
+                    reader.onload = async (event) => {
                       if (event.target?.result) {
-                        updateVaultSettings({ chatWallpaper: event.target.result as string });
-                        showSnack('Custom wallpaper uploaded successfully!');
+                        const raw = event.target.result as string;
+                        const compressed = await compressImage(raw, 800, 200000);
+                        updateVaultSettings({ chatWallpaper: compressed || raw });
+                        showSnack('Custom wallpaper uploaded & applied!');
                       }
                     };
                     reader.readAsDataURL(file);
@@ -1456,18 +1625,49 @@ export const UserProfileView: React.FC = () => {
                 }}
               />
 
-              <button
-                type="button"
-                onClick={() => wallpaperInputRef.current?.click()}
-                className={`w-full p-4 rounded-2xl border-2 border-dashed flex items-center justify-center gap-2.5 transition-colors text-sm font-medium cursor-pointer ${
-                  isDark 
-                    ? 'border-[#2a3942] hover:border-gray-500 text-[#8696a0] hover:text-[#e9edef]' 
-                    : 'border-gray-300 hover:border-gray-400 text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <Camera className="w-5 h-5 opacity-70" />
-                <span>Upload custom wallpaper</span>
-              </button>
+              <div className="space-y-2.5">
+                <button
+                  type="button"
+                  onClick={() => wallpaperInputRef.current?.click()}
+                  className={`w-full p-3.5 rounded-2xl border-2 border-dashed flex items-center justify-center gap-2 transition-colors text-xs font-semibold cursor-pointer ${
+                    isDark 
+                      ? 'border-[#2a3942] hover:border-gray-500 text-[#8696a0] hover:text-[#e9edef] bg-[#111b21]' 
+                      : 'border-gray-300 hover:border-gray-400 text-gray-600 hover:text-gray-900 bg-gray-50'
+                  }`}
+                >
+                  <Camera className="w-4 h-4 text-[#0095f6]" />
+                  <span>Upload custom image from device</span>
+                </button>
+
+                {/* Custom Image URL Input */}
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={customWallpaperUrl}
+                    onChange={(e) => setCustomWallpaperUrl(e.target.value)}
+                    placeholder="Or paste wallpaper image URL..."
+                    className={`flex-1 px-3.5 py-2.5 rounded-xl text-xs border outline-none transition-all ${
+                      isDark 
+                        ? 'bg-[#111b21] border-[#2a3942] text-[#e9edef] placeholder-[#8696a0] focus:border-[#0095f6]' 
+                        : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-[#0095f6]'
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    disabled={!customWallpaperUrl.trim()}
+                    onClick={() => {
+                      if (customWallpaperUrl.trim()) {
+                        updateVaultSettings({ chatWallpaper: customWallpaperUrl.trim() });
+                        showSnack('Custom wallpaper URL applied!');
+                        setCustomWallpaperUrl('');
+                      }
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-[#0095f6] hover:bg-[#0088cc] disabled:opacity-40 text-white text-xs font-bold transition-all shrink-0 cursor-pointer"
+                  >
+                    Apply URL
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Chat History Section */}
@@ -1701,11 +1901,334 @@ export const UserProfileView: React.FC = () => {
         </div>
       )}
 
+      {/* Admin Panel Modal */}
+      {showAdminModal && (
+        <div className={`fixed inset-0 z-50 flex flex-col h-full w-full overflow-y-auto font-sans animate-fade-in transition-colors ${
+          isDark ? 'bg-[#0b141a] text-[#e9edef]' : 'bg-white text-gray-900'
+        }`}>
+          {/* Admin Header */}
+          <div className={`flex items-center justify-between px-5 py-4 sticky top-0 z-10 border-b transition-colors ${
+            isDark ? 'bg-[#111b21] border-[#1f2c34]' : 'bg-white border-gray-100'
+          }`}>
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => setShowAdminModal(false)}
+                className={`p-1.5 rounded-full transition-colors ${
+                  isDark ? 'text-[#8696a0] hover:bg-[#1f2c34] hover:text-[#e9edef]' : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <X className="w-6 h-6" />
+              </button>
+              <div className="flex items-center gap-2">
+                <Crown className="w-6 h-6 text-amber-400" />
+                <h1 className={`text-xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Admin Panel
+                </h1>
+              </div>
+            </div>
+
+            <span className="px-3 py-1 bg-[#00a8ff]/10 text-[#00a8ff] text-xs font-bold rounded-full border border-[#00a8ff]/30 flex items-center gap-1">
+              <ShieldCheck className="w-3.5 h-3.5" /> Super Admin
+            </span>
+          </div>
+
+          <div className="flex-1 px-5 py-6 max-w-lg mx-auto w-full space-y-6">
+            {/* Admin Profile Overview Card */}
+            <div className={`p-5 rounded-3xl border shadow-lg ${
+              isDark ? 'bg-[#111b21] border-[#202c33]' : 'bg-gray-50 border-gray-200'
+            }`}>
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  {user.avatar ? (
+                    <img src={user.avatar} alt={userName} className="w-16 h-16 rounded-full object-cover border-2 border-[#00a8ff]" />
+                  ) : (
+                    <div className="w-16 h-16 rounded-full bg-[#1e293b] text-[#00a8ff] font-bold text-2xl flex items-center justify-center border-2 border-[#00a8ff]">
+                      {userName.charAt(0)}
+                    </div>
+                  )}
+                  <span className="w-4 h-4 bg-[#00a8ff] border-2 border-[#0b141a] rounded-full absolute bottom-0 right-0"></span>
+                </div>
+
+                <div className="flex-1 min-w-0 text-left">
+                  <h3 className="font-bold text-lg flex items-center gap-1.5 truncate">
+                    <span className="truncate">{userName}</span>
+                    <VerifiedBadge className="w-5 h-5 shrink-0" />
+                  </h3>
+                  <p className="text-xs text-[#00a8ff] font-semibold truncate">@{userUsername}</p>
+                  <p className="text-[11px] text-gray-400 truncate mt-0.5">{authUser?.email || user.email || 'vickybhelave25@navgurukul.org'}</p>
+                </div>
+              </div>
+
+              {/* Followers & Verification Info */}
+              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-[#202c33] grid grid-cols-2 gap-3 text-center">
+                <div className="p-2.5 rounded-2xl bg-[#0b141a]/40 border border-[#202c33]">
+                  <p className="text-xs text-gray-400 font-medium">Followers Count</p>
+                  <p className="text-lg font-black text-[#00a8ff]">2K Followers</p>
+                  <p className="text-[10px] text-amber-400 font-medium mt-0.5">🔒 Private & Hidden</p>
+                </div>
+
+                <div className="p-2.5 rounded-2xl bg-[#0b141a]/40 border border-[#202c33]">
+                  <p className="text-xs text-gray-400 font-medium">Verified Status</p>
+                  <p className="text-lg font-black text-emerald-400 flex items-center justify-center gap-1">
+                    <VerifiedBadge className="w-4 h-4" /> Active
+                  </p>
+                  <p className="text-[10px] text-emerald-400/80 font-medium mt-0.5">Blue Tick On</p>
+                </div>
+              </div>
+            </div>
+
+            {/* User Search & Grant Blue Tick Section */}
+            <div className={`p-5 rounded-3xl border shadow-lg ${
+              isDark ? 'bg-[#111b21] border-[#202c33]' : 'bg-gray-50 border-gray-200'
+            }`}>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-bold text-sm text-left flex items-center gap-2 text-white">
+                  <BadgeCheck className="w-5 h-5 text-[#00a8ff]" /> Search & Grant Blue Tick
+                </h4>
+                <button
+                  type="button"
+                  onClick={loadAdminUsers}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors cursor-pointer"
+                  title="Refresh Users"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isLoadingAdminUsers ? 'animate-spin text-[#00a8ff]' : ''}`} />
+                </button>
+              </div>
+
+              <p className="text-xs text-gray-400 text-left mb-3">
+                Search any registered user by name or username to grant or remove their verified blue tick.
+              </p>
+
+              {/* Search Bar Input */}
+              <div className={`flex items-center gap-2.5 rounded-2xl px-3.5 py-2.5 border mb-3 transition-colors ${
+                isDark ? 'bg-[#0b141a] border-[#202c33] text-white' : 'bg-white border-gray-200 text-gray-900'
+              }`}>
+                <Search className="w-4 h-4 text-[#00a8ff] shrink-0" />
+                <input
+                  type="text"
+                  value={adminUserSearch}
+                  onChange={(e) => setAdminUserSearch(e.target.value)}
+                  placeholder="Type user name or @username..."
+                  className="w-full bg-transparent text-xs sm:text-sm focus:outline-none placeholder-gray-500"
+                />
+                {adminUserSearch && (
+                  <button type="button" onClick={() => setAdminUserSearch('')} className="cursor-pointer">
+                    <X className="w-4 h-4 text-gray-400 hover:text-white" />
+                  </button>
+                )}
+              </div>
+
+              {/* Users Search Results List */}
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                {isLoadingAdminUsers ? (
+                  <div className="py-6 text-center text-xs text-gray-400 flex items-center justify-center gap-2">
+                    <RefreshCw className="w-4 h-4 animate-spin text-[#00a8ff]" /> Loading users database...
+                  </div>
+                ) : (() => {
+                  const filtered = adminUsersList.filter((u) => {
+                    const q = adminUserSearch.toLowerCase().trim();
+                    if (!q) return true;
+                    return (
+                      u.name.toLowerCase().includes(q) ||
+                      u.username.toLowerCase().includes(q) ||
+                      u.email.toLowerCase().includes(q)
+                    );
+                  });
+
+                  if (filtered.length === 0) {
+                    return (
+                      <p className="text-xs text-gray-400 py-6 text-center">
+                        {adminUserSearch ? `No users matching "${adminUserSearch}"` : 'No users found'}
+                      </p>
+                    );
+                  }
+
+                  return filtered.map((u) => (
+                    <div
+                      key={u.id}
+                      className={`flex items-center justify-between p-3 rounded-2xl border text-left transition-colors ${
+                        isDark ? 'bg-[#0b141a] border-[#202c33]' : 'bg-white border-gray-200'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        {u.avatar ? (
+                          <img
+                            src={u.avatar}
+                            alt={u.name}
+                            className="w-10 h-10 rounded-full object-cover shrink-0 border border-[#00a8ff]/30 shadow-xs"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-[#1e293b] text-[#00a8ff] font-bold text-sm flex items-center justify-center shrink-0 border border-[#00a8ff]/30">
+                            {u.name ? u.name.charAt(0).toUpperCase() : 'U'}
+                          </div>
+                        )}
+
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-xs sm:text-sm text-white truncate flex items-center gap-1">
+                            <span className="truncate">{u.name}</span>
+                            {u.isVerified && <VerifiedBadge className="w-4 h-4 shrink-0" />}
+                          </p>
+                          <p className="text-[11px] text-[#00a8ff] font-medium truncate">
+                            @{u.username || 'user'}
+                          </p>
+                          {u.email && (
+                            <p className="text-[10px] text-gray-400 truncate mt-0.5">{u.email}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleToggleBlueTick(u)}
+                        className={`ml-2 px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+                          u.isVerified
+                            ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500/20'
+                            : 'bg-[#00a8ff] text-[#0b141a] hover:bg-[#0091ea] shadow-xs'
+                        }`}
+                      >
+                        {u.isVerified ? (
+                          <>Remove Tick</>
+                        ) : (
+                          <>
+                            <VerifiedBadge className="w-3.5 h-3.5" /> Give Blue Tick
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+
+            {/* Configured Admin Emails List */}
+            <div className={`p-5 rounded-3xl border ${
+              isDark ? 'bg-[#111b21] border-[#202c33]' : 'bg-gray-50 border-gray-200'
+            }`}>
+              <h4 className="font-bold text-sm mb-3 text-left flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-[#00a8ff]" /> Designated Admin Emails
+              </h4>
+
+              <div className="space-y-2 text-left">
+                {ADMIN_EMAILS.map((emailItem) => (
+                  <div key={emailItem} className="flex items-center justify-between p-2.5 rounded-xl bg-[#0b141a] border border-[#202c33] text-xs">
+                    <span className="font-semibold text-gray-200">{emailItem}</span>
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 font-bold text-[10px]">VERIFIED ADMIN</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Admin Features Control Panel */}
+            <div className={`p-5 rounded-3xl border space-y-3 ${
+              isDark ? 'bg-[#111b21] border-[#202c33]' : 'bg-gray-50 border-gray-200'
+            }`}>
+              <h4 className="font-bold text-sm text-left flex items-center gap-2 mb-1">
+                <Activity className="w-4 h-4 text-[#00a8ff]" /> Privacy & Badge Rules
+              </h4>
+
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-[#0b141a] border border-[#202c33] text-xs text-left">
+                <div>
+                  <p className="font-bold text-white">Blue Verified Badge</p>
+                  <p className="text-gray-400 text-[11px]">Displays on all admin profiles and chats</p>
+                </div>
+                <span className="px-2.5 py-1 rounded-full bg-[#00a8ff]/20 text-[#00a8ff] font-bold text-xs">ENABLED</span>
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-[#0b141a] border border-[#202c33] text-xs text-left">
+                <div>
+                  <p className="font-bold text-white">Followers Count Display</p>
+                  <p className="text-gray-400 text-[11px]">Locked to 2K for Admin accounts</p>
+                </div>
+                <span className="px-2.5 py-1 rounded-full bg-[#00a8ff]/20 text-[#00a8ff] font-bold text-xs">2K LOCKED</span>
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-[#0b141a] border border-[#202c33] text-xs text-left">
+                <div>
+                  <p className="font-bold text-white">Hide Followers List</p>
+                  <p className="text-gray-400 text-[11px]">Only admin following list is viewable</p>
+                </div>
+                <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-xs">PROTECTED</span>
+              </div>
+            </div>
+
+            {/* Quick Action Button */}
+            <button
+              type="button"
+              onClick={() => {
+                showSnack('Admin settings active');
+                setShowAdminModal(false);
+              }}
+              className="w-full py-3 rounded-2xl font-bold text-sm bg-[#00a8ff] text-[#0b141a] hover:bg-[#0088cc] transition-colors shadow-lg cursor-pointer"
+            >
+              Done & Save Admin View
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Snackbar Notification */}
       {snack && (
         <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-[#1f2c34] border border-[#2a3942] text-white text-sm font-medium px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2 whitespace-nowrap animate-fade-in">
-          <span className="w-2 h-2 rounded-full bg-[#00a884]"></span>
+          <span className="w-2 h-2 rounded-full bg-[#00a8ff]"></span>
           {snack}
+        </div>
+      )}
+
+      {/* Followers List Modal */}
+      <FollowersList
+        isOpen={showFollowersListModal}
+        onClose={() => setShowFollowersListModal(false)}
+        followers={(user.followers || []).map((idOrName: string) => {
+          const contactMatch = contacts.find(c => c.id === idOrName || c.username === idOrName);
+          return {
+            uid: idOrName,
+            name: contactMatch?.name || idOrName,
+            username: contactMatch?.username || idOrName,
+            avatar: contactMatch?.avatar,
+            status: contactMatch?.status,
+          };
+        })}
+        isDark={isDark}
+      />
+
+      {/* Following List Modal */}
+      <FollowingList
+        isOpen={showFollowingListModal}
+        onClose={() => setShowFollowingListModal(false)}
+        following={(user.following || []).map((idOrName: string) => {
+          const contactMatch = contacts.find(c => c.id === idOrName || c.username === idOrName);
+          return {
+            uid: idOrName,
+            name: contactMatch?.name || idOrName,
+            username: contactMatch?.username || idOrName,
+            avatar: contactMatch?.avatar,
+            status: contactMatch?.status,
+          };
+        })}
+        isDark={isDark}
+      />
+
+      {/* Private Followers Notice Modal */}
+      {showPrivateFollowersNotice && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in font-sans">
+          <div className={`w-full max-w-sm rounded-3xl p-6 shadow-2xl border text-center ${
+            isDark ? 'bg-[#111b21] border-[#202c33] text-[#e9edef]' : 'bg-white border-gray-200 text-gray-900'
+          }`}>
+            <div className="w-12 h-12 rounded-full bg-[#00a8ff]/10 text-[#00a8ff] flex items-center justify-center mx-auto mb-3">
+              <Lock className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-bold mb-1">Followers Hidden</h3>
+            <p className="text-xs text-gray-400 mb-5 leading-relaxed">
+              The followers list for this verified Admin account is private and cannot be viewed.
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowPrivateFollowersNotice(false)}
+              className="w-full py-2.5 rounded-xl text-sm font-bold bg-[#00a8ff] text-[#0b141a] hover:bg-[#0088cc] cursor-pointer"
+            >
+              Got it
+            </button>
+          </div>
         </div>
       )}
 

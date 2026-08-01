@@ -56,9 +56,10 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
         setSecurityPassword('');
         onClose?.();
       } else {
-        setSnackbarMessage('Incorrect password');
-        setShowSnackbar(true);
-        setTimeout(() => setShowSnackbar(false), 3000);
+        setShowSecurityModal(false);
+        setSecurityPassword('');
+        lockVault();
+        onClose?.();
       }
     }
   };

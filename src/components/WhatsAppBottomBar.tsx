@@ -1,13 +1,11 @@
 import React from 'react';
 import { MessageSquare, CircleDashed, Phone, User, ArrowRightCircle } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
-import { useSettings } from '../context/SettingsContext';
 
 export const WhatsAppBottomBar: React.FC = () => {
   const { activeTab, setActiveTab, unreadTotal, lockVault, settings: vaultSettings } = useVault();
-  const { settings: globalSettings } = useSettings();
 
-  const isDark = globalSettings.darkMode && vaultSettings.theme !== 'material-light' && vaultSettings.theme !== 'light';
+  const isDark = vaultSettings.theme !== 'material-light' && vaultSettings.theme !== 'light';
 
   return (
     <nav className={`px-2 py-2 flex items-center justify-around text-xs select-none shrink-0 z-30 border-t transition-colors ${
@@ -17,17 +15,17 @@ export const WhatsAppBottomBar: React.FC = () => {
       <button
         onClick={() => setActiveTab('chats')}
         className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all group ${
-          activeTab === 'chats' ? 'text-[#25d366] font-semibold' : (isDark ? 'text-[#8596a0] hover:text-[#d1d7db]' : 'text-gray-500 hover:text-gray-800')
+          activeTab === 'chats' ? 'text-[#00a8ff] font-semibold' : (isDark ? 'text-[#8596a0] hover:text-[#d1d7db]' : 'text-gray-500 hover:text-gray-800')
         }`}
       >
         <div className="relative flex items-center justify-center">
           <div className={`px-3.5 sm:px-5 py-1 rounded-full transition-colors ${
-            activeTab === 'chats' ? (isDark ? 'bg-[#103629]' : 'bg-emerald-100') : ''
+            activeTab === 'chats' ? (isDark ? 'bg-[#0c2b42]' : 'bg-sky-100') : ''
           }`}>
             <MessageSquare className="w-5 h-5 fill-current" />
           </div>
           {unreadTotal > 0 && (
-            <span className="absolute -top-1 right-1 bg-[#25d366] text-[#0b141a] font-bold text-[10px] px-1.5 py-0.2 rounded-full">
+            <span className="absolute -top-1 right-1 bg-[#00a8ff] text-[#0b141a] font-bold text-[10px] px-1.5 py-0.2 rounded-full">
               {unreadTotal > 99 ? '99+' : unreadTotal || 13}
             </span>
           )}
@@ -39,30 +37,30 @@ export const WhatsAppBottomBar: React.FC = () => {
       <button
         onClick={() => setActiveTab('gallery')}
         className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all group ${
-          activeTab === 'gallery' ? 'text-[#25d366] font-semibold' : (isDark ? 'text-[#8596a0] hover:text-[#d1d7db]' : 'text-gray-500 hover:text-gray-800')
+          activeTab === 'gallery' ? 'text-[#00a8ff] font-semibold' : (isDark ? 'text-[#8596a0] hover:text-[#d1d7db]' : 'text-gray-500 hover:text-gray-800')
         }`}
       >
         <div className="relative flex items-center justify-center">
           <div className={`px-3.5 sm:px-5 py-1 rounded-full transition-colors ${
-            activeTab === 'gallery' ? (isDark ? 'bg-[#103629]' : 'bg-emerald-100') : ''
+            activeTab === 'gallery' ? (isDark ? 'bg-[#0c2b42]' : 'bg-sky-100') : ''
           }`}>
             <CircleDashed className="w-5 h-5 stroke-[2.2]" />
           </div>
-          <span className={`absolute top-0.5 right-2 w-2 h-2 bg-[#25d366] rounded-full border ${isDark ? 'border-[#0b141a]' : 'border-white'}`}></span>
+          <span className={`absolute top-0.5 right-2 w-2 h-2 bg-[#00a8ff] rounded-full border ${isDark ? 'border-[#0b141a]' : 'border-white'}`}></span>
         </div>
-        <span className="text-[10px] sm:text-xs">Updates</span>
+        <span className="text-[10px] sm:text-xs">Stori</span>
       </button>
 
       {/* 3. Calls */}
       <button
         onClick={() => setActiveTab('calls')}
         className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all group ${
-          activeTab === 'calls' ? 'text-[#25d366] font-semibold' : (isDark ? 'text-[#8596a0] hover:text-[#d1d7db]' : 'text-gray-500 hover:text-gray-800')
+          activeTab === 'calls' ? 'text-[#00a8ff] font-semibold' : (isDark ? 'text-[#8596a0] hover:text-[#d1d7db]' : 'text-gray-500 hover:text-gray-800')
         }`}
       >
         <div className="relative flex items-center justify-center">
           <div className={`px-3.5 sm:px-5 py-1 rounded-full transition-colors ${
-            activeTab === 'calls' ? (isDark ? 'bg-[#103629]' : 'bg-emerald-100') : ''
+            activeTab === 'calls' ? (isDark ? 'bg-[#0c2b42]' : 'bg-sky-100') : ''
           }`}>
             <Phone className="w-5 h-5" />
           </div>
@@ -74,12 +72,12 @@ export const WhatsAppBottomBar: React.FC = () => {
       <button
         onClick={() => setActiveTab('profile')}
         className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all group ${
-          activeTab === 'profile' ? 'text-[#25d366] font-semibold' : (isDark ? 'text-[#8596a0] hover:text-[#d1d7db]' : 'text-gray-500 hover:text-gray-800')
+          activeTab === 'profile' ? 'text-[#00a8ff] font-semibold' : (isDark ? 'text-[#8596a0] hover:text-[#d1d7db]' : 'text-gray-500 hover:text-gray-800')
         }`}
       >
         <div className="relative flex items-center justify-center">
           <div className={`px-3.5 sm:px-5 py-1 rounded-full transition-colors ${
-            activeTab === 'profile' ? (isDark ? 'bg-[#103629]' : 'bg-emerald-100') : ''
+            activeTab === 'profile' ? (isDark ? 'bg-[#0c2b42]' : 'bg-sky-100') : ''
           }`}>
             <User className="w-5 h-5" />
           </div>

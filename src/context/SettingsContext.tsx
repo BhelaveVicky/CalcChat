@@ -28,7 +28,7 @@ const SettingsContext = createContext<SettingsContextType | undefined>(undefined
 
 const defaultSettings: AppSettings = {
   darkMode: false,
-  saveHistory: false,
+  saveHistory: true,
   language: 'en',
   soundEnabled: true,
   vibrationEnabled: true,
@@ -439,7 +439,25 @@ const translations: Record<string, Record<string, string>> = {
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [settings, setSettings] = useState<AppSettings>(() => {
     const saved = localStorage.getItem('calculatorSettings');
-    return saved ? JSON.parse(saved) : defaultSettings;
+    const hasMigrated = localStorage.getItem('save_history_default_v2');
+
+    let loadedSettings: AppSettings = defaultSettings;
+
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        loadedSettings = { ...defaultSettings, ...parsed };
+      } catch (e) {
+        loadedSettings = defaultSettings;
+      }
+    }
+
+    if (!hasMigrated) {
+      loadedSettings.saveHistory = true;
+      localStorage.setItem('save_history_default_v2', 'true');
+    }
+
+    return loadedSettings;
   });
 
   const [history, setHistory] = useState<CalculationHistory[]>(() => {
@@ -449,6 +467,11 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   useEffect(() => {
     localStorage.setItem('calculatorSettings', JSON.stringify(settings));
+    if (settings.darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
   }, [settings]);
 
   useEffect(() => {

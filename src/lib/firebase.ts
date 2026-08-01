@@ -1,43 +1,29 @@
 import { initializeApp, getApp, getApps } from 'firebase/app';
-import { GoogleAuthProvider, getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, browserLocalPersistence, setPersistence } from 'firebase/auth';
-import { getFirestore, collection, doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { GoogleAuthProvider, getAuth, signInWithPopup, signOut } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDVFp5Eq8gyLNQqRlUPV2SxTLRAf4OPAVc",
-  authDomain: "linkup--app.firebaseapp.com",
-  databaseURL: "https://linkup--app-default-rtdb.firebaseio.com",
-  projectId: "linkup--app",
-  storageBucket: "linkup--app.firebasestorage.app",
-  messagingSenderId: "7898365037",
-  appId: "1:7898365037:web:de9ab4a9ab1a80ad849364",
-  measurementId: "G-1K8PZQ83SZ"
+  apiKey: (import.meta.env.VITE_FIREBASE_API_KEY as string) || 'AIzaSyDlFexstmJH6mckND9UeLKspjlS6dEc_Hg',
+  authDomain: (import.meta.env.VITE_FIREBASE_AUTH_DOMAIN as string) || 'calcchat-app.firebaseapp.com',
+  projectId: (import.meta.env.VITE_FIREBASE_PROJECT_ID as string) || 'calcchat-app',
+  storageBucket: (import.meta.env.VITE_FIREBASE_STORAGE_BUCKET as string) || 'calcchat-app.firebasestorage.app',
+  messagingSenderId: (import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID as string) || '882555211680',
+  appId: (import.meta.env.VITE_FIREBASE_APP_ID as string) || '1:882555211680:web:53dddbf1c5c718e61b9ec5',
 };
 
-// Always initialize Firebase with provided credentials
+export const isFirebaseConfigured = Boolean(firebaseConfig.apiKey && firebaseConfig.authDomain && firebaseConfig.projectId && firebaseConfig.appId);
+
 export const firebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
-
-console.log('🔥 Firebase App initialized:', firebaseApp);
-console.log('🔥 Firebase Config:', firebaseConfig);
-
 export const firebaseAuth = getAuth(firebaseApp);
-console.log('🔥 Firebase Auth initialized:', firebaseAuth);
-
-// Set auth persistence to LOCAL to keep user logged in
-setPersistence(firebaseAuth, browserLocalPersistence)
-  .then(() => {
-    console.log('✅ Auth persistence set to LOCAL');
-  })
-  .catch((error) => {
-    console.error('❌ Error setting auth persistence:', error);
-  });
-
 export const googleProvider = new GoogleAuthProvider();
-console.log('🔥 Google Provider initialized:', googleProvider);
-
-export const firebaseDb = getFirestore(firebaseApp);
-console.log('🔥 Firestore initialized:', firebaseDb);
-
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
-// Export auth functions
-export { signInWithPopup, signInWithRedirect, getRedirectResult, signOut };
+// Use the default Firestore instance so the app does not depend on
+// cross-tab persistence being available in sandboxed or single-tab sessions.
+export const db = getFirestore(firebaseApp);
+
+export const storage = getStorage(firebaseApp);
+
+export { signInWithPopup, signOut };
+

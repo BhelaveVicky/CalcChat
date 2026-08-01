@@ -3,14 +3,15 @@ import {
   User, Key, Shield, MessageSquare, Bell, Keyboard, HelpCircle,
   LogOut, Search, X, ChevronRight, Moon, Sun, Globe, History,
   Trash2, Download, Clock, Eye, EyeOff, ShieldAlert, Check,
-  Smartphone, Palette, Lock, RefreshCw, Archive, Star
+  Smartphone, Palette, Lock, RefreshCw, Archive, Star, Camera
 } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 import { useSettings } from '../context/SettingsContext';
+import { compressImage } from '../lib/mediaCompressor';
 
 /* ─── tiny helpers ───────────────────────────────────────── */
 const Toggle: React.FC<{ on: boolean; onChange: () => void; color?: string }> = ({
-  on, onChange, color = 'bg-[#00a884]'
+  on, onChange, color = 'bg-[#00a8ff]'
 }) => (
   <button
     onClick={onChange}
@@ -48,7 +49,7 @@ const MenuItem: React.FC<{
 
 const SectionDivider: React.FC<{ label?: string }> = ({ label }) => (
   <div className={`${label ? 'px-5 pt-5 pb-1' : 'h-[6px] bg-[#111b21]'}`}>
-    {label && <p className="text-[13px] font-semibold text-[#00a884] uppercase tracking-wider">{label}</p>}
+    {label && <p className="text-[13px] font-semibold text-[#00a8ff] uppercase tracking-wider">{label}</p>}
   </div>
 );
 
@@ -84,10 +85,10 @@ const LanguageModal: React.FC<{ current: string; onSelect: (c: string) => void; 
             onClick={() => { onSelect(lang.code); onClose(); }}
             className="w-full flex items-center gap-4 px-5 py-3.5 hover:bg-white/5 transition-colors text-left"
           >
-            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${current === lang.code ? 'border-[#00a884]' : 'border-[#8696a0]'}`}>
-              {current === lang.code && <div className="w-2.5 h-2.5 rounded-full bg-[#00a884]" />}
+            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${current === lang.code ? 'border-[#00a8ff]' : 'border-[#8696a0]'}`}>
+              {current === lang.code && <div className="w-2.5 h-2.5 rounded-full bg-[#00a8ff]" />}
             </div>
-            <span className={`text-[15px] ${current === lang.code ? 'text-[#00a884] font-semibold' : 'text-[#e9edef]'}`}>{lang.label}</span>
+            <span className={`text-[15px] ${current === lang.code ? 'text-[#00a8ff] font-semibold' : 'text-[#e9edef]'}`}>{lang.label}</span>
           </button>
         ))}
       </div>
@@ -191,11 +192,11 @@ const HistoryView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             <div className="w-10 h-1 bg-[#8696a0]/40 rounded-full mx-auto mb-4" />
             <h3 className="text-white font-bold text-base px-5 mb-4">Export History As</h3>
             <button onClick={() => handleExport('pdf')} className="w-full flex items-center gap-4 px-5 py-4 hover:bg-white/5 transition-colors">
-              <Archive className="w-5 h-5 text-[#00a884]" />
+              <Archive className="w-5 h-5 text-[#00a8ff]" />
               <span className="text-[#e9edef] text-[15px]">Export as PDF</span>
             </button>
             <button onClick={() => handleExport('txt')} className="w-full flex items-center gap-4 px-5 py-4 hover:bg-white/5 transition-colors">
-              <Download className="w-5 h-5 text-[#00a884]" />
+              <Download className="w-5 h-5 text-[#00a8ff]" />
               <span className="text-[#e9edef] text-[15px]">Export as TXT</span>
             </button>
           </div>
@@ -205,7 +206,7 @@ const HistoryView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
       {/* Snackbar */}
       {snack && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#1f2c34] border border-[#2a3942] text-white text-sm font-medium px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2">
-          <Check className="w-4 h-4 text-[#00a884]" />{snack}
+          <Check className="w-4 h-4 text-[#00a8ff]" />{snack}
         </div>
       )}
     </div>
@@ -244,20 +245,20 @@ const VaultSecurityView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
       <div className="p-5 space-y-5">
         {/* Passcode */}
         <div className="bg-[#1f2c34] rounded-2xl p-5 border border-[#2a3942]">
-          <label className="text-[#00a884] font-semibold text-sm flex items-center gap-2 mb-1"><Lock className="w-4 h-4" />Secret Passcode</label>
+          <label className="text-[#00a8ff] font-semibold text-sm flex items-center gap-2 mb-1"><Lock className="w-4 h-4" />Secret Passcode</label>
           <p className="text-[#8696a0] text-xs mb-3">Type this on the calculator followed by "=" to unlock</p>
           <div className="flex gap-2">
             <input
               type="text"
               value={passcode}
               onChange={e => setPasscode(e.target.value)}
-              className="flex-1 bg-[#111b21] border border-[#2a3942] focus:border-[#00a884] font-mono text-xl font-bold tracking-widest text-[#00a884] rounded-xl px-4 py-2.5 focus:outline-none"
+              className="flex-1 bg-[#111b21] border border-[#2a3942] focus:border-[#00a8ff] font-mono text-xl font-bold tracking-widest text-[#00a8ff] rounded-xl px-4 py-2.5 focus:outline-none"
             />
             <button onClick={() => setPasscode('1234')} className="px-3 bg-[#2a3942] hover:bg-[#374151] rounded-xl text-[#8696a0] text-sm transition-colors">Reset</button>
           </div>
           <button
             onClick={handleSave}
-            className="mt-4 w-full bg-[#00a884] hover:bg-[#00c49a] active:scale-95 text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2 text-sm"
+            className="mt-4 w-full bg-[#00a8ff] hover:bg-[#0088cc] active:scale-95 text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2 text-sm"
           >
             {saved ? <><Check className="w-4 h-4" />Saved!</> : <><RefreshCw className="w-4 h-4" />Save Passcode</>}
           </button>
@@ -265,12 +266,12 @@ const VaultSecurityView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
         {/* Auto-lock */}
         <div className="bg-[#1f2c34] rounded-2xl p-5 border border-[#2a3942]">
-          <label className="text-[#00a884] font-semibold text-sm flex items-center gap-2 mb-1"><Clock className="w-4 h-4" />Auto-Lock Timer</label>
+          <label className="text-[#00a8ff] font-semibold text-sm flex items-center gap-2 mb-1"><Clock className="w-4 h-4" />Auto-Lock Timer</label>
           <p className="text-[#8696a0] text-xs mb-3">Automatically return to calculator when idle</p>
           <select
             value={settings.autoLockMinutes}
             onChange={e => updateSettings({ autoLockMinutes: Number(e.target.value) })}
-            className="w-full bg-[#111b21] border border-[#2a3942] text-white rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#00a884]"
+            className="w-full bg-[#111b21] border border-[#2a3942] text-white rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#00a8ff]"
           >
             <option value={0}>Immediately on window switch</option>
             <option value={1}>After 1 minute</option>
@@ -282,18 +283,19 @@ const VaultSecurityView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
         {/* Theme */}
         <div className="bg-[#1f2c34] rounded-2xl p-5 border border-[#2a3942]">
-          <label className="text-[#00a884] font-semibold text-sm flex items-center gap-2 mb-3"><Palette className="w-4 h-4" />Vault Theme</label>
+          <label className="text-[#00a8ff] font-semibold text-sm flex items-center gap-2 mb-3"><Palette className="w-4 h-4" />Vault Theme</label>
           <div className="grid grid-cols-2 gap-2">
             {[
               { id: 'material-dark', label: 'Material Dark', sub: 'Slate & Emerald' },
               { id: 'amoled-black', label: 'AMOLED Black', sub: 'Pure Black' },
               { id: 'cyberpunk', label: 'Cyberpunk Neon', sub: 'Synthwave Magenta' },
               { id: 'emerald-vault', label: 'Matrix Emerald', sub: 'Hacker Terminal' },
+              { id: 'material-light', label: 'Light Mode', sub: 'Clean Light' },
             ].map(t => (
               <button
                 key={t.id}
                 onClick={() => updateSettings({ theme: t.id as any })}
-                className={`p-3 rounded-xl border text-left transition-all ${settings.theme === t.id ? 'bg-[#00a884]/10 border-[#00a884]' : 'bg-[#111b21] border-[#2a3942] hover:border-[#374151]'}`}
+                className={`p-3 rounded-xl border text-left transition-all ${settings.theme === t.id ? 'bg-[#00a8ff]/10 border-[#00a8ff]' : 'bg-[#111b21] border-[#2a3942] hover:border-[#374151]'}`}
               >
                 <div className="font-semibold text-[#e9edef] text-sm">{t.label}</div>
                 <div className="text-[10.5px] text-[#8696a0]">{t.sub}</div>
@@ -316,6 +318,235 @@ const VaultSecurityView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   );
 };
 
+/* ─── Chats Settings SubView ──────────────────────────────── */
+const ChatsSubView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+  const { settings: vaultSettings, updateSettings: updateVaultSettings, clearAllChatHistory } = useVault();
+  const [customWallpaperUrl, setCustomWallpaperUrl] = useState('');
+  const [snack, setSnack] = useState('');
+  const wallpaperInputRef = React.useRef<HTMLInputElement>(null);
+
+  const showSnack = (msg: string) => {
+    setSnack(msg);
+    setTimeout(() => setSnack(''), 3000);
+  };
+
+  const isDark = vaultSettings.theme !== 'material-light' && vaultSettings.theme !== 'light';
+
+  return (
+    <div className="flex-1 flex flex-col bg-[#0b141a] text-[#e9edef] h-full overflow-y-auto font-sans animate-fade-in">
+      <div className="flex items-center gap-4 px-5 py-4 bg-[#111b21] border-b border-[#1f2c34] sticky top-0 z-10">
+        <button onClick={onBack} className="p-1.5 rounded-full text-[#8696a0] hover:bg-[#1f2c34] hover:text-[#e9edef] transition-colors cursor-pointer">
+          <X className="w-6 h-6" />
+        </button>
+        <h1 className="text-xl font-bold">Chats Settings</h1>
+      </div>
+
+      <div className="p-5 max-w-md mx-auto w-full space-y-7">
+        {/* Theme Section */}
+        <div>
+          <h3 className="text-sm font-semibold text-[#8696a0] mb-3">Theme</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <button
+              type="button"
+              onClick={() => {
+                updateVaultSettings({ theme: 'material-light' });
+                showSnack('Light theme applied');
+              }}
+              className={`p-4 rounded-2xl border-2 flex flex-col items-center justify-center transition-all h-28 cursor-pointer ${
+                !isDark ? 'border-[#0095f6] bg-[#f0f8ff]' : 'border-[#1f2c34] bg-[#111b21] hover:border-gray-600'
+              }`}
+            >
+              <div className="w-10 h-10 rounded-xl bg-white border border-gray-300 mb-1.5 flex items-center justify-center shadow-sm">
+                <Sun className="w-5 h-5 text-amber-500" />
+              </div>
+              <span className={`text-xs font-bold ${!isDark ? 'text-[#0095f6]' : 'text-[#e9edef]'}`}>Light</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                updateVaultSettings({ theme: 'material-dark' });
+                showSnack('Dark theme applied');
+              }}
+              className={`p-4 rounded-2xl border-2 flex flex-col items-center justify-center transition-all h-28 cursor-pointer ${
+                isDark ? 'border-[#0095f6] bg-[#111b21]' : 'border-gray-200 bg-white hover:border-gray-400'
+              }`}
+            >
+              <div className="w-10 h-10 rounded-xl bg-[#1f2c34] border border-[#2a3942] mb-1.5 flex items-center justify-center shadow-sm">
+                <Moon className="w-5 h-5 text-sky-400" />
+              </div>
+              <span className={`text-xs font-bold ${isDark ? 'text-[#0095f6]' : 'text-gray-900'}`}>Dark</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Wallpaper Section */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-[#8696a0]">Chat Wallpaper</h3>
+            {vaultSettings?.chatWallpaper && vaultSettings.chatWallpaper !== 'default' && (
+              <button
+                type="button"
+                onClick={() => {
+                  updateVaultSettings({ chatWallpaper: 'default' });
+                  showSnack('Reset to default wallpaper');
+                }}
+                className="text-xs text-[#00a8ff] hover:underline font-medium cursor-pointer"
+              >
+                Reset Default
+              </button>
+            )}
+          </div>
+
+          {/* Active Preview */}
+          {vaultSettings?.chatWallpaper && vaultSettings.chatWallpaper !== 'default' && (
+            <div className="mb-4 p-3 rounded-2xl bg-[#111b21] border border-[#2a3942] flex items-center gap-3">
+              <div 
+                className="w-12 h-12 rounded-xl border border-gray-600 shadow-sm shrink-0 overflow-hidden relative"
+                style={
+                  vaultSettings.chatWallpaper.startsWith('data:') || vaultSettings.chatWallpaper.startsWith('http') || vaultSettings.chatWallpaper.startsWith('blob:')
+                    ? { backgroundImage: `url("${vaultSettings.chatWallpaper}")`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                    : { backgroundColor: vaultSettings.chatWallpaper }
+                }
+              >
+                <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                  <Check className="w-4 h-4 text-white drop-shadow" />
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-[#e9edef] truncate">Active Custom Wallpaper</p>
+                <p className="text-[11px] text-[#8696a0] truncate">Applied across all chats</p>
+              </div>
+            </div>
+          )}
+
+          {/* Preset Swatches */}
+          <div className="grid grid-cols-4 gap-2.5 mb-4">
+            {[
+              { name: 'Default', bg: 'default', color: isDark ? '#0b141a' : '#efeae2' },
+              { name: 'Dark Charcoal', bg: '#111b21', color: '#111b21' },
+              { name: 'Deep Slate', bg: '#1e293b', color: '#1e293b' },
+              { name: 'Emerald Dark', bg: '#062c1b', color: '#062c1b' },
+              { name: 'Sky Blue', bg: '#e3f2fd', color: '#e3f2fd' },
+              { name: 'Mint Green', bg: '#e8f5e9', color: '#e8f5e9' },
+              { name: 'Lavender', bg: '#f3e5f5', color: '#f3e5f5' },
+              { name: 'Blush Pink', bg: '#fce4ec', color: '#fce4ec' },
+            ].map((swatch) => {
+              const isSelected = 
+                (swatch.bg === 'default' && (!vaultSettings?.chatWallpaper || vaultSettings?.chatWallpaper === 'default')) ||
+                vaultSettings?.chatWallpaper === swatch.bg;
+              return (
+                <button
+                  key={swatch.name}
+                  type="button"
+                  title={swatch.name}
+                  onClick={() => {
+                    updateVaultSettings({ chatWallpaper: swatch.bg });
+                    showSnack(`Wallpaper set to ${swatch.name}`);
+                  }}
+                  className={`h-12 rounded-xl border-2 transition-all cursor-pointer relative overflow-hidden flex items-center justify-center ${
+                    isSelected 
+                      ? 'border-[#00a8ff] ring-2 ring-[#00a8ff]/30 shadow-md scale-[1.02]' 
+                      : 'border-gray-700/60 hover:opacity-90'
+                  }`}
+                  style={{ backgroundColor: swatch.color }}
+                >
+                  {isSelected && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                      <Check className="w-4 h-4 text-white drop-shadow" />
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <input
+            ref={wallpaperInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                  if (event.target?.result) {
+                    const raw = event.target.result as string;
+                    const compressed = await compressImage(raw, 800, 200000);
+                    updateVaultSettings({ chatWallpaper: compressed || raw });
+                    showSnack('Custom wallpaper uploaded!');
+                  }
+                };
+                reader.readAsDataURL(file);
+              }
+            }}
+          />
+
+          <div className="space-y-2.5">
+            <button
+              type="button"
+              onClick={() => wallpaperInputRef.current?.click()}
+              className="w-full p-3 rounded-2xl border-2 border-dashed border-[#2a3942] hover:border-gray-500 bg-[#111b21] text-[#8696a0] hover:text-[#e9edef] flex items-center justify-center gap-2 text-xs font-semibold cursor-pointer transition-colors"
+            >
+              <Camera className="w-4 h-4 text-[#00a8ff]" />
+              <span>Upload custom image from device</span>
+            </button>
+
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={customWallpaperUrl}
+                onChange={(e) => setCustomWallpaperUrl(e.target.value)}
+                placeholder="Or paste image URL..."
+                className="flex-1 px-3.5 py-2.5 rounded-xl text-xs border border-[#2a3942] bg-[#111b21] text-[#e9edef] placeholder-[#8696a0] focus:border-[#00a8ff] outline-none transition-all"
+              />
+              <button
+                type="button"
+                disabled={!customWallpaperUrl.trim()}
+                onClick={() => {
+                  if (customWallpaperUrl.trim()) {
+                    updateVaultSettings({ chatWallpaper: customWallpaperUrl.trim() });
+                    showSnack('Wallpaper URL applied!');
+                    setCustomWallpaperUrl('');
+                  }
+                }}
+                className="px-4 py-2.5 rounded-xl bg-[#00a8ff] hover:bg-[#0088cc] disabled:opacity-40 text-[#0b141a] text-xs font-bold transition-all shrink-0 cursor-pointer"
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Clear Chat History Section */}
+        <div>
+          <h3 className="text-sm font-semibold text-[#8696a0] mb-3">Chat Management</h3>
+          <button
+            type="button"
+            onClick={() => {
+              if (confirm('Are you sure you want to clear all chat history?')) {
+                clearAllChatHistory();
+                showSnack('All chat history cleared');
+              }
+            }}
+            className="w-full p-3.5 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 flex items-center justify-center gap-2 text-xs font-bold transition-all cursor-pointer"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>Clear All Chat History</span>
+          </button>
+        </div>
+      </div>
+
+      {snack && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#00a8ff] text-[#0b141a] px-4 py-2 rounded-full text-xs font-bold shadow-xl animate-fade-in z-50">
+          {snack}
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ─── Main Settings View ──────────────────────────────────── */
 export const VaultSettingsView: React.FC = () => {
   const { user, signOutGoogle, lockVault, settings: vaultSettings, updateSettings: updateVaultSettings } = useVault();
@@ -323,7 +554,7 @@ export const VaultSettingsView: React.FC = () => {
 
   const [search, setSearch] = useState('');
   const [showLanguageModal, setShowLanguageModal] = useState(false);
-  const [subView, setSubView] = useState<null | 'history' | 'security'>( null);
+  const [subView, setSubView] = useState<null | 'history' | 'security' | 'chats'>(null);
   const [snack, setSnack] = useState('');
 
   const showSnack = (msg: string) => {
@@ -334,6 +565,7 @@ export const VaultSettingsView: React.FC = () => {
   // Render sub-views
   if (subView === 'history') return <HistoryView onBack={() => setSubView(null)} />;
   if (subView === 'security') return <VaultSecurityView onBack={() => setSubView(null)} />;
+  if (subView === 'chats') return <ChatsSubView onBack={() => setSubView(null)} />;
 
   // avatar initials fallback
   const initials = (user.name || 'U').split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2);
@@ -373,7 +605,7 @@ export const VaultSettingsView: React.FC = () => {
               {initials}
             </div>
           )}
-          <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-[#00a884] border-2 border-[#0b141a]" />
+          <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-[#00a8ff] border-2 border-[#0b141a]" />
         </div>
 
         {/* Info */}
@@ -487,7 +719,7 @@ export const VaultSettingsView: React.FC = () => {
           icon={<MessageSquare className="w-5 h-5" />}
           label="Chats"
           sub="Theme, wallpapers, chat history"
-          onClick={() => showSnack('Chat settings coming soon')}
+          onClick={() => setSubView('chats')}
         />
 
         <MenuItem
@@ -541,7 +773,7 @@ export const VaultSettingsView: React.FC = () => {
       {/* Snackbar */}
       {snack && (
         <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-[#1f2c34] border border-[#2a3942] text-white text-sm font-medium px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2 whitespace-nowrap">
-          <Check className="w-4 h-4 text-[#00a884] shrink-0" />{snack}
+          <Check className="w-4 h-4 text-[#00a8ff] shrink-0" />{snack}
         </div>
       )}
     </div>

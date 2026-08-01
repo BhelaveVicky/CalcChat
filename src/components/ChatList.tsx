@@ -1,38 +1,65 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Search, Plus, Pin, Lock, EyeOff, Bot, MoreVertical, Trash2, Sparkles, 
-  PhoneCall, MessageSquare, ArrowLeft, X, Archive, BellOff, CheckCheck, 
+  PhoneCall, MessageSquare, ArrowLeft, X, Archive, BellOff, CheckCheck, Check,
   Heart, ListPlus, MinusCircle, LogOut, ChevronRight, Users, UserPlus, UserCheck,
-  MessageSquarePlus
+  MessageSquarePlus, Tag, Video, User
 } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
-import { useSettings } from '../context/SettingsContext';
-import { Contact } from '../types';
+import { Contact, Message } from '../types';
+import { NicknameModal } from './NicknameModal';
+import { formatChatDate, formatMessageTime } from '../lib/dateUtils.ts';
 
 export const ChatList: React.FC = () => {
+  const navigate = useNavigate();
   const {
+    user,
     contacts,
     messages,
     setActiveContactId,
     settings,
     unlockedLocks,
     unlockChatLock,
+    lockVault,
     addContact,
     createGroup,
     togglePinContact,
     toggleLockContact,
     toggleArchiveContact,
     clearChatHistory,
+    customNicknames,
+    getContactDisplayName,
+    allRegisteredUsers,
+    pendingFriendRequests,
+    sentFriendRequests,
+    friendUids,
+    sendFriendRequest,
+    acceptFriendRequest,
   } = useVault();
-  const { settings: globalSettings } = useSettings();
 
-  const isDark = globalSettings.darkMode && settings.theme !== 'material-light' && settings.theme !== 'light';
+  const isDark = settings.theme !== 'material-light' && settings.theme !== 'light';
 
   const [search, setSearch] = useState('');
+  const [searchResults, setSearchResults] = useState<Array<{
+    id: string;
+    name: string;
+    username: string;
+    avatar: string;
+    status: string;
+    isOnline: boolean;
+    about?: string;
+    mutualFriendsCount?: number;
+    friendStatus: 'none' | 'pending_sent' | 'pending_received' | 'friends' | 'self';
+    requestId?: string;
+  }>>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'all' | 'pin' | 'unread' | 'groups'>('all');
   const [showArchivedOnly, setShowArchivedOnly] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
+  const [nicknameTargetContact, setNicknameTargetContact] = useState<Contact | null>(null);
+  const [showNicknameModal, setShowNicknameModal] = useState(false);
   const [groupNameInput, setGroupNameInput] = useState('');
   const [customMemberInput, setCustomMemberInput] = useState('');
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
@@ -53,6 +80,84 @@ export const ChatList: React.FC = () => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(null), 2500);
   };
+
+  useEffect(() => {
+    if (!search.trim()) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    const q = search.trim().toLowerCase();
+    const currentUid = user.id;
+
+    const results = allRegisteredUsers
+      .map((u) => {
+        const uid = u.uid || u.id;
+        const username = (u.username || '').toString();
+        const displayName = (u.displayName || u.name || '').toString();
+        const about = (u.about || u.status || 'Available on CalcChat').toString();
+        const customNick = (customNicknames[uid] || '').toLowerCase();
+        const matches =
+          uid.toLowerCase().includes(q) ||
+          username.toLowerCase().includes(q) ||
+          displayName.toLowerCase().includes(q) ||
+          about.toLowerCase().includes(q) ||
+          customNick.includes(q);
+
+        if (!matches) return null;
+
+        let friendStatus: 'none' | 'pending_sent' | 'pending_received' | 'friends' | 'self' = 'none';
+        let requestId: string | undefined;
+        if (uid === currentUid) {
+          friendStatus = 'self';
+        } else if (friendUids.includes(uid)) {
+          friendStatus = 'friends';
+        } else {
+          const sent = sentFriendRequests.find((req) => req.receiverId === uid && req.status === 'pending');
+          const incoming = pendingFriendRequests.find((req) => req.senderId === uid && req.status === 'pending');
+          if (sent) {
+            friendStatus = 'pending_sent';
+            requestId = sent.id;
+          } else if (incoming) {
+            friendStatus = 'pending_received';
+            requestId = incoming.id;
+          }
+        }
+
+        const mutualFriendsCount = Array.isArray(u.friends)
+          ? u.friends.filter((friendId: string) => friendUids.includes(friendId) && friendId !== uid).length
+          : 0;
+
+        return {
+          id: uid,
+          name: uid === currentUid ? `${displayName || username} (You)` : (customNicknames[uid] || displayName || username || 'User'),
+          username,
+          avatar: u.photoURL || u.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+          status: uid === currentUid ? 'Message yourself • Personal Notes' : (u.status || 'Available on CalcChat'),
+          about,
+          isOnline: Boolean(u.online || u.isOnline),
+          mutualFriendsCount,
+          friendStatus,
+          requestId,
+        };
+      })
+      .filter(Boolean) as Array<{
+        id: string;
+        name: string;
+        username: string;
+        avatar: string;
+        status: string;
+        about?: string;
+        isOnline: boolean;
+        mutualFriendsCount?: number;
+        friendStatus: 'none' | 'pending_sent' | 'pending_received' | 'friends' | 'self';
+        requestId?: string;
+      }>;
+
+    setSearchResults(results);
+    setIsSearching(false);
+  }, [search, allRegisteredUsers, customNicknames, friendUids, pendingFriendRequests, sentFriendRequests, user.id]);
 
   const handlePressStart = (contactId: string) => {
     isLongPressRef.current = false;
@@ -77,7 +182,11 @@ export const ChatList: React.FC = () => {
   const archivedContactsCount = contacts.filter(c => c.isArchived).length;
 
   const filteredContacts = contacts.filter(c => {
+    const nickname = customNicknames[c.id] || '';
+    const displayName = getContactDisplayName(c);
     const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase()) ||
+                          nickname.toLowerCase().includes(search.toLowerCase()) ||
+                          displayName.toLowerCase().includes(search.toLowerCase()) ||
                           c.status.toLowerCase().includes(search.toLowerCase());
     if (!matchesSearch) return false;
 
@@ -117,8 +226,11 @@ export const ChatList: React.FC = () => {
         setActiveContactId(targetLockId);
       }
       setTargetLockId(null);
+      setLockPinAttempt('');
     } else {
-      alert('Wrong Chat PIN!');
+      setTargetLockId(null);
+      setLockPinAttempt('');
+      lockVault();
     }
   };
 
@@ -186,49 +298,27 @@ export const ChatList: React.FC = () => {
 
       {/* Filter Chips Horizontal Row */}
       <div className="flex items-center gap-2 px-4 py-2 shrink-0 text-xs sm:text-sm overflow-x-auto no-scrollbar">
-        <button
-          onClick={() => setActiveFilter('all')}
-          className={`py-1.5 px-3.5 rounded-full font-medium text-center transition-colors whitespace-nowrap shrink-0 ${
-            activeFilter === 'all' 
-              ? (isDark ? 'bg-[#103629] text-[#25d366]' : 'bg-emerald-100 text-emerald-800 font-bold') 
-              : (isDark ? 'bg-[#202c33] text-[#8596a0] hover:bg-[#2a3942]' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')
-          }`}
-        >
-          All
-        </button>
-
-        <button
-          onClick={() => setActiveFilter('pin')}
-          className={`py-1.5 px-3.5 rounded-full font-medium text-center transition-colors whitespace-nowrap shrink-0 ${
-            activeFilter === 'pin' 
-              ? (isDark ? 'bg-[#103629] text-[#25d366]' : 'bg-emerald-100 text-emerald-800 font-bold') 
-              : (isDark ? 'bg-[#202c33] text-[#8596a0] hover:bg-[#2a3942]' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')
-          }`}
-        >
-          Pin
-        </button>
-
-        <button
-          onClick={() => setActiveFilter('unread')}
-          className={`py-1.5 px-3.5 rounded-full font-medium text-center transition-colors whitespace-nowrap shrink-0 ${
-            activeFilter === 'unread' 
-              ? (isDark ? 'bg-[#103629] text-[#25d366]' : 'bg-emerald-100 text-emerald-800 font-bold') 
-              : (isDark ? 'bg-[#202c33] text-[#8596a0] hover:bg-[#2a3942]' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')
-          }`}
-        >
-          Unread {unreadTotalCount > 0 ? `(${unreadTotalCount})` : ''}
-        </button>
-
-        <button
-          onClick={() => setActiveFilter('groups')}
-          className={`py-1.5 px-3.5 rounded-full font-medium text-center transition-colors whitespace-nowrap shrink-0 ${
-            activeFilter === 'groups' 
-              ? (isDark ? 'bg-[#103629] text-[#25d366]' : 'bg-emerald-100 text-emerald-800 font-bold') 
-              : (isDark ? 'bg-[#202c33] text-[#8596a0] hover:bg-[#2a3942]' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')
-          }`}
-        >
-          Groups
-        </button>
+        {[
+          { id: 'all', label: 'All' },
+          { id: 'pin', label: 'Pin' },
+          { id: 'unread', label: `Unread${unreadTotalCount > 0 ? ` (${unreadTotalCount})` : ''}` },
+          { id: 'groups', label: 'Groups' },
+        ].map((filter) => {
+          const isActive = activeFilter === filter.id;
+          return (
+            <button
+              key={filter.id}
+              onClick={() => setActiveFilter(filter.id as any)}
+              className={`flex-1 min-w-[68px] py-1.5 px-3 rounded-full font-medium text-center flex items-center justify-center transition-all whitespace-nowrap cursor-pointer ${
+                isActive
+                  ? (isDark ? 'bg-[#0a2540] text-[#00a8ff] font-bold' : 'bg-sky-100 text-sky-800 font-bold')
+                  : (isDark ? 'bg-[#202c33] text-[#8596a0] hover:bg-[#2a3942]' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')
+              }`}
+            >
+              {filter.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Disguise Warning Banner if Hide History active */}
@@ -257,16 +347,16 @@ export const ChatList: React.FC = () => {
           >
             <div className="flex items-center gap-3">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold shrink-0 ${
-                isDark ? 'bg-[#202c33] text-[#25d366]' : 'bg-gray-200 text-emerald-700'
+                isDark ? 'bg-[#202c33] text-[#00a8ff]' : 'bg-gray-200 text-sky-700'
               }`}>
                 <Archive className="w-4 h-4" />
               </div>
               <div className="text-left">
                 <span className="font-bold block leading-tight">Archived</span>
-                <span className="text-[11px] text-[#25d366] block">Tap to view archived chats</span>
+                <span className="text-[11px] text-[#00a8ff] block">Tap to view archived chats</span>
               </div>
             </div>
-            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#25d366] text-[#0b141a]">
+            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#00a8ff] text-[#0b141a]">
               {archivedContactsCount}
             </span>
           </button>
@@ -276,12 +366,12 @@ export const ChatList: React.FC = () => {
       {/* Header bar when viewing Archived list */}
       {showArchivedOnly && (
         <div className={`px-4 py-2.5 shrink-0 flex items-center justify-between border-b ${
-          isDark ? 'bg-[#182229] border-[#2a3942] text-white' : 'bg-emerald-50 border-emerald-200 text-gray-900'
+          isDark ? 'bg-[#182229] border-[#2a3942] text-white' : 'bg-sky-50 border-sky-200 text-gray-900'
         }`}>
           <button
             type="button"
             onClick={() => setShowArchivedOnly(false)}
-            className="flex items-center gap-2 text-sm font-bold text-[#25d366] hover:opacity-80"
+            className="flex items-center gap-2 text-sm font-bold text-[#00a8ff] hover:opacity-80"
           >
             <ArrowLeft className="w-5 h-5" />
             <span>Archived Chats ({archivedContactsCount})</span>
@@ -289,37 +379,302 @@ export const ChatList: React.FC = () => {
           <button
             type="button"
             onClick={() => setShowArchivedOnly(false)}
-            className="text-xs font-semibold px-3 py-1 rounded-full bg-[#25d366]/20 text-[#25d366] hover:bg-[#25d366]/30 transition-colors"
+            className="text-xs font-semibold px-3 py-1 rounded-full bg-[#00a8ff]/20 text-[#00a8ff] hover:bg-[#00a8ff]/30 transition-colors"
           >
             Back to All
           </button>
         </div>
       )}
 
-      {/* Conversations List */}
+      {/* Conversations & Global Search List */}
       <div className="flex-1 overflow-y-auto divide-y divide-transparent min-h-0 no-scrollbar">
-        {sortedContacts.length === 0 ? (
+        {/* Global User Search Section when user is typing in search input */}
+        {search.trim().length > 0 && (
+          <div className="p-4 border-b border-[#2a3942]/40">
+            <h4 className="text-xs font-bold text-[#00a8ff] uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <Search className="w-3.5 h-3.5" /> Global User Search Results
+            </h4>
+
+            {isSearching ? (
+              <p className="text-xs text-gray-400 animate-pulse py-2">Searching users in Firebase...</p>
+            ) : searchResults.length === 0 ? (
+              <div className="py-8 text-center flex flex-col items-center gap-3">
+                <div className={`w-16 h-16 rounded-3xl flex items-center justify-center border ${
+                  isDark ? 'bg-[#111b21] border-[#202c33] text-[#00a8ff]' : 'bg-gray-100 border-gray-200 text-sky-600'
+                }`}>
+                  <Search className="w-8 h-8" />
+                </div>
+                <div>
+                  <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>No matching users</p>
+                  <p className="text-xs text-gray-500 mt-1">Try searching by username or display name.</p>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                {searchResults.map(resUser => (
+                  <div 
+                    key={resUser.id}
+                    onClick={() => {
+                      navigate(`/profile/${resUser.id}`);
+                      setSearch('');
+                    }}
+                    className={`group flex items-center justify-between gap-3 p-3.5 rounded-2xl border transition-all duration-300 cursor-pointer hover:-translate-y-0.5 hover:shadow-xl ${
+                      isDark ? 'bg-[#111b21] border-[#202c33] hover:border-[#00a8ff]/40' : 'bg-gray-50 border-gray-200 hover:border-[#00a8ff]/40'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="relative shrink-0">
+                        <img 
+                          src={resUser.avatar} 
+                          alt={resUser.name} 
+                          className="w-12 h-12 rounded-full object-cover ring-2 ring-transparent group-hover:ring-[#00a8ff]/30 transition-all" 
+                        />
+                        {resUser.isOnline && (
+                          <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-[#0b141a]"></span>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <h5 className="font-bold text-sm text-white truncate">{resUser.name}</h5>
+                          {resUser.isOnline && (
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">Online</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-[#00a8ff] font-mono truncate">@{resUser.username}</p>
+                        <p className={`text-[11px] mt-0.5 line-clamp-2 ${isDark ? 'text-[#8696a0]' : 'text-slate-500'}`}>
+                          {resUser.about || resUser.status}
+                        </p>
+                        {resUser.mutualFriendsCount ? (
+                          <p className="text-[10px] mt-1 text-[#00a8ff] font-medium">{resUser.mutualFriendsCount} mutual friends</p>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+                      {resUser.friendStatus === 'none' && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await sendFriendRequest(resUser.id);
+                            showToast('Friend request sent.');
+                          }}
+                          className="px-4 py-2 rounded-xl bg-[#00a8ff] hover:bg-[#0091ea] text-[#0b141a] font-bold text-xs flex items-center gap-1.5 shadow-lg transition-all active:scale-95 cursor-pointer"
+                        >
+                          <UserPlus className="w-3.5 h-3.5" /> Follow
+                        </button>
+                      )}
+
+                      {resUser.friendStatus === 'pending_sent' && (
+                        <span className="text-xs text-slate-300 font-semibold px-3 py-1.5 rounded-xl bg-white/5 border border-white/10">
+                          Request Sent
+                        </span>
+                      )}
+
+                      {resUser.friendStatus === 'pending_received' && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (resUser.requestId) {
+                              await acceptFriendRequest(resUser.requestId, resUser.id);
+                              showToast('🎉 You are now friends!');
+                            }
+                          }}
+                          className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-[#0b141a] font-bold text-xs flex items-center gap-1.5 shadow-lg transition-all active:scale-95 cursor-pointer"
+                        >
+                          <UserCheck className="w-3.5 h-3.5" /> Accept
+                        </button>
+                      )}
+
+                      {resUser.friendStatus === 'friends' && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveContactId(resUser.id);
+                            setSearch('');
+                          }}
+                          className="px-4 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 font-bold text-xs flex items-center gap-1.5 border border-emerald-500/20 cursor-pointer"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" /> Chat
+                        </button>
+                      )}
+
+                      {resUser.friendStatus === 'self' && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveContactId(resUser.id);
+                            setSearch('');
+                          }}
+                          className="px-4 py-2 rounded-xl bg-[#00a8ff] hover:bg-[#0091ea] text-[#0b141a] font-bold text-xs flex items-center gap-1.5 shadow-lg cursor-pointer"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" /> Message Yourself
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {sortedContacts.length === 0 && !search.trim() ? (
+          <div className={`p-8 text-center text-sm flex flex-col items-center justify-center gap-3 h-full min-h-[300px] ${
+            isDark ? 'text-[#8596a0]' : 'text-gray-500'
+          }`}>
+            <div className="w-16 h-16 rounded-3xl bg-[#00a8ff]/10 text-[#00a8ff] flex items-center justify-center border border-[#00a8ff]/20 shadow-inner">
+              <Users className="w-8 h-8" />
+            </div>
+            <h3 className="font-bold text-lg text-white">No Friends Yet</h3>
+            <p className="max-w-xs text-xs text-gray-400 leading-relaxed">
+              Use the search bar above to search for users by their username or display name and send them a friend request to unlock real-time chatting!
+            </p>
+          </div>
+        ) : sortedContacts.length === 0 ? (
           <div className={`p-8 text-center text-sm flex flex-col items-center justify-center gap-3 h-full ${
             isDark ? 'text-[#8596a0]' : 'text-gray-500'
           }`}>
             <Search className={`w-10 h-10 ${isDark ? 'text-[#2a3942]' : 'text-gray-300'}`} />
-            <p>No chats found matching "{search}"</p>
+            <p>No existing chats found matching "{search}"</p>
           </div>
         ) : (
           sortedContacts.map(contact => {
             const msgs = messages[contact.id] || [];
             const lastMsg = msgs[msgs.length - 1];
             const isLocked = contact.isLocked && !unlockedLocks[contact.id];
+            const currentUserId = user?.id || 'user';
 
-            let previewText = lastMsg ? lastMsg.text : contact.status;
-            if (lastMsg?.media) {
-              previewText = `📎 ${lastMsg.media.name || 'Photo'}`;
-            }
-            if (settings.hideChatHistory) {
-              previewText = `🔒 Disappearing message...`;
-            }
+            // Helper to generate WhatsApp style preview text and metadata
+            const getWhatsAppPreviewData = () => {
+              if (settings.hideChatHistory) {
+                return {
+                  text: '🔒 Disappearing message...',
+                  isOutgoing: false,
+                  status: null,
+                };
+              }
 
-            const unreadBadge = contact.unreadCount > 0 ? contact.unreadCount : (contact.name === 'WhatsApp' ? 1 : (contact.name.includes('khairi') ? 97 : 0));
+              if (!msgs || msgs.length === 0) {
+                return {
+                  text: contact.status || 'Hey there! I am using WhatsApp.',
+                  isOutgoing: false,
+                  status: null,
+                };
+              }
+
+              const isOutgoing = lastMsg.senderId === currentUserId || lastMsg.senderId === 'user';
+
+              // 1. Check if deleted
+              if (lastMsg.deletedForEveryone || lastMsg.deletedForMe || lastMsg.text?.startsWith('🚫') || lastMsg.text?.includes('deleted this message')) {
+                const text = isOutgoing ? '🚫 You deleted this message' : '🚫 This message was deleted';
+                return {
+                  text: formatGroupSender(text),
+                  isOutgoing,
+                  status: getMsgStatus(lastMsg),
+                };
+              }
+
+              // 2. Count consecutive media / voice items from same sender
+              let mediaCount = 1;
+              const lastType = lastMsg.media?.type || (
+                (lastMsg.text?.includes('🎤') || lastMsg.text?.toLowerCase().includes('voice message') || lastMsg.text?.toLowerCase().includes('voice note')) ? 'voice' : null
+              );
+
+              if (lastType) {
+                for (let i = msgs.length - 2; i >= 0; i--) {
+                  const prev = msgs[i];
+                  const prevType = prev.media?.type || (
+                    (prev.text?.includes('🎤') || prev.text?.toLowerCase().includes('voice message') || prev.text?.toLowerCase().includes('voice note')) ? 'voice' : null
+                  );
+                  if (prevType === lastType && prev.senderId === lastMsg.senderId) {
+                    mediaCount++;
+                  } else {
+                    break;
+                  }
+                }
+              }
+
+              let text = '';
+
+              // 3. Call messages
+              const isCall = lastMsg.type === 'voice_call' || lastMsg.type === 'video_call' || lastMsg.callInfo || lastMsg.text?.toLowerCase().includes('call');
+              if (isCall) {
+                const isVideo = lastMsg.type === 'video_call' || lastMsg.callInfo?.type === 'video' || lastMsg.text?.toLowerCase().includes('video');
+                const isMissed = lastMsg.callInfo?.status === 'missed' || lastMsg.text?.toLowerCase().includes('missed');
+                
+                if (isMissed) {
+                  text = isVideo ? '📹 Missed Video Call' : '📞 Missed Audio Call';
+                } else if (isOutgoing) {
+                  text = isVideo ? '📹 Outgoing Video Call' : '📞 Outgoing Audio Call';
+                } else {
+                  text = isVideo ? '📹 Incoming Video Call' : '📞 Incoming Audio Call';
+                }
+              }
+              // 4. Voice Note / Voice Message
+              else if (lastType === 'voice') {
+                text = mediaCount > 1 ? `🎤 ${mediaCount} Voice Messages` : '🎤 Voice Message';
+              }
+              // 5. Media attachments
+              else if (lastMsg.media) {
+                const mType = lastMsg.media.type;
+                if (mType === 'image') {
+                  text = mediaCount > 1 ? `🖼️ ${mediaCount} Photos` : '🖼️ Photo';
+                } else if (mType === 'video') {
+                  text = mediaCount > 1 ? `🎥 ${mediaCount} Videos` : '🎥 Video';
+                } else if (mType === 'audio') {
+                  text = mediaCount > 1 ? `🎵 ${mediaCount} Audio Files` : '🎵 Audio';
+                } else if (mType === 'file') {
+                  text = mediaCount > 1 ? `📄 ${mediaCount} Documents` : '📄 Document';
+                } else if (mType === 'location') {
+                  text = '📍 Location';
+                } else if (mType === 'contact') {
+                  text = '👤 Contact';
+                } else {
+                  text = lastMsg.media.name || 'Attachment';
+                }
+              }
+              // 6. GIF
+              else if (lastMsg.text === 'GIF' || lastMsg.text?.includes('GIF')) {
+                text = 'GIF';
+              }
+              // 7. Sticker
+              else if (lastMsg.text?.includes('Sticker')) {
+                text = '😊 Sticker';
+              }
+              // 8. Text Message
+              else {
+                text = lastMsg.text || 'Message';
+              }
+
+              return {
+                text: formatGroupSender(text),
+                isOutgoing,
+                status: getMsgStatus(lastMsg),
+              };
+            };
+
+            const getMsgStatus = (msg: Message) => {
+              if (msg.isRead) return 'read';
+              if (msg.isDelivered) return 'delivered';
+              if (msg.isSent) return 'sent';
+              return 'sending';
+            };
+
+            const formatGroupSender = (previewText: string) => {
+              const isGroup = contact.isGroup || contact.name.toLowerCase().includes('group') || (contact.members && contact.members.length > 0);
+              if (isGroup && lastMsg) {
+                const sender = (lastMsg.senderId === currentUserId || lastMsg.senderId === 'user')
+                  ? 'You'
+                  : (lastMsg.replyTo?.senderName || 'Member');
+                return `${sender}: ${previewText}`;
+              }
+              return previewText;
+            };
+
+            const previewData = getWhatsAppPreviewData();
+            const unreadBadge = contact.unreadCount > 0 ? contact.unreadCount : (contact.name === 'WhatsApp' ? 1 : 0);
 
             return (
               <div
@@ -363,13 +718,13 @@ export const ChatList: React.FC = () => {
                     }`}
                   />
                   {contact.isOnline && (
-                    <span className={`absolute bottom-0 right-0 w-3 h-3 bg-[#25d366] border-2 rounded-full ${
+                    <span className={`absolute bottom-0 right-0 w-3 h-3 bg-[#00a8ff] border-2 rounded-full ${
                       isDark ? 'border-[#0b141a]' : 'border-white'
                     }`}></span>
                   )}
                   {contact.isAiBot && (
                     <span className={`absolute -bottom-1 -left-1 p-0.5 rounded-full border ${
-                      isDark ? 'bg-[#103629] text-[#25d366] border-[#0b141a]' : 'bg-emerald-100 text-emerald-700 border-white'
+                      isDark ? 'bg-[#0a2540] text-[#00a8ff] border-[#0b141a]' : 'bg-sky-100 text-sky-700 border-white'
                     }`}>
                       <Sparkles className="w-2.5 h-2.5" />
                     </span>
@@ -384,33 +739,54 @@ export const ChatList: React.FC = () => {
                     <div className="flex items-center gap-1.5 min-w-0">
                       <h3 className={`font-semibold text-[16px] truncate ${
                         isDark ? 'text-[#e9edef]' : 'text-gray-900'
-                      }`}>{contact.name}</h3>
+                      }`}>{getContactDisplayName(contact)}</h3>
+                      {customNicknames[contact.id] && (
+                        <span title={`Custom nickname for ${contact.name}`}>
+                          <Tag className="w-3.5 h-3.5 text-[#00a8ff] shrink-0" />
+                        </span>
+                      )}
                       {contact.isPinned && <Pin className={`w-3.5 h-3.5 rotate-45 shrink-0 ${isDark ? 'text-[#8596a0]' : 'text-gray-400'}`} />}
                       {contact.isLocked && <Lock className="w-3 h-3 text-amber-400 shrink-0" />}
                     </div>
                     
                     <span className={`text-xs whitespace-nowrap ml-2 ${
-                      unreadBadge > 0 ? 'text-[#25d366] font-medium' : (isDark ? 'text-[#8596a0]' : 'text-gray-400')
+                      unreadBadge > 0 ? 'text-[#00a8ff] font-medium' : (isDark ? 'text-[#8596a0]' : 'text-gray-400')
                     }`}>
-                      {lastMsg ? lastMsg.timestamp : (contact.lastSeen || 'Yesterday')}
+                      {lastMsg ? (
+                        (() => {
+                          const dateLabel = formatChatDate(lastMsg.createdAt || lastMsg.timestamp);
+                          return dateLabel === 'Today'
+                            ? formatMessageTime(lastMsg.createdAt || lastMsg.timestamp, lastMsg.timestamp)
+                            : dateLabel;
+                        })()
+                      ) : (
+                        contact.lastSeen || 'Yesterday'
+                      )}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between gap-2">
-                    <p className={`text-sm truncate flex items-center gap-1 ${
+                    <div className={`text-sm truncate flex items-center gap-1.5 ${
                       isDark ? 'text-[#8596a0]' : 'text-gray-500'
                     }`}>
-                      {contact.name.includes('Harsh') ? (
-                        <span className={`flex items-center gap-1 italic ${isDark ? 'text-[#8596a0]' : 'text-gray-500'}`}>
-                          <PhoneCall className="w-3.5 h-3.5 rotate-45 text-rose-400 inline" /> Voice call
+                      {previewData.isOutgoing && previewData.status && (
+                        <span className="shrink-0">
+                          {previewData.status === 'read' ? (
+                            <CheckCheck className="w-4 h-4 text-[#00a8ff] inline" />
+                          ) : previewData.status === 'delivered' ? (
+                            <CheckCheck className="w-4 h-4 text-[#8596a0] inline" />
+                          ) : (
+                            <Check className="w-4 h-4 text-[#8596a0] inline" />
+                          )}
                         </span>
-                      ) : previewText}
-                    </p>
+                      )}
+                      <span className="truncate">{previewData.text}</span>
+                    </div>
 
                     <div className="flex items-center gap-1 shrink-0">
                       {unreadBadge > 0 && (
-                        <span className="bg-[#25d366] text-[#0b141a] text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full shrink-0">
-                          {unreadBadge}
+                        <span className="bg-[#00a8ff] text-[#0b141a] text-xs font-bold px-1.5 py-0.5 rounded-full shrink-0 min-w-[20px] text-center">
+                          {unreadBadge > 99 ? '99+' : unreadBadge}
                         </span>
                       )}
 
@@ -450,6 +826,24 @@ export const ChatList: React.FC = () => {
                           : 'bg-white border-gray-200 text-gray-800 shadow-xl'
                       }`}
                     >
+                      {/* Set Custom Name */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenMenuId(null);
+                          setNicknameTargetContact(contact);
+                          setShowNicknameModal(true);
+                        }}
+                        className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${
+                          isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 text-[#00a8ff] font-semibold">
+                          <Tag className="w-4.5 h-4.5" />
+                          <span>{customNicknames[contact.id] ? 'Edit Custom Name' : 'Set Custom Name'}</span>
+                        </div>
+                      </button>
+
                       {/* 1. Archive / Unarchive chat */}
                       <button
                         type="button"
@@ -463,7 +857,7 @@ export const ChatList: React.FC = () => {
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <Archive className="w-4.5 h-4.5 opacity-80 text-[#25d366]" />
+                          <Archive className="w-4.5 h-4.5 opacity-80 text-[#00a8ff]" />
                           <span>{contact.isArchived ? 'Unarchive chat' : 'Archive chat'}</span>
                         </div>
                       </button>
@@ -607,7 +1001,7 @@ export const ChatList: React.FC = () => {
       <button
         type="button"
         onClick={() => setShowCreateGroupModal(true)}
-        className="absolute bottom-4 right-4 z-30 w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-[#25d366] hover:bg-[#20ba5a] active:scale-90 text-[#0b141a] shadow-2xl flex items-center justify-center transition-all cursor-pointer border border-[#25d366]/40 group"
+        className="absolute bottom-4 right-4 z-30 w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-[#00a8ff] hover:bg-[#0091ea] active:scale-90 text-[#0b141a] shadow-2xl flex items-center justify-center transition-all cursor-pointer border border-[#00a8ff]/40 group"
         title="Create New Group"
       >
         <Users className="w-6 h-6 stroke-[2.3] group-hover:scale-110 transition-transform" />
@@ -618,7 +1012,7 @@ export const ChatList: React.FC = () => {
         <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in select-none">
           <form onSubmit={handleGroupSubmit} className="bg-[#233138] border border-[#2a3942] w-full max-w-sm rounded-3xl p-6 shadow-2xl text-sm flex flex-col max-h-[90vh]">
             <div className="flex items-center justify-between mb-4 border-b border-[#2a3942] pb-3">
-              <h2 className="text-lg font-bold text-[#25d366] flex items-center gap-2">
+              <h2 className="text-lg font-bold text-[#00a8ff] flex items-center gap-2">
                 <Users className="w-5 h-5" /> Create New Group
               </h2>
               <button 
@@ -640,7 +1034,7 @@ export const ChatList: React.FC = () => {
                   placeholder="e.g. Project Alpha, Family Vault, Friends"
                   value={groupNameInput}
                   onChange={e => setGroupNameInput(e.target.value)}
-                  className="w-full bg-[#0b141a] border border-[#2a3942] focus:border-[#25d366] rounded-xl px-3.5 py-2.5 text-white focus:outline-none text-sm"
+                  className="w-full bg-[#0b141a] border border-[#2a3942] focus:border-[#00a8ff] rounded-xl px-3.5 py-2.5 text-white focus:outline-none text-sm"
                 />
               </div>
 
@@ -657,7 +1051,7 @@ export const ChatList: React.FC = () => {
                           key={c.id}
                           onClick={() => toggleSelectMember(c.id)}
                           className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
-                            isSelected ? 'bg-[#103629] text-white' : 'hover:bg-[#182229] text-gray-300'
+                            isSelected ? 'bg-[#0a2540] text-white' : 'hover:bg-[#182229] text-gray-300'
                           }`}
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
@@ -665,7 +1059,7 @@ export const ChatList: React.FC = () => {
                             <span className="text-xs font-medium truncate">{c.name}</span>
                           </div>
                           {isSelected ? (
-                            <UserCheck className="w-4 h-4 text-[#25d366] shrink-0" />
+                            <UserCheck className="w-4 h-4 text-[#00a8ff] shrink-0" />
                           ) : (
                             <div className="w-4 h-4 rounded-full border border-gray-600 shrink-0" />
                           )}
@@ -683,7 +1077,7 @@ export const ChatList: React.FC = () => {
                   placeholder="e.g. Rahul, Priya, Alex (comma separated)"
                   value={customMemberInput}
                   onChange={e => setCustomMemberInput(e.target.value)}
-                  className="w-full bg-[#0b141a] border border-[#2a3942] focus:border-[#25d366] rounded-xl px-3.5 py-2.5 text-white focus:outline-none text-xs"
+                  className="w-full bg-[#0b141a] border border-[#2a3942] focus:border-[#00a8ff] rounded-xl px-3.5 py-2.5 text-white focus:outline-none text-xs"
                 />
                 <span className="text-[11px] text-gray-400 mt-1 block">Separate multiple usernames with commas</span>
               </div>
@@ -700,7 +1094,7 @@ export const ChatList: React.FC = () => {
               <button
                 type="submit"
                 disabled={!groupNameInput.trim()}
-                className="px-5 py-2 rounded-xl bg-[#25d366] hover:bg-[#20ba5a] text-[#0b141a] font-bold transition-colors shadow disabled:opacity-50 text-xs flex items-center gap-1.5"
+                className="px-5 py-2 rounded-xl bg-[#00a8ff] hover:bg-[#0091ea] text-[#0b141a] font-bold transition-colors shadow disabled:opacity-50 text-xs flex items-center gap-1.5"
               >
                 <Users className="w-4 h-4" />
                 Create Group
@@ -714,7 +1108,7 @@ export const ChatList: React.FC = () => {
       {showAddModal && (
         <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
           <form onSubmit={handleCreateContact} className="bg-[#233138] border border-[#2a3942] w-full max-w-sm rounded-3xl p-6 shadow-2xl text-sm">
-            <h2 className="text-lg font-bold text-[#25d366] mb-4 flex items-center gap-2">
+            <h2 className="text-lg font-bold text-[#00a8ff] mb-4 flex items-center gap-2">
               <Plus className="w-5 h-5" /> New Chat
             </h2>
 
@@ -727,7 +1121,7 @@ export const ChatList: React.FC = () => {
                   placeholder="e.g. +91 98765 43210 or Rahul"
                   value={newContactName}
                   onChange={e => setNewContactName(e.target.value)}
-                  className="w-full bg-[#0b141a] border border-[#2a3942] focus:border-[#25d366] rounded-xl px-3.5 py-2.5 text-white focus:outline-none"
+                  className="w-full bg-[#0b141a] border border-[#2a3942] focus:border-[#00a8ff] rounded-xl px-3.5 py-2.5 text-white focus:outline-none"
                 />
               </div>
 
@@ -738,7 +1132,7 @@ export const ChatList: React.FC = () => {
                   placeholder="e.g. Hey there! I am using WhatsApp."
                   value={newContactStatus}
                   onChange={e => setNewContactStatus(e.target.value)}
-                  className="w-full bg-[#0b141a] border border-[#2a3942] focus:border-[#25d366] rounded-xl px-3.5 py-2.5 text-white focus:outline-none"
+                  className="w-full bg-[#0b141a] border border-[#2a3942] focus:border-[#00a8ff] rounded-xl px-3.5 py-2.5 text-white focus:outline-none"
                 />
               </div>
 
@@ -748,11 +1142,11 @@ export const ChatList: React.FC = () => {
                     type="checkbox"
                     checked={isAiContact}
                     onChange={e => setIsAiContact(e.target.checked)}
-                    className="accent-[#25d366] w-4 h-4 rounded"
+                    className="accent-[#00a8ff] w-4 h-4 rounded"
                   />
                   <span>Simulate Meta AI Responder</span>
                 </label>
-                <Bot className={`w-5 h-5 ${isAiContact ? 'text-[#25d366]' : 'text-[#8596a0]'}`} />
+                <Bot className={`w-5 h-5 ${isAiContact ? 'text-[#00a8ff]' : 'text-[#8596a0]'}`} />
               </div>
             </div>
 
@@ -766,7 +1160,7 @@ export const ChatList: React.FC = () => {
               </button>
               <button
                 type="submit"
-                className="px-5 py-2.5 rounded-xl bg-[#25d366] hover:bg-[#20ba5a] text-[#0b141a] font-bold transition-colors shadow"
+                className="px-5 py-2.5 rounded-xl bg-[#00a8ff] hover:bg-[#0091ea] text-[#0b141a] font-bold transition-colors shadow"
               >
                 Start Chat
               </button>
@@ -778,8 +1172,8 @@ export const ChatList: React.FC = () => {
       {/* Chat Lock PIN Prompt Modal */}
       {targetLockId && (
         <div className="absolute inset-0 z-50 bg-[#0b141a]/95 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
-          <form onSubmit={verifyChatPin} className="bg-[#233138] border border-[#25d366]/40 w-full max-w-xs rounded-3xl p-6 shadow-2xl text-center">
-            <div className="w-14 h-14 rounded-2xl bg-[#103629] text-[#25d366] flex items-center justify-center mx-auto mb-4">
+          <form onSubmit={verifyChatPin} className="bg-[#233138] border border-[#00a8ff]/40 w-full max-w-xs rounded-3xl p-6 shadow-2xl text-center">
+            <div className="w-14 h-14 rounded-2xl bg-[#0a2540] text-[#00a8ff] flex items-center justify-center mx-auto mb-4">
               <Lock className="w-7 h-7 animate-pulse" />
             </div>
             <h3 className="font-bold text-lg text-white mb-1">Chat Lock</h3>
@@ -791,7 +1185,7 @@ export const ChatList: React.FC = () => {
               placeholder="••••"
               value={lockPinAttempt}
               onChange={e => setLockPinAttempt(e.target.value)}
-              className="w-full bg-[#0b141a] border border-[#2a3942] focus:border-[#25d366] text-center font-mono text-2xl tracking-widest text-white rounded-xl py-3 mb-5 focus:outline-none"
+              className="w-full bg-[#0b141a] border border-[#2a3942] focus:border-[#00a8ff] text-center font-mono text-2xl tracking-widest text-white rounded-xl py-3 mb-5 focus:outline-none"
             />
 
             <div className="flex gap-3 text-sm font-semibold">
@@ -804,7 +1198,7 @@ export const ChatList: React.FC = () => {
               </button>
               <button
                 type="submit"
-                className="flex-1 bg-[#25d366] hover:bg-[#20ba5a] text-[#0b141a] py-2.5 rounded-xl transition-colors"
+                className="flex-1 bg-[#00a8ff] hover:bg-[#0091ea] text-[#0b141a] py-2.5 rounded-xl transition-colors"
               >
                 Unlock
               </button>
@@ -848,7 +1242,7 @@ export const ChatList: React.FC = () => {
             </div>
 
             {/* Bottom action bar */}
-            <div className="flex items-center justify-around py-2.5 bg-[#1f2c34] text-[#25d366] border-t border-[#2a3942]/60">
+            <div className="flex items-center justify-around py-2.5 bg-[#1f2c34] text-[#00a8ff] border-t border-[#2a3942]/60">
               <button 
                 onClick={() => {
                   handleContactClick(previewContact.id, previewContact.isLocked);
@@ -884,13 +1278,14 @@ export const ChatList: React.FC = () => {
               
               <button 
                 onClick={() => {
-                  alert(`Status: "${previewContact.status}"\nLast Seen: ${previewContact.lastSeen || 'Online'}`);
+                  const targetId = previewContact.id;
                   setPreviewContact(null);
+                  navigate(`/profile/${targetId}`);
                 }}
-                className="p-2 hover:bg-[#202c33] rounded-full transition-colors active:scale-95"
-                title="Info"
+                className="p-2 hover:bg-[#202c33] rounded-full transition-colors active:scale-95 flex items-center justify-center"
+                title="View Profile"
               >
-                <Bot className="w-5 h-5 stroke-[2.2]" />
+                <User className="w-5 h-5 stroke-[2.2]" />
               </button>
             </div>
           </div>
@@ -940,9 +1335,19 @@ export const ChatList: React.FC = () => {
         </div>
       )}
 
+      {/* Custom Contact Nickname Modal */}
+      <NicknameModal 
+        contact={nicknameTargetContact}
+        isOpen={showNicknameModal}
+        onClose={() => {
+          setShowNicknameModal(false);
+          setNicknameTargetContact(null);
+        }}
+      />
+
       {/* Toast Notification Banner */}
       {toastMsg && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-[#233138] border border-[#25d366]/40 text-[#25d366] px-5 py-2.5 rounded-full text-xs font-semibold shadow-2xl animate-fade-in flex items-center gap-2 pointer-events-none">
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-[#233138] border border-[#00a8ff]/40 text-[#00a8ff] px-5 py-2.5 rounded-full text-xs font-semibold shadow-2xl animate-fade-in flex items-center gap-2 pointer-events-none">
           <CheckCheck className="w-4 h-4" />
           <span>{toastMsg}</span>
         </div>

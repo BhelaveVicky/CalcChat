@@ -67,6 +67,8 @@ export interface MediaAttachment {
 export interface Message {
   id: string;
   senderId: string;
+  senderName?: string;
+  senderAvatar?: string;
   receiverId: string;
   text: string;
   timestamp: string;
@@ -111,6 +113,7 @@ export interface Contact {
   unreadCount: number;
   isTyping?: boolean;
   isSelf?: boolean;
+  isFavorite?: boolean;
 }
 
 export type FriendStatus = 'none' | 'pending_sent' | 'pending_received' | 'friends' | 'self';

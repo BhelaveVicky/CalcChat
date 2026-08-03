@@ -119,6 +119,7 @@ interface VaultContextType {
   togglePinContact: (contactId: string) => void;
   toggleLockContact: (contactId: string) => void;
   toggleArchiveContact: (contactId: string) => void;
+  toggleFavoriteContact: (contactId: string) => void;
   unlockChatLock: (contactId: string) => void;
   blockContact: (contactId: string) => void;
   unblockContact: (contactId: string) => void;
@@ -201,6 +202,7 @@ const fallbackVaultContext: VaultContextType = {
   togglePinContact: () => {},
   toggleLockContact: () => {},
   toggleArchiveContact: () => {},
+  toggleFavoriteContact: () => {},
   unlockChatLock: () => {},
   blockContact: () => {},
   unblockContact: () => {},
@@ -247,7 +249,44 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return DEFAULT_SETTINGS;
   });
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [friendContacts, setFriendContacts] = useState<Contact[]>([]);
+  const [groupContacts, setGroupContacts] = useState<Contact[]>([]);
   const [friendUids, setFriendUids] = useState<string[]>([]);
+  const [favoriteContactIds, setFavoriteContactIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('calcchat_favorite_contacts');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  // Sync friendContacts and groupContacts into contacts
+  useEffect(() => {
+    const map = new Map<string, Contact>();
+    friendContacts.forEach(c => map.set(c.id, { ...c, isFavorite: favoriteContactIds.includes(c.id) }));
+    groupContacts.forEach(g => map.set(g.id, { ...g, isFavorite: favoriteContactIds.includes(g.id) }));
+    setContacts(prev => {
+      const prevMap = new Map(prev.map(c => [c.id, c]));
+      return Array.from(map.values()).map(c => {
+        const existing = prevMap.get(c.id);
+        return {
+          ...c,
+          isPinned: existing?.isPinned ?? c.isPinned,
+          isLocked: existing?.isLocked ?? c.isLocked,
+          isArchived: existing?.isArchived ?? c.isArchived,
+          isFavorite: favoriteContactIds.includes(c.id) || existing?.isFavorite,
+        };
+      });
+    });
+  }, [friendContacts, groupContacts, favoriteContactIds]);
+
+  const getChatIdForContact = (contactId: string): string => {
+    if (!contactId) return '';
+    const isGroup = contacts.some(c => c.id === contactId && c.isGroup) || groupContacts.some(g => g.id === contactId) || contactId.startsWith('group_');
+    if (isGroup) return contactId;
+    return [authUser?.uid || '', contactId].sort().join('_');
+  };
   const [pendingFriendRequests, setPendingFriendRequests] = useState<FriendRequest[]>([]);
   const [sentFriendRequests, setSentFriendRequests] = useState<FriendRequest[]>([]);
   const [allRegisteredUsers, setAllRegisteredUsers] = useState<any[]>([]);
@@ -572,7 +611,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       };
 
       if (combined.length === 0) {
-        setContacts([selfContact]);
+        setFriendContacts([selfContact]);
         return;
       }
 
@@ -596,7 +635,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             });
           }
         }
-        setContacts(fetchedContacts);
+        setFriendContacts(fetchedContacts);
       } catch (err) {
         console.error('Error fetching friend user profiles:', err);
       }
@@ -618,7 +657,43 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, [authUser, needsUsername]);
 
-  // Real-time listener for Messages with Confirmed Friends & Self Chat
+  // Real-time listener for Groups in Firestore
+  useEffect(() => {
+    if (!authUser || needsUsername) {
+      setGroupContacts([]);
+      return;
+    }
+
+    const groupsQuery = query(
+      collection(db, 'groups'),
+      where('memberUids', 'array-contains', authUser.uid)
+    );
+
+    const unsub = onSnapshot(groupsQuery, (snapshot) => {
+      const fetchedGroups: Contact[] = snapshot.docs.map(d => {
+        const data = d.data();
+        const memberNames: string[] = data.memberNames || [];
+        return {
+          id: d.id,
+          name: data.name || 'Group Chat',
+          username: 'group',
+          avatar: data.avatar || 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=150&auto=format&fit=crop&q=80',
+          status: data.status || `${memberNames.length || 1} members`,
+          isOnline: true,
+          lastSeen: 'Group',
+          unreadCount: 0,
+          isGroup: true,
+          groupMembers: memberNames,
+          members: data.memberUids || [],
+        };
+      });
+      setGroupContacts(fetchedGroups);
+    }, (err) => handleFirestoreError('Groups snapshot error:', err, () => setGroupContacts([])));
+
+    return () => unsub();
+  }, [authUser, needsUsername]);
+
+  // Real-time listener for Messages with Confirmed Friends, Self Chat & Groups
   useEffect(() => {
     if (!authUser || needsUsername) {
       setMessages({});
@@ -626,17 +701,20 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     const unsubs: Array<() => void> = [];
-    const chatPartnerUids = Array.from(new Set([authUser.uid, ...friendUids]));
+    const friendChatUids = Array.from(new Set([authUser.uid, ...friendUids]));
+    const groupIds = groupContacts.map(g => g.id);
+    const allPartnerIds = Array.from(new Set([...friendChatUids, ...groupIds]));
 
-    chatPartnerUids.forEach(friendId => {
-      const chatId = [authUser.uid, friendId].sort().join('_');
+    allPartnerIds.forEach(targetId => {
+      const isGroup = groupContacts.some(g => g.id === targetId) || targetId.startsWith('group_');
+      const chatId = isGroup ? targetId : [authUser.uid, targetId].sort().join('_');
+
       const msgQuery = query(
         collection(db, 'chats', chatId, 'messages'),
         orderBy('createdAt', 'asc')
       );
 
       const unsub = onSnapshot(msgQuery, (snapshot) => {
-        // Play sound for new incoming message if not initial load
         if (!snapshot.metadata.hasPendingWrites) {
           snapshot.docChanges().forEach((change) => {
             if (change.type === 'added') {
@@ -666,6 +744,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             return {
               id: d.id,
               senderId: data.senderId,
+              senderName: data.senderName,
+              senderAvatar: data.senderAvatar,
               receiverId: data.receiverId,
               text: data.text || '',
               timestamp: timeStr,
@@ -689,14 +769,14 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         setMessages(prev => ({
           ...prev,
-          [friendId]: msgsList
+          [targetId]: msgsList
         }));
-        }, (err) => handleFirestoreError(`Messages snapshot error for chatId: ${chatId}`, err, () => {
-          setMessages(prev => ({
-            ...prev,
-            [friendId]: prev[friendId] || []
-          }));
+      }, (err) => handleFirestoreError(`Messages snapshot error for chatId: ${chatId}`, err, () => {
+        setMessages(prev => ({
+          ...prev,
+          [targetId]: prev[targetId] || []
         }));
+      }));
 
       unsubs.push(unsub);
     });
@@ -704,7 +784,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => {
       unsubs.forEach(u => u());
     };
-  }, [authUser, needsUsername, friendUids]);
+  }, [authUser, needsUsername, friendUids, groupContacts]);
 
   // Real-time listener for typing status of friends
   const [typingStatusMap, setTypingStatusMap] = useState<Record<string, boolean>>({});
@@ -829,9 +909,13 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => unsub();
   }, [authUser, needsUsername, friendUids]);
 
-  // Check if contactId is in friends list
+  // Check if contactId is in friends list or is a group
   const isFriend = (contactId: string): boolean => {
+    if (!contactId) return false;
     if (authUser && contactId === authUser.uid) return true;
+    if (contacts.some(c => c.id === contactId && c.isGroup)) return true;
+    if (groupContacts.some(g => g.id === contactId)) return true;
+    if (contactId.startsWith('group_')) return true;
     return friendUids.includes(contactId);
   };
 
@@ -1104,11 +1188,14 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Send Message in Firestore
   const sendMessage = async (receiverId: string, text: string, media?: MediaAttachment, replyTo?: Message['replyTo']) => {
-    if (!authUser || !isFriend(receiverId)) {
+    const isGroupChat = contacts.some(c => c.id === receiverId && c.isGroup) || groupContacts.some(g => g.id === receiverId) || receiverId.startsWith('group_');
+
+    if (!authUser) throw new Error('Not authenticated.');
+    if (!isGroupChat && !isFriend(receiverId)) {
       throw new Error('You must become friends before you can chat.');
     }
 
-    const chatId = [authUser.uid, receiverId].sort().join('_');
+    const chatId = getChatIdForContact(receiverId);
     const msgRef = collection(db, 'chats', chatId, 'messages');
 
     const isSelfChat = receiverId === authUser.uid;
@@ -1136,6 +1223,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       const newMsgDoc = await addDoc(msgRef, {
         senderId: authUser.uid,
+        senderName: user.name || authUser?.displayName || 'You',
+        senderAvatar: user.avatar || authUser.photoURL || '',
         receiverId,
         text: text || '',
         type: finalMedia ? finalMedia.type : 'text',
@@ -1147,7 +1236,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
       setTypingStatus(receiverId, false).catch(() => {});
 
-      if (!isSelfChat && newMsgDoc?.id) {
+      if (!isSelfChat && !isGroupChat && newMsgDoc?.id) {
         setTimeout(async () => {
           try {
             await updateDoc(doc(db, 'chats', chatId, 'messages', newMsgDoc.id), {
@@ -1165,6 +1254,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         // Retry without heavy attachment
         const newMsgDoc = await addDoc(msgRef, {
           senderId: authUser.uid,
+          senderName: user.name || authUser?.displayName || 'You',
+          senderAvatar: user.avatar || authUser.photoURL || '',
           receiverId,
           text: (text || '') + ' [Attachment exceeded cloud size limit]',
           type: 'text',
@@ -1214,7 +1305,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return;
       }
     }
-    const chatId = [authUser.uid, contactId].sort().join('_');
+    const chatId = getChatIdForContact(contactId);
     await updateDoc(doc(db, 'chats', chatId, 'messages', msgId), {
       text: newText,
       isEdited: true,
@@ -1224,7 +1315,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Delete Message (Delete for Me)
   const deleteMessage = async (contactId: string, msgId: string) => {
     if (!authUser) return;
-    const chatId = [authUser.uid, contactId].sort().join('_');
+    const chatId = getChatIdForContact(contactId);
     await updateDoc(doc(db, 'chats', chatId, 'messages', msgId), {
       deletedFor: arrayUnion(authUser.uid)
     }).catch(async () => {
@@ -1236,7 +1327,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Delete For Everyone
   const deleteForEveryone = async (contactId: string, msgId: string) => {
     if (!authUser) return;
-    const chatId = [authUser.uid, contactId].sort().join('_');
+    const chatId = getChatIdForContact(contactId);
     await updateDoc(doc(db, 'chats', chatId, 'messages', msgId), {
       text: 'This message was deleted',
       media: null,
@@ -2010,8 +2101,74 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const addContact = () => {};
-  const createGroup = () => '';
-  const clearChatHistory = () => {};
+
+  const createGroup = (groupName: string, memberNamesOrIds: string[] = []): string => {
+    if (!groupName.trim()) return '';
+
+    const groupId = 'group_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+
+    const memberUids: string[] = [authUser?.uid].filter(Boolean) as string[];
+    const memberNames: string[] = [user.name || authUser?.displayName || 'You'].filter(Boolean);
+
+    memberNamesOrIds.forEach(item => {
+      if (!item) return;
+      const foundContact = contacts.find(c => c.id === item || c.name === item || c.username === item);
+      if (foundContact) {
+        if (!memberUids.includes(foundContact.id)) memberUids.push(foundContact.id);
+        if (!memberNames.includes(foundContact.name)) memberNames.push(foundContact.name);
+      } else {
+        if (!memberNames.includes(item)) memberNames.push(item);
+      }
+    });
+
+    const avatar = 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=150&auto=format&fit=crop&q=80';
+    const statusStr = `${memberNames.length} members: ${memberNames.slice(0, 3).join(', ')}${memberNames.length > 3 ? '...' : ''}`;
+
+    const newGroupContact: Contact = {
+      id: groupId,
+      name: groupName.trim(),
+      avatar,
+      status: statusStr,
+      isOnline: true,
+      lastSeen: 'Group',
+      unreadCount: 0,
+      isGroup: true,
+      groupMembers: memberNames,
+      members: memberUids,
+    };
+
+    // Optimistically update groupContacts
+    setGroupContacts(prev => [newGroupContact, ...prev.filter(g => g.id !== groupId)]);
+
+    // Save group to Firestore
+    if (authUser) {
+      setDoc(doc(db, 'groups', groupId), {
+        id: groupId,
+        name: groupName.trim(),
+        avatar,
+        createdBy: authUser.uid,
+        createdAt: serverTimestamp(),
+        memberUids,
+        memberNames,
+        isGroup: true,
+        status: statusStr,
+      }).catch(err => console.error('Error saving group to Firestore:', err));
+    }
+
+    return groupId;
+  };
+
+  const clearChatHistory = async (contactId: string) => {
+    if (!authUser || !contactId) return;
+    const chatId = getChatIdForContact(contactId);
+    const msgs = messages[contactId] || [];
+    for (const m of msgs) {
+      await updateDoc(doc(db, 'chats', chatId, 'messages', m.id), {
+        deletedFor: arrayUnion(authUser.uid)
+      }).catch(() => {});
+    }
+  };
+
   const clearAllChatHistory = () => {};
   const togglePinContact = (contactId: string) => {
     setContacts(prev => prev.map(c => c.id === contactId ? { ...c, isPinned: !c.isPinned } : c));
@@ -2021,6 +2178,18 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
   const toggleLockContact = (contactId: string) => {
     setContacts(prev => prev.map(c => c.id === contactId ? { ...c, isLocked: !c.isLocked } : c));
+  };
+  const toggleFavoriteContact = (contactId: string) => {
+    setFavoriteContactIds(prev => {
+      const updated = prev.includes(contactId)
+        ? prev.filter(id => id !== contactId)
+        : [...prev, contactId];
+      try {
+        localStorage.setItem('calcchat_favorite_contacts', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+    setContacts(prev => prev.map(c => c.id === contactId ? { ...c, isFavorite: !c.isFavorite } : c));
   };
   const unlockChatLock = (contactId: string) => {
     setUnlockedLocks(prev => ({ ...prev, [contactId]: true }));
@@ -2033,7 +2202,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
   const toggleStarMessage = async (contactId: string, msgId: string) => {
     if (!authUser) return;
-    const chatId = [authUser.uid, contactId].sort().join('_');
+    const chatId = getChatIdForContact(contactId);
     const msg = (messages[contactId] || []).find(m => m.id === msgId);
     if (!msg) return;
     await updateDoc(doc(db, 'chats', chatId, 'messages', msgId), {
@@ -2043,7 +2212,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const togglePinMessage = async (contactId: string, msgId: string) => {
     if (!authUser) return;
-    const chatId = [authUser.uid, contactId].sort().join('_');
+    const chatId = getChatIdForContact(contactId);
     const msg = (messages[contactId] || []).find(m => m.id === msgId);
     if (!msg) return;
     await updateDoc(doc(db, 'chats', chatId, 'messages', msgId), {
@@ -2153,6 +2322,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       togglePinContact,
       toggleLockContact,
       toggleArchiveContact,
+      toggleFavoriteContact,
       unlockChatLock,
       blockContact,
       unblockContact,

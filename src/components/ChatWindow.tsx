@@ -1405,6 +1405,13 @@ export const ChatWindow: React.FC = () => {
                       </div>
                     ) : (
                       <>
+                        {/* Group Member Sender Name */}
+                        {contact?.isGroup && !isMe && (
+                          <div className="text-[11px] font-bold text-[#ea4c89] mb-1 truncate">
+                            {msg.senderName || 'Group Member'}
+                          </div>
+                        )}
+
                         {/* Quoted Reply Context */}
                         {msg.replyTo && (
                           <div className={`p-2 rounded-lg border-l-4 mb-2 text-xs border-[#00a8ff] ${

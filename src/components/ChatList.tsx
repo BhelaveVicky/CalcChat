@@ -27,6 +27,7 @@ export const ChatList: React.FC = () => {
     togglePinContact,
     toggleLockContact,
     toggleArchiveContact,
+    toggleFavoriteContact,
     clearChatHistory,
     customNicknames,
     getContactDisplayName,
@@ -54,7 +55,7 @@ export const ChatList: React.FC = () => {
     requestId?: string;
   }>>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'pin' | 'unread' | 'groups'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'pin' | 'favourites' | 'groups'>('all');
   const [showArchivedOnly, setShowArchivedOnly] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
@@ -197,7 +198,7 @@ export const ChatList: React.FC = () => {
     if (c.isArchived && !search.trim()) return false;
 
     if (activeFilter === 'pin') return c.isPinned;
-    if (activeFilter === 'unread') return c.unreadCount > 0;
+    if (activeFilter === 'favourites') return c.isFavorite;
     if (activeFilter === 'groups') return c.isGroup || c.name.toLowerCase().includes('group') || c.name.toLowerCase().includes('team') || c.name.toLowerCase().includes('sparkle');
     return true;
   });
@@ -301,7 +302,7 @@ export const ChatList: React.FC = () => {
         {[
           { id: 'all', label: 'All' },
           { id: 'pin', label: 'Pin' },
-          { id: 'unread', label: `Unread${unreadTotalCount > 0 ? ` (${unreadTotalCount})` : ''}` },
+          { id: 'favourites', label: `Favourites${contacts.filter(c => c.isFavorite).length > 0 ? ` (${contacts.filter(c => c.isFavorite).length})` : ''}` },
           { id: 'groups', label: 'Groups' },
         ].map((filter) => {
           const isActive = activeFilter === filter.id;
@@ -520,7 +521,19 @@ export const ChatList: React.FC = () => {
           </div>
         )}
 
-        {sortedContacts.length === 0 && !search.trim() ? (
+        {sortedContacts.length === 0 && activeFilter === 'favourites' && !search.trim() ? (
+          <div className={`p-8 text-center text-sm flex flex-col items-center justify-center gap-3 h-full min-h-[250px] ${
+            isDark ? 'text-[#8596a0]' : 'text-gray-500'
+          }`}>
+            <div className="w-16 h-16 rounded-3xl bg-red-500/10 text-red-500 flex items-center justify-center border border-red-500/20 shadow-inner">
+              <Heart className="w-8 h-8 fill-red-500" />
+            </div>
+            <h3 className={`font-bold text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>No Favourites Yet</h3>
+            <p className="max-w-xs text-xs text-gray-400 leading-relaxed">
+              Long press or click the 3-dots options menu on any chat and tap <span className="text-[#00a8ff] font-bold">"Add to favourites"</span> to filter them here!
+            </p>
+          </div>
+        ) : sortedContacts.length === 0 && !search.trim() ? (
           <div className={`p-8 text-center text-sm flex flex-col items-center justify-center gap-3 h-full min-h-[300px] ${
             isDark ? 'text-[#8596a0]' : 'text-gray-500'
           }`}>
@@ -924,20 +937,21 @@ export const ChatList: React.FC = () => {
                         </div>
                       </button>
 
-                      {/* 5. Add to favourites */}
+                      {/* 5. Add / Remove from favourites */}
                       <button
                         type="button"
                         onClick={() => {
+                          toggleFavoriteContact(contact.id);
                           setOpenMenuId(null);
-                          showToast(`Added to favourites`);
+                          showToast(contact.isFavorite ? `Removed from favourites` : `Added to favourites`);
                         }}
                         className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${
                           isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <Heart className="w-4.5 h-4.5 opacity-80" />
-                          <span>Add to favourites</span>
+                          <Heart className={`w-4.5 h-4.5 ${contact.isFavorite ? 'fill-red-500 text-red-500' : 'opacity-80'}`} />
+                          <span>{contact.isFavorite ? 'Remove from favourites' : 'Add to favourites'}</span>
                         </div>
                       </button>
 

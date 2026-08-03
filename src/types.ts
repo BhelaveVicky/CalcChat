@@ -51,6 +51,9 @@ export interface MediaAttachment {
   name: string;
   size?: string;
   duration?: string;
+  isViewOnce?: boolean;
+  opened?: boolean;
+  openedAt?: any;
   locationData?: {
     lat: number;
     lng: number;
@@ -83,6 +86,8 @@ export interface Message {
   isStarred?: boolean;
   isPinned?: boolean;
   isEdited?: boolean;
+  isViewOnce?: boolean;
+  opened?: boolean;
   deletedForEveryone?: boolean;
   deletedForMe?: boolean;
   deletedFor?: string[];

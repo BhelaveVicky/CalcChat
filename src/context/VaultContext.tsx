@@ -91,6 +91,7 @@ interface VaultContextType {
   editMessage: (contactId: string, msgId: string, newText: string) => Promise<void>;
   deleteMessage: (contactId: string, msgId: string) => Promise<void>;
   deleteForEveryone: (contactId: string, msgId: string) => Promise<void>;
+  markViewOnceOpened: (contactId: string, msgId: string) => Promise<void>;
   toggleStarMessage: (contactId: string, msgId: string) => void;
   togglePinMessage: (contactId: string, msgId: string) => void;
   forwardMessage: (msg: Message, targetContactIds: string[]) => void;
@@ -175,6 +176,7 @@ const fallbackVaultContext: VaultContextType = {
   editMessage: async () => {},
   deleteMessage: async () => {},
   deleteForEveryone: async () => {},
+  markViewOnceOpened: async () => {},
   toggleStarMessage: () => {},
   togglePinMessage: () => {},
   forwardMessage: () => {},
@@ -945,9 +947,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const markMessagesAsRead = async (contactId: string) => {
     if (!authUser || !contactId) return;
-    const chatId = [authUser.uid, contactId].sort().join('_');
+    const isGroup = groupContacts.some(g => g.id === contactId) || contactId.startsWith('group_');
+    const chatId = isGroup ? contactId : [authUser.uid, contactId].sort().join('_');
     const chatMsgs = messages[contactId] || [];
-    const unseenMsgs = chatMsgs.filter(m => m.senderId === contactId && m.receiverId === authUser.uid && (!m.seen || !m.isRead));
+    const unseenMsgs = chatMsgs.filter(m => m.senderId !== authUser.uid && (!m.seen || !m.isRead));
 
     if (unseenMsgs.length === 0) return;
 
@@ -1324,7 +1327,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     try {
-      const newMsgDoc = await addDoc(msgRef, {
+      await addDoc(msgRef, {
         senderId: authUser.uid,
         senderName: user.name || authUser?.displayName || 'You',
         senderAvatar: user.avatar || authUser.photoURL || '',
@@ -1338,24 +1341,11 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         createdAt: serverTimestamp(),
       });
       setTypingStatus(receiverId, false).catch(() => {});
-
-      if (!isSelfChat && !isGroupChat && newMsgDoc?.id) {
-        setTimeout(async () => {
-          try {
-            await updateDoc(doc(db, 'chats', chatId, 'messages', newMsgDoc.id), {
-              seen: true,
-              isRead: true,
-            });
-          } catch (e) {
-            // ignore if deleted
-          }
-        }, 1000);
-      }
     } catch (err: any) {
       console.error('Error sending message to Firestore:', err);
       if (err?.message?.includes('exceeds the maximum allowed size') || err?.code === 'invalid-argument') {
         // Retry without heavy attachment
-        const newMsgDoc = await addDoc(msgRef, {
+        await addDoc(msgRef, {
           senderId: authUser.uid,
           senderName: user.name || authUser?.displayName || 'You',
           senderAvatar: user.avatar || authUser.photoURL || '',
@@ -1369,19 +1359,6 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           createdAt: serverTimestamp(),
         });
         setTypingStatus(receiverId, false).catch(() => {});
-
-        if (!isSelfChat && newMsgDoc?.id) {
-          setTimeout(async () => {
-            try {
-              await updateDoc(doc(db, 'chats', chatId, 'messages', newMsgDoc.id), {
-                seen: true,
-                isRead: true,
-              });
-            } catch (e) {
-              // ignore
-            }
-          }, 1000);
-        }
       } else {
         throw err;
       }
@@ -1447,6 +1424,22 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       deletedForEveryone: true,
       isStarred: false,
     });
+  };
+
+  // Mark View Once Media as Opened
+  const markViewOnceOpened = async (contactId: string, msgId: string) => {
+    if (!authUser) return;
+    const chatId = getChatIdForContact(contactId);
+    try {
+      const msgRef = doc(db, 'chats', chatId, 'messages', msgId);
+      await updateDoc(msgRef, {
+        opened: true,
+        'media.opened': true,
+        openedAt: serverTimestamp(),
+      });
+    } catch (err) {
+      console.warn('Error marking view once opened:', err);
+    }
   };
 
   // Set Custom Nickname
@@ -2429,6 +2422,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       editMessage,
       deleteMessage,
       deleteForEveryone,
+      markViewOnceOpened,
       toggleStarMessage,
       togglePinMessage,
       forwardMessage,

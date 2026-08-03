@@ -70,7 +70,8 @@ export const ChatWindow: React.FC = () => {
     sendMessage, editMessage, user, deleteMessage, deleteForEveryone, toggleStarMessage,
     togglePinMessage, forwardMessage, setTypingStatus, settings, togglePinContact,
     toggleArchiveContact, clearChatHistory, blockContact, startCall,
-    customNicknames, getContactDisplayName, isFriend, unfriendContact
+    customNicknames, getContactDisplayName, isFriend, unfriendContact,
+    markViewOnceOpened
   } = useVault();
 
   const isDark = settings.theme !== 'material-light' && settings.theme !== 'light';
@@ -179,6 +180,10 @@ export const ChatWindow: React.FC = () => {
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
+  // View Once & Lightbox States
+  const [viewOnceActiveMedia, setViewOnceActiveMedia] = useState<{ msg: Message; media: MediaAttachment } | null>(null);
+  const [cameraViewOnce, setCameraViewOnce] = useState<boolean>(false);
+
   // Multi-Media Preview & Upload States
   interface PendingMediaItem {
     id: string;
@@ -187,6 +192,7 @@ export const ChatWindow: React.FC = () => {
     url: string;
     name: string;
     sizeStr: string;
+    isViewOnce?: boolean;
   }
   const [pendingMediaList, setPendingMediaList] = useState<PendingMediaItem[]>([]);
   const [activeMediaIndex, setActiveMediaIndex] = useState<number>(0);
@@ -268,10 +274,12 @@ export const ChatWindow: React.FC = () => {
         type: 'image',
         name: `Camera_Photo_${Date.now()}.jpg`,
         url: compressed || capturedPhoto,
+        isViewOnce: cameraViewOnce,
       };
       sendMessage(activeContactId, '📷 Photo', media);
       closeCameraModal();
-      showToast('Photo sent');
+      setCameraViewOnce(false);
+      showToast(cameraViewOnce ? 'View once photo sent' : 'Photo sent');
     } catch (err) {
       console.warn('Error compressing camera photo:', err);
       closeCameraModal();
@@ -795,6 +803,7 @@ export const ChatWindow: React.FC = () => {
           name: item.name,
           url: finalDataUrl,
           size: item.sizeStr,
+          isViewOnce: Boolean(item.isViewOnce),
         };
 
         const captionText = (i === 0 && mediaCaption.trim()) 
@@ -1433,21 +1442,84 @@ export const ChatWindow: React.FC = () => {
                         {/* Attached Media Render */}
                         {msg.media && (
                           <div className="mb-2 mt-0.5 overflow-hidden rounded-xl bg-black/30 border border-white/5">
-                            {msg.media.type === 'image' && (
-                              <img
-                                src={msg.media.url}
-                                alt={msg.media.name}
-                                onClick={() => setPreviewMedia(msg.media!.url)}
-                                className="max-h-64 w-full object-cover cursor-pointer hover:opacity-95 transition-opacity"
-                              />
-                            )}
+                            {msg.media.isViewOnce ? (
+                              <div className="p-1">
+                                {(msg.media.opened || msg.opened) ? (
+                                  /* Opened View Once Card */
+                                  <div 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      showToast('This photo/video has expired');
+                                    }}
+                                    className={`p-3 rounded-xl flex items-center gap-3 select-none cursor-pointer transition-colors ${
+                                      isMe ? 'bg-white/10 text-white/80' : 'bg-black/20 text-[#8596a0]'
+                                    }`}
+                                  >
+                                    <div className="w-8 h-8 rounded-full border border-gray-400/50 flex items-center justify-center text-xs font-bold shrink-0 text-gray-400">
+                                      1
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="font-semibold text-xs flex items-center gap-1.5">
+                                        <span>{msg.media.type === 'video' ? 'Video' : 'Photo'}</span>
+                                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-gray-500/20 text-gray-400 font-normal">Opened</span>
+                                      </div>
+                                      <p className="text-[11px] opacity-70">Expired</p>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  /* Unopened View Once Card */
+                                  <div 
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      if (isMe) {
+                                        showToast(`You sent a view once ${msg.media?.type === 'video' ? 'video' : 'photo'}`);
+                                        return;
+                                      }
+                                      if (msg.media) {
+                                        setViewOnceActiveMedia({ msg, media: msg.media });
+                                        await markViewOnceOpened(contact.id, msg.id);
+                                      }
+                                    }}
+                                    className={`p-3 rounded-xl flex items-center gap-3 cursor-pointer transition-all active:scale-98 ${
+                                      isMe 
+                                        ? 'bg-white/15 hover:bg-white/20 text-white' 
+                                        : 'bg-[#111b21] hover:bg-[#1f2c34] text-[#e9edef]'
+                                    }`}
+                                  >
+                                    <div className="w-9 h-9 rounded-full border-2 border-[#00a8ff] bg-[#00a8ff]/20 flex items-center justify-center font-extrabold text-xs text-[#00a8ff] shrink-0 shadow">
+                                      1
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="font-bold text-xs flex items-center gap-1.5 text-[#00a8ff]">
+                                        <span>{msg.media.type === 'video' ? 'Video' : 'Photo'}</span>
+                                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#00a8ff]/20 text-[#00a8ff] font-medium">View Once</span>
+                                      </div>
+                                      <p className="text-[11px] text-[#8596a0] font-medium truncate mt-0.5">
+                                        {isMe ? 'Sent • Recipient can view 1 time' : 'Tap to view photo/video'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <>
+                                {msg.media.type === 'image' && (
+                                  <img
+                                    src={msg.media.url}
+                                    alt={msg.media.name}
+                                    onClick={() => setPreviewMedia(msg.media!.url)}
+                                    className="max-h-64 w-full object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                                  />
+                                )}
 
-                            {msg.media.type === 'video' && (
-                              <video
-                                src={msg.media.url}
-                                controls
-                                className="max-h-64 w-full bg-black rounded-lg"
-                              />
+                                {msg.media.type === 'video' && (
+                                  <video
+                                    src={msg.media.url}
+                                    controls
+                                    className="max-h-64 w-full bg-black rounded-lg"
+                                  />
+                                )}
+                              </>
                             )}
 
                             {msg.media.type === 'audio' && (() => {
@@ -2652,6 +2724,32 @@ export const ChatWindow: React.FC = () => {
                 placeholder="Add a caption..."
                 className="w-full bg-transparent text-sm text-[#e9edef] placeholder-[#8596a0] focus:outline-none"
               />
+              {(() => {
+                const activeItem = pendingMediaList[activeMediaIndex];
+                if (activeItem && (activeItem.type === 'image' || activeItem.type === 'video')) {
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPendingMediaList(prev => prev.map((item, i) => 
+                          i === activeMediaIndex ? { ...item, isViewOnce: !item.isViewOnce } : item
+                        ));
+                        const nextState = !activeItem.isViewOnce;
+                        showToast(nextState ? 'Photo/Video set to view once' : 'View once turned off');
+                      }}
+                      className={`w-7 h-7 rounded-full flex items-center justify-center font-extrabold text-xs transition-all cursor-pointer shrink-0 border-2 ${
+                        activeItem.isViewOnce
+                          ? 'bg-[#00a8ff] text-[#0b141a] border-[#00a8ff] shadow-md scale-105'
+                          : 'border-[#8596a0] text-[#8596a0] hover:border-[#00a8ff] hover:text-[#00a8ff]'
+                      }`}
+                      title={activeItem.isViewOnce ? "View once is active (Recipient can view only 1 time)" : "Set to View Once"}
+                    >
+                      1
+                    </button>
+                  );
+                }
+                return null;
+              })()}
             </div>
 
             {/* Thumbnail Strip & Send Button */}
@@ -2944,19 +3042,34 @@ export const ChatWindow: React.FC = () => {
           {/* Action Footer */}
           <div className="w-full max-w-lg flex items-center justify-center pb-2 z-10">
             {capturedPhoto ? (
-              <div className="flex items-center gap-6">
+              <div className="flex items-center gap-4">
                 <button
                   type="button"
                   onClick={() => setCapturedPhoto(null)}
-                  className="flex items-center gap-2 px-5 py-3 rounded-full bg-white/10 hover:bg-white/20 text-white font-semibold text-sm transition-colors cursor-pointer"
+                  className="flex items-center gap-2 px-4 py-3 rounded-full bg-white/10 hover:bg-white/20 text-white font-semibold text-sm transition-colors cursor-pointer"
                 >
                   <RefreshCw className="w-4 h-4" />
                   <span>Retake</span>
                 </button>
                 <button
                   type="button"
+                  onClick={() => {
+                    setCameraViewOnce(prev => !prev);
+                    showToast(!cameraViewOnce ? 'View once photo enabled' : 'View once disabled');
+                  }}
+                  className={`w-11 h-11 rounded-full flex items-center justify-center font-extrabold text-sm transition-all cursor-pointer border-2 ${
+                    cameraViewOnce
+                      ? 'bg-[#00a8ff] text-[#0b141a] border-[#00a8ff] shadow-lg scale-105'
+                      : 'border-white/40 text-white hover:border-[#00a8ff] hover:text-[#00a8ff]'
+                  }`}
+                  title={cameraViewOnce ? "View once is active" : "Set photo to View Once"}
+                >
+                  1
+                </button>
+                <button
+                  type="button"
                   onClick={sendCapturedPhoto}
-                  className="flex items-center gap-2 px-7 py-3 rounded-full bg-[#00a8ff] hover:bg-[#0088cc] text-[#0b141a] font-bold text-sm shadow-xl active:scale-95 transition-all cursor-pointer"
+                  className="flex items-center gap-2 px-6 py-3 rounded-full bg-[#00a8ff] hover:bg-[#0088cc] text-[#0b141a] font-bold text-sm shadow-xl active:scale-95 transition-all cursor-pointer"
                 >
                   <span>Send Photo</span>
                   <Send className="w-4 h-4" />
@@ -2974,6 +3087,69 @@ export const ChatWindow: React.FC = () => {
                 </div>
               </button>
             ) : null}
+          </div>
+        </div>
+      )}
+
+      {/* View Once Fullscreen Viewer Modal */}
+      {viewOnceActiveMedia && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col justify-between p-4 sm:p-6 animate-fade-in text-white select-none"
+          onClick={() => setViewOnceActiveMedia(null)}
+        >
+          {/* Header */}
+          <div className="w-full max-w-3xl mx-auto flex items-center justify-between py-2 px-2" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full border-2 border-[#00a8ff] bg-[#00a8ff]/20 text-[#00a8ff] flex items-center justify-center font-extrabold text-sm shadow">
+                1
+              </div>
+              <div>
+                <span className="font-bold text-base text-white block">
+                  View Once {viewOnceActiveMedia.media.type === 'video' ? 'Video' : 'Photo'}
+                </span>
+                <span className="text-xs text-gray-400">Opened • This media will disappear when closed</span>
+              </div>
+            </div>
+            <button 
+              type="button"
+              onClick={() => setViewOnceActiveMedia(null)} 
+              className="p-2 hover:bg-white/10 rounded-full transition-colors text-white cursor-pointer"
+              title="Close View Once"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          {/* Media Container */}
+          <div className="flex-1 flex items-center justify-center p-2 max-w-3xl mx-auto w-full my-auto" onClick={e => e.stopPropagation()}>
+            {viewOnceActiveMedia.media.type === 'video' ? (
+              <video 
+                src={viewOnceActiveMedia.media.url} 
+                controls 
+                autoPlay 
+                className="max-w-full max-h-[75vh] w-auto h-auto object-contain rounded-2xl shadow-2xl border border-white/10" 
+              />
+            ) : (
+              <img 
+                src={viewOnceActiveMedia.media.url} 
+                alt="View Once Photo" 
+                className="max-w-full max-h-[75vh] w-auto h-auto object-contain rounded-2xl shadow-2xl border border-white/10" 
+              />
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="py-3 text-center flex flex-col items-center gap-2 max-w-md mx-auto w-full" onClick={e => e.stopPropagation()}>
+            <p className="text-xs text-gray-400">
+              You can only view this {viewOnceActiveMedia.media.type === 'video' ? 'video' : 'photo'} once.
+            </p>
+            <button
+              type="button"
+              onClick={() => setViewOnceActiveMedia(null)}
+              className="w-full py-2.5 rounded-full bg-[#00a8ff] text-[#0b141a] font-bold text-xs hover:bg-[#0088cc] transition-colors cursor-pointer shadow-lg"
+            >
+              Close View Once
+            </button>
           </div>
         </div>
       )}

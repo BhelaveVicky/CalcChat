@@ -779,7 +779,7 @@ export const ChatList: React.FC = () => {
                           {previewData.isOutgoing && previewData.status && (
                             <span className="shrink-0">
                               {previewData.status === 'read' ? (
-                                <CheckCheck className="w-4 h-4 text-emerald-500 inline" />
+                                <CheckCheck className="w-4 h-4 text-[#34b7f1] inline stroke-[2.5]" />
                               ) : previewData.status === 'delivered' ? (
                                 <CheckCheck className="w-4 h-4 text-[#8596a0] inline" />
                               ) : (

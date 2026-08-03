@@ -49,6 +49,20 @@ const EMOJI_LIST: string[] = [
   '❤️🔥','❤️🩹','💯','✔️','❌','⚠️','🔥','✨','⭐','🌟'
 ];
 
+// Helper to check if message was sent within 2 minutes (120,000 ms) for editing
+const getMsgTimestamp = (m: Message): number => {
+  if (typeof m.timestamp === 'number') return m.timestamp;
+  if (m.createdAt?.toMillis && typeof m.createdAt.toMillis === 'function') return m.createdAt.toMillis();
+  if (m.createdAt?.seconds) return m.createdAt.seconds * 1000;
+  return Date.now();
+};
+
+const isMessageEditable = (m: Message | null): boolean => {
+  if (!m || m.deletedForEveryone) return false;
+  const time = getMsgTimestamp(m);
+  return Date.now() - time <= 2 * 60 * 1000;
+};
+
 export const ChatWindow: React.FC = () => {
   const navigate = useNavigate();
   const { 
@@ -437,6 +451,12 @@ export const ChatWindow: React.FC = () => {
     setTypingStatus(activeContactId, false);
 
     if (editingMsg) {
+      if (!isMessageEditable(editingMsg)) {
+        showToast('Editing time limit expired (2 minutes limit)');
+        setEditingMsg(null);
+        setInputText('');
+        return;
+      }
       editMessage(activeContactId, editingMsg.id, inputText.trim());
       setEditingMsg(null);
       showToast('Message edited');
@@ -1345,16 +1365,39 @@ export const ChatWindow: React.FC = () => {
                         }
                       }
                     }}
-                    className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-3.5 py-2 text-sm relative shadow transition-all select-none ${
+                    className={`max-w-[85%] sm:max-w-[75%] px-4 py-2.5 text-sm relative shadow-sm transition-all select-none ${
+                      isMe ? 'rounded-[20px] rounded-br-[3px]' : 'rounded-[20px] rounded-bl-[3px]'
+                    } ${
                       isSelectMode ? 'cursor-pointer' : ''
                     } ${
-                      isSelected ? 'ring-2 ring-[#00a8ff] scale-[1.01]' : ''
+                      isSelected ? 'ring-2 ring-pink-300 scale-[1.01]' : ''
                     } ${
                       isMe
-                        ? (isDark ? 'bg-[#0284c7] text-[#e9edef] rounded-tr-xs' : 'bg-[#e0f2fe] text-gray-900 rounded-tr-xs')
-                        : (isDark ? 'bg-[#202c33] text-[#e9edef] rounded-tl-xs' : 'bg-white text-gray-900 rounded-tl-xs border border-gray-100')
+                        ? 'bg-[#ea4c89] text-white shadow-pink-500/10'
+                        : (isDark ? 'bg-[#202c33] text-[#e9edef]' : 'bg-white text-gray-900 border border-gray-100')
                     }`}
                   >
+                    {/* Speech Bubble Tail - Outgoing */}
+                    {isMe && (
+                      <svg
+                        className="absolute -bottom-[1px] -right-[6px] w-3.5 h-3.5 text-[#ea4c89] fill-current pointer-events-none drop-shadow-xs"
+                        viewBox="0 0 10 10"
+                      >
+                        <path d="M0 0 L10 0 C6 3 4 7 0 10 Z" />
+                      </svg>
+                    )}
+
+                    {/* Speech Bubble Tail - Incoming (Image 2 style) */}
+                    {!isMe && (
+                      <svg
+                        className={`absolute -bottom-[1px] -left-[6px] w-3.5 h-3.5 fill-current pointer-events-none drop-shadow-xs ${
+                          isDark ? 'text-[#202c33]' : 'text-white'
+                        }`}
+                        viewBox="0 0 10 10"
+                      >
+                        <path d="M10 0 L0 0 C4 3 6 7 10 10 Z" />
+                      </svg>
+                    )}
                     {msg.deletedForEveryone ? (
                       <div className="py-1 px-1 flex items-center gap-2 text-[#8596a0] italic text-xs select-none min-w-[160px]">
                         <Ban className="w-4 h-4 text-[#8596a0] shrink-0" />
@@ -1650,19 +1693,19 @@ export const ChatWindow: React.FC = () => {
                     )}
 
                     {/* Footer Timestamp & Status */}
-                    <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${isMe ? 'text-[#8596a0]' : 'text-[#8596a0]'}`}>
-                      {msg.isStarred && !msg.deletedForEveryone && <Star className="w-3 h-3 text-amber-400 fill-amber-400 shrink-0" />}
-                      {msg.isEdited && !msg.deletedForEveryone && <span className="italic text-[9px]">edited</span>}
+                    <div className={`flex items-center justify-end gap-1 mt-1 text-[11px] ${isMe ? 'text-white/85' : 'text-[#8596a0]'}`}>
+                      {msg.isStarred && !msg.deletedForEveryone && <Star className="w-3 h-3 text-amber-300 fill-amber-300 shrink-0" />}
+                      {msg.isEdited && !msg.deletedForEveryone && <span className="italic text-[9px] opacity-80">edited</span>}
                       <span>{formattedTime}</span>
 
                       {/* Delivery Status Indicator */}
                       {isMe && (
                         (msg.isRead || msg.seen) ? (
-                          <CheckCheck className="w-4 h-4 text-emerald-500 shrink-0 font-bold drop-shadow-xs" />
+                          <CheckCheck className="w-4 h-4 text-[#34b7f1] shrink-0 font-extrabold drop-shadow-xs stroke-[2.5]" />
                         ) : (msg.isDelivered || msg.isSent) ? (
-                          <CheckCheck className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300/80' : 'text-gray-500'} shrink-0`} />
+                          <CheckCheck className="w-3.5 h-3.5 text-white/70 shrink-0 stroke-[2]" />
                         ) : (
-                          <Check className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300/80' : 'text-gray-500'} shrink-0`} />
+                          <Check className="w-3.5 h-3.5 text-white/70 shrink-0 stroke-[2]" />
                         )
                       )}
                     </div>
@@ -1695,14 +1738,14 @@ export const ChatWindow: React.FC = () => {
                           <Forward className="w-3 h-3" />
                         </button>
 
-                        {isMe && (
+                        {isMe && isMessageEditable(msg) && (
                           <button
                             onClick={() => {
                               setEditingMsg(msg);
                               setInputText(msg.text);
                             }}
                             className="p-1 hover:bg-white/20 rounded text-emerald-300"
-                            title="Edit"
+                            title="Edit (Available within 2 mins)"
                           >
                             <Edit3 className="w-3 h-3" />
                           </button>
@@ -2268,6 +2311,32 @@ export const ChatWindow: React.FC = () => {
                 </div>
 
                 <div className="space-y-2 my-2">
+                  {deleteModalMsg.senderId === user.id && !deleteModalMsg.deletedForEveryone && isMessageEditable(deleteModalMsg) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const targetMsg = deleteModalMsg;
+                        setDeleteModalMsg(null);
+                        setEditingMsg(targetMsg);
+                        setInputText(targetMsg.text);
+                      }}
+                      className={`w-full p-3.5 rounded-xl flex items-center justify-between font-medium text-sm transition-all cursor-pointer ${
+                        isDark ? 'hover:bg-[#2a3942] bg-[#111b21]' : 'hover:bg-emerald-50 bg-emerald-50/50 text-emerald-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-emerald-500/15 text-emerald-400">
+                          <Edit3 className="w-5 h-5" />
+                        </div>
+                        <div className="text-left">
+                          <div className="font-semibold text-emerald-400 text-sm">Edit Message</div>
+                          <div className="text-[11px] text-gray-400">Edit message within 2 minutes of sending</div>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-400" />
+                    </button>
+                  )}
+
                   {deleteModalMsg.senderId === user.id && !deleteModalMsg.deletedForEveryone && (
                     <button
                       type="button"

@@ -1134,7 +1134,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     try {
-      await addDoc(msgRef, {
+      const newMsgDoc = await addDoc(msgRef, {
         senderId: authUser.uid,
         receiverId,
         text: text || '',
@@ -1146,11 +1146,24 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         createdAt: serverTimestamp(),
       });
       setTypingStatus(receiverId, false).catch(() => {});
+
+      if (!isSelfChat && newMsgDoc?.id) {
+        setTimeout(async () => {
+          try {
+            await updateDoc(doc(db, 'chats', chatId, 'messages', newMsgDoc.id), {
+              seen: true,
+              isRead: true,
+            });
+          } catch (e) {
+            // ignore if deleted
+          }
+        }, 1000);
+      }
     } catch (err: any) {
       console.error('Error sending message to Firestore:', err);
       if (err?.message?.includes('exceeds the maximum allowed size') || err?.code === 'invalid-argument') {
         // Retry without heavy attachment
-        await addDoc(msgRef, {
+        const newMsgDoc = await addDoc(msgRef, {
           senderId: authUser.uid,
           receiverId,
           text: (text || '') + ' [Attachment exceeded cloud size limit]',
@@ -1162,6 +1175,19 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           createdAt: serverTimestamp(),
         });
         setTypingStatus(receiverId, false).catch(() => {});
+
+        if (!isSelfChat && newMsgDoc?.id) {
+          setTimeout(async () => {
+            try {
+              await updateDoc(doc(db, 'chats', chatId, 'messages', newMsgDoc.id), {
+                seen: true,
+                isRead: true,
+              });
+            } catch (e) {
+              // ignore
+            }
+          }, 1000);
+        }
       } else {
         throw err;
       }
@@ -1175,9 +1201,19 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }, { merge: true });
   };
 
-  // Edit Message
+  // Edit Message (Max 2 minute limit)
   const editMessage = async (contactId: string, msgId: string, newText: string) => {
     if (!authUser) return;
+    const msg = messages[contactId]?.find(m => m.id === msgId);
+    if (msg) {
+      const msgTime = typeof msg.timestamp === 'number'
+        ? msg.timestamp
+        : (msg.createdAt?.toMillis ? msg.createdAt.toMillis() : (msg.createdAt?.seconds ? msg.createdAt.seconds * 1000 : Date.now()));
+      if (Date.now() - msgTime > 2 * 60 * 1000) {
+        console.warn('Cannot edit message: 2-minute time limit exceeded');
+        return;
+      }
+    }
     const chatId = [authUser.uid, contactId].sort().join('_');
     await updateDoc(doc(db, 'chats', chatId, 'messages', msgId), {
       text: newText,

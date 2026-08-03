@@ -120,6 +120,7 @@ interface VaultContextType {
   toggleLockContact: (contactId: string) => void;
   toggleArchiveContact: (contactId: string) => void;
   toggleFavoriteContact: (contactId: string) => void;
+  toggleMuteContact: (contactId: string) => void;
   unlockChatLock: (contactId: string) => void;
   blockContact: (contactId: string) => void;
   unblockContact: (contactId: string) => void;
@@ -203,6 +204,7 @@ const fallbackVaultContext: VaultContextType = {
   toggleLockContact: () => {},
   toggleArchiveContact: () => {},
   toggleFavoriteContact: () => {},
+  toggleMuteContact: () => {},
   unlockChatLock: () => {},
   blockContact: () => {},
   unblockContact: () => {},
@@ -260,12 +262,85 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return [];
     }
   });
+  const [mutedContactIds, setMutedContactIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('calcchat_muted_contacts');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  const [messages, setMessages] = useState<Record<string, Message[]>>({});
+  const [typingStatusMap, setTypingStatusMap] = useState<Record<string, boolean>>({});
+  const [chatMetadata, setChatMetadata] = useState<Record<string, { lastMessage?: string; lastMessageTime?: any; lastMessageSenderId?: string }>>({});
 
-  // Sync friendContacts and groupContacts into contacts
+  // Sync friendContacts and groupContacts into contacts with metadata & real-time sorting keys
   useEffect(() => {
     const map = new Map<string, Contact>();
-    friendContacts.forEach(c => map.set(c.id, { ...c, isFavorite: favoriteContactIds.includes(c.id) }));
-    groupContacts.forEach(g => map.set(g.id, { ...g, isFavorite: favoriteContactIds.includes(g.id) }));
+
+    const enrichContact = (c: Contact): Contact => {
+      const msgs = messages[c.id] || [];
+      const lastMsg = msgs[msgs.length - 1];
+
+      let msgTime = 0;
+      let lastMsgText = c.status || '';
+      let lastMsgSenderId = '';
+
+      if (lastMsg) {
+        if (lastMsg.createdAt?.toMillis) {
+          msgTime = lastMsg.createdAt.toMillis();
+        } else if (lastMsg.createdAt?.seconds) {
+          msgTime = lastMsg.createdAt.seconds * 1000;
+        } else if (typeof lastMsg.createdAt === 'number') {
+          msgTime = lastMsg.createdAt;
+        } else if (typeof lastMsg.timestamp === 'number') {
+          msgTime = lastMsg.timestamp;
+        } else {
+          msgTime = Date.now();
+        }
+        lastMsgText = lastMsg.text || (lastMsg.media ? `[${lastMsg.media.type}]` : '');
+        lastMsgSenderId = lastMsg.senderId || '';
+      }
+
+      const isGroup = c.isGroup || groupContacts.some(g => g.id === c.id) || c.id.startsWith('group_');
+      const chatId = isGroup ? c.id : [authUser?.uid || '', c.id].sort().join('_');
+      const meta = chatMetadata[chatId];
+
+      let metaTime = 0;
+      if (meta && meta.lastMessageTime) {
+        if (meta.lastMessageTime?.toMillis) {
+          metaTime = meta.lastMessageTime.toMillis();
+        } else if (meta.lastMessageTime?.seconds) {
+          metaTime = meta.lastMessageTime.seconds * 1000;
+        } else if (typeof meta.lastMessageTime === 'number') {
+          metaTime = meta.lastMessageTime;
+        }
+      }
+
+      const finalLastActivityTime = Math.max(msgTime, metaTime);
+      const finalLastMessage = meta?.lastMessage || lastMsgText;
+      const finalLastSenderId = meta?.lastMessageSenderId || lastMsgSenderId;
+
+      const unreadCount = msgs.filter(
+        m => m.senderId === c.id && authUser && m.receiverId === authUser.uid && (!m.seen && !m.isRead)
+      ).length;
+
+      return {
+        ...c,
+        isFavorite: favoriteContactIds.includes(c.id),
+        isMuted: mutedContactIds.includes(c.id),
+        unreadCount,
+        isTyping: Boolean(typingStatusMap[c.id]),
+        lastMessage: finalLastMessage,
+        lastMessageTime: meta?.lastMessageTime || (lastMsg?.createdAt || null),
+        lastMessageSenderId: finalLastSenderId,
+        lastActivityTime: finalLastActivityTime,
+      };
+    };
+
+    friendContacts.forEach(c => map.set(c.id, enrichContact(c)));
+    groupContacts.forEach(g => map.set(g.id, enrichContact(g)));
+
     setContacts(prev => {
       const prevMap = new Map(prev.map(c => [c.id, c]));
       return Array.from(map.values()).map(c => {
@@ -275,11 +350,11 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           isPinned: existing?.isPinned ?? c.isPinned,
           isLocked: existing?.isLocked ?? c.isLocked,
           isArchived: existing?.isArchived ?? c.isArchived,
-          isFavorite: favoriteContactIds.includes(c.id) || existing?.isFavorite,
+          isMuted: mutedContactIds.includes(c.id) || existing?.isMuted,
         };
       });
     });
-  }, [friendContacts, groupContacts, favoriteContactIds]);
+  }, [friendContacts, groupContacts, favoriteContactIds, mutedContactIds, messages, chatMetadata, typingStatusMap, authUser]);
 
   const getChatIdForContact = (contactId: string): string => {
     if (!contactId) return '';
@@ -290,7 +365,6 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [pendingFriendRequests, setPendingFriendRequests] = useState<FriendRequest[]>([]);
   const [sentFriendRequests, setSentFriendRequests] = useState<FriendRequest[]>([]);
   const [allRegisteredUsers, setAllRegisteredUsers] = useState<any[]>([]);
-  const [messages, setMessages] = useState<Record<string, Message[]>>({});
   const [callLogs, setCallLogs] = useState<CallLog[]>([]);
   const [activeCall, setActiveCall] = useState<ActiveCallState | null>(null);
   const [callPermissionError, setCallPermissionError] = useState<string | null>(null);
@@ -501,6 +575,34 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
       setCustomNicknames(nMap);
     }, (err) => handleFirestoreError('Nicknames snapshot error:', err, () => setCustomNicknames({})));
+
+    return () => unsub();
+  }, [authUser, needsUsername]);
+
+  // Real-time listener for Chat Metadata in Firestore
+  useEffect(() => {
+    if (!authUser || needsUsername) {
+      setChatMetadata({});
+      return;
+    }
+
+    const chatsQuery = query(
+      collection(db, 'chats'),
+      where('participants', 'array-contains', authUser.uid)
+    );
+
+    const unsub = onSnapshot(chatsQuery, (snapshot) => {
+      const metaMap: Record<string, any> = {};
+      snapshot.docs.forEach(d => {
+        const data = d.data();
+        metaMap[d.id] = {
+          lastMessage: data.lastMessage || '',
+          lastMessageTime: data.lastMessageTime || data.updatedAt || null,
+          lastMessageSenderId: data.lastMessageSenderId || '',
+        };
+      });
+      setChatMetadata(metaMap);
+    }, (err) => handleFirestoreError('Chats metadata snapshot error:', err, () => {}));
 
     return () => unsub();
   }, [authUser, needsUsername]);
@@ -720,7 +822,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             if (change.type === 'added') {
               const data = change.doc.data();
               if (data.senderId && data.senderId !== authUser.uid) {
-                playMessageArrivalSound(data.senderId);
+                const isMuted = mutedContactIds.includes(data.senderId) || mutedContactIds.includes(targetId);
+                if (!isMuted) {
+                  playMessageArrivalSound(data.senderId);
+                }
               }
             }
           });
@@ -787,8 +892,6 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [authUser, needsUsername, friendUids, groupContacts]);
 
   // Real-time listener for typing status of friends
-  const [typingStatusMap, setTypingStatusMap] = useState<Record<string, boolean>>({});
-
   useEffect(() => {
     if (!authUser || needsUsername || friendUids.length === 0) {
       setTypingStatusMap({});
@@ -1284,10 +1387,19 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     }
 
-    // Update chat lastMessage
+    // Update chat lastMessage, lastMessageTime, lastMessageSenderId
+    const groupObj = groupContacts.find(g => g.id === receiverId);
+    const participantsList = isGroupChat
+      ? (groupObj?.members || [authUser.uid])
+      : (isSelfChat ? [authUser.uid] : [authUser.uid, receiverId]);
+
+    const lastMsgSummary = text || (finalMedia ? `[${finalMedia.type}]` : '');
+
     await setDoc(doc(db, 'chats', chatId), {
-      participants: isSelfChat ? [authUser.uid] : [authUser.uid, receiverId],
-      lastMessage: text || (finalMedia ? `[${finalMedia.type}]` : ''),
+      participants: participantsList,
+      lastMessage: lastMsgSummary,
+      lastMessageTime: serverTimestamp(),
+      lastMessageSenderId: authUser.uid,
       updatedAt: serverTimestamp(),
     }, { merge: true });
   };
@@ -1800,15 +1912,26 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     const msgRef = collection(db, 'chats', chatId, 'messages');
+    const senderId = callInfo.direction === 'outgoing' ? authUser.uid : contactId;
+    const receiverId = callInfo.direction === 'outgoing' ? contactId : authUser.uid;
+
     await addDoc(msgRef, {
-      senderId: callInfo.direction === 'outgoing' ? authUser.uid : contactId,
-      receiverId: callInfo.direction === 'outgoing' ? contactId : authUser.uid,
+      senderId,
+      receiverId,
       text: textLabel,
       type: callInfo.type === 'video' ? 'video_call' : 'voice_call',
       callInfo,
       isRead: true,
       createdAt: serverTimestamp(),
     }).catch(() => {});
+
+    await setDoc(doc(db, 'chats', chatId), {
+      participants: [authUser.uid, contactId],
+      lastMessage: textLabel,
+      lastMessageTime: serverTimestamp(),
+      lastMessageSenderId: senderId,
+      updatedAt: serverTimestamp(),
+    }, { merge: true }).catch(() => {});
   };
 
   const rejectCall = () => {
@@ -2191,6 +2314,18 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
     setContacts(prev => prev.map(c => c.id === contactId ? { ...c, isFavorite: !c.isFavorite } : c));
   };
+  const toggleMuteContact = (contactId: string) => {
+    setMutedContactIds(prev => {
+      const updated = prev.includes(contactId)
+        ? prev.filter(id => id !== contactId)
+        : [...prev, contactId];
+      try {
+        localStorage.setItem('calcchat_muted_contacts', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+    setContacts(prev => prev.map(c => c.id === contactId ? { ...c, isMuted: !c.isMuted } : c));
+  };
   const unlockChatLock = (contactId: string) => {
     setUnlockedLocks(prev => ({ ...prev, [contactId]: true }));
   };
@@ -2323,6 +2458,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       toggleLockContact,
       toggleArchiveContact,
       toggleFavoriteContact,
+      toggleMuteContact,
       unlockChatLock,
       blockContact,
       unblockContact,

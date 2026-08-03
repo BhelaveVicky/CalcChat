@@ -114,6 +114,11 @@ export interface Contact {
   isTyping?: boolean;
   isSelf?: boolean;
   isFavorite?: boolean;
+  isMuted?: boolean;
+  lastMessage?: string;
+  lastMessageTime?: any;
+  lastMessageSenderId?: string;
+  lastActivityTime?: number;
 }
 
 export type FriendStatus = 'none' | 'pending_sent' | 'pending_received' | 'friends' | 'self';

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Search, Plus, Pin, Lock, EyeOff, Bot, MoreVertical, Trash2, Sparkles, 
-  PhoneCall, MessageSquare, ArrowLeft, X, Archive, BellOff, CheckCheck, Check,
+  PhoneCall, MessageSquare, ArrowLeft, X, Archive, Bell, BellOff, CheckCheck, Check,
   Heart, ListPlus, MinusCircle, LogOut, ChevronRight, Users, UserPlus, UserCheck,
   MessageSquarePlus, Tag, Video, User
 } from 'lucide-react';
@@ -28,6 +28,7 @@ export const ChatList: React.FC = () => {
     toggleLockContact,
     toggleArchiveContact,
     toggleFavoriteContact,
+    toggleMuteContact,
     clearChatHistory,
     customNicknames,
     getContactDisplayName,
@@ -203,11 +204,52 @@ export const ChatList: React.FC = () => {
     return true;
   });
 
-  // Sort: Pinned first
+  // Helper to determine latest message activity timestamp for sorting
+  const getLatestActivity = (c: Contact): number => {
+    if (typeof c.lastActivityTime === 'number' && c.lastActivityTime > 0) {
+      return c.lastActivityTime;
+    }
+    const msgs = messages[c.id] || [];
+    const lastMsg = msgs[msgs.length - 1];
+    if (lastMsg) {
+      if (lastMsg.createdAt?.toMillis) {
+        return lastMsg.createdAt.toMillis();
+      }
+      if (lastMsg.createdAt?.seconds) {
+        return lastMsg.createdAt.seconds * 1000;
+      }
+      if (typeof lastMsg.createdAt === 'number') {
+        return lastMsg.createdAt;
+      }
+      return Date.now();
+    }
+    if (c.lastMessageTime) {
+      if (c.lastMessageTime?.toMillis) {
+        return c.lastMessageTime.toMillis();
+      }
+      if (c.lastMessageTime?.seconds) {
+        return c.lastMessageTime.seconds * 1000;
+      }
+      if (typeof c.lastMessageTime === 'number') {
+        return c.lastMessageTime;
+      }
+    }
+    return 0;
+  };
+
+  // Sort: Pinned first, then by latest message activity (most recent first) exactly like WhatsApp
   const sortedContacts = [...filteredContacts].sort((a, b) => {
     if (a.isPinned && !b.isPinned) return -1;
     if (!a.isPinned && b.isPinned) return 1;
-    return 0;
+
+    const timeA = getLatestActivity(a);
+    const timeB = getLatestActivity(b);
+
+    if (timeB !== timeA) {
+      return timeB - timeA;
+    }
+
+    return a.name.localeCompare(b.name);
   });
 
   const handleContactClick = (contactId: string, isLocked?: boolean) => {
@@ -758,6 +800,7 @@ export const ChatList: React.FC = () => {
                           <Tag className="w-3.5 h-3.5 text-[#00a8ff] shrink-0" />
                         </span>
                       )}
+                      {contact.isMuted && <BellOff className="w-3.5 h-3.5 text-gray-400 shrink-0 opacity-80" />}
                       {contact.isPinned && <Pin className={`w-3.5 h-3.5 rotate-45 shrink-0 ${isDark ? 'text-[#8596a0]' : 'text-gray-400'}`} />}
                       {contact.isLocked && <Lock className="w-3 h-3 text-amber-400 shrink-0" />}
                     </div>
@@ -884,20 +927,30 @@ export const ChatList: React.FC = () => {
                         </div>
                       </button>
 
-                      {/* 2. Mute notifications */}
+                      {/* 2. Mute / Unmute notifications */}
                       <button
                         type="button"
                         onClick={() => {
+                          toggleMuteContact(contact.id);
                           setOpenMenuId(null);
-                          showToast(`Notifications muted`);
+                          showToast(contact.isMuted ? 'Notifications unmuted' : 'Notifications muted');
                         }}
                         className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${
                           isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <BellOff className="w-4.5 h-4.5 opacity-80" />
-                          <span>Mute notifications</span>
+                          {contact.isMuted ? (
+                            <>
+                              <Bell className="w-4.5 h-4.5 text-[#00a8ff]" />
+                              <span>Unmute notifications</span>
+                            </>
+                          ) : (
+                            <>
+                              <BellOff className="w-4.5 h-4.5 opacity-80" />
+                              <span>Mute notifications</span>
+                            </>
+                          )}
                         </div>
                         <ChevronRight className="w-4 h-4 opacity-40" />
                       </button>

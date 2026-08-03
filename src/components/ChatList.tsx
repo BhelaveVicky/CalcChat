@@ -656,8 +656,8 @@ export const ChatList: React.FC = () => {
             };
 
             const getMsgStatus = (msg: Message) => {
-              if (msg.isRead) return 'read';
-              if (msg.isDelivered) return 'delivered';
+              if (msg.isRead || msg.seen) return 'read';
+              if (msg.isDelivered || msg.isSent) return 'delivered';
               if (msg.isSent) return 'sent';
               return 'sending';
             };
@@ -767,25 +767,34 @@ export const ChatList: React.FC = () => {
 
                   <div className="flex items-center justify-between gap-2">
                     <div className={`text-sm truncate flex items-center gap-1.5 ${
-                      isDark ? 'text-[#8596a0]' : 'text-gray-500'
+                      contact.isTyping ? 'text-emerald-500 font-semibold animate-pulse' : (isDark ? 'text-[#8596a0]' : 'text-gray-500')
                     }`}>
-                      {previewData.isOutgoing && previewData.status && (
-                        <span className="shrink-0">
-                          {previewData.status === 'read' ? (
-                            <CheckCheck className="w-4 h-4 text-[#00a8ff] inline" />
-                          ) : previewData.status === 'delivered' ? (
-                            <CheckCheck className="w-4 h-4 text-[#8596a0] inline" />
-                          ) : (
-                            <Check className="w-4 h-4 text-[#8596a0] inline" />
-                          )}
+                      {contact.isTyping ? (
+                        <span className="truncate flex items-center gap-1 text-emerald-500 font-semibold">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping inline-block"></span>
+                          typing...
                         </span>
+                      ) : (
+                        <>
+                          {previewData.isOutgoing && previewData.status && (
+                            <span className="shrink-0">
+                              {previewData.status === 'read' ? (
+                                <CheckCheck className="w-4 h-4 text-emerald-500 inline" />
+                              ) : previewData.status === 'delivered' ? (
+                                <CheckCheck className="w-4 h-4 text-[#8596a0] inline" />
+                              ) : (
+                                <Check className="w-4 h-4 text-[#8596a0] inline" />
+                              )}
+                            </span>
+                          )}
+                          <span className="truncate">{previewData.text}</span>
+                        </>
                       )}
-                      <span className="truncate">{previewData.text}</span>
                     </div>
 
                     <div className="flex items-center gap-1 shrink-0">
                       {unreadBadge > 0 && (
-                        <span className="bg-[#00a8ff] text-[#0b141a] text-xs font-bold px-1.5 py-0.5 rounded-full shrink-0 min-w-[20px] text-center">
+                        <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shrink-0 min-w-[20px] text-center shadow-xs">
                           {unreadBadge > 99 ? '99+' : unreadBadge}
                         </span>
                       )}

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { 
   onAuthStateChanged, signInWithPopup, signOut, 
-  signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile as updateAuthProfile,
+  signInWithEmailAndPassword, createUserWithEmailAndPassword, signInAnonymously, updateProfile as updateAuthProfile,
   User as FirebaseUser 
 } from 'firebase/auth';
 import { 
@@ -83,6 +83,7 @@ interface VaultContextType {
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, pass: string) => Promise<void>;
   signUpWithEmail: (email: string, pass: string, name: string) => Promise<void>;
+  signInAsGuest: () => Promise<void>;
   signOutGoogle: () => Promise<void>;
   setActiveContactId: (id: string | null) => void;
   setActiveTab: (tab: 'chats' | 'gallery' | 'profile' | 'settings' | 'calls') => void;
@@ -93,7 +94,9 @@ interface VaultContextType {
   toggleStarMessage: (contactId: string, msgId: string) => void;
   togglePinMessage: (contactId: string, msgId: string) => void;
   forwardMessage: (msg: Message, targetContactIds: string[]) => void;
-  setTypingStatus: (contactId: string, isTyping: boolean) => void;
+  typingStatusMap?: Record<string, boolean>;
+  setTypingStatus: (contactId: string, isTyping: boolean) => Promise<void>;
+  markMessagesAsRead: (contactId: string) => Promise<void>;
   setCustomNickname: (contactId: string, nickname: string) => Promise<void>;
   clearCustomNickname: (contactId: string) => Promise<void>;
   getContactDisplayName: (contactOrId: Contact | string | null | undefined) => string;
@@ -162,6 +165,7 @@ const fallbackVaultContext: VaultContextType = {
   signInWithGoogle: async () => {},
   signInWithEmail: async () => {},
   signUpWithEmail: async () => {},
+  signInAsGuest: async () => {},
   signOutGoogle: async () => {},
   setActiveContactId: () => {},
   setActiveTab: () => {},
@@ -172,7 +176,9 @@ const fallbackVaultContext: VaultContextType = {
   toggleStarMessage: () => {},
   togglePinMessage: () => {},
   forwardMessage: () => {},
-  setTypingStatus: () => {},
+  typingStatusMap: {},
+  setTypingStatus: async () => {},
+  markMessagesAsRead: async () => {},
   setCustomNickname: async () => {},
   clearCustomNickname: async () => {},
   getContactDisplayName: () => 'User',
@@ -654,6 +660,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               ? data.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
               : 'Just now';
 
+            const isRead = Boolean(data.isRead || data.seen);
+            const seen = data.seen !== undefined ? Boolean(data.seen) : isRead;
+
             return {
               id: d.id,
               senderId: data.senderId,
@@ -666,8 +675,11 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               media: data.media,
               isSent: true,
               isDelivered: true,
-              isRead: Boolean(data.isRead),
+              isRead: isRead,
+              seen: seen,
               isStarred: Boolean(data.isStarred),
+              isPinned: Boolean(data.isPinned),
+              isEdited: Boolean(data.isEdited),
               replyTo: data.replyTo,
               deletedForEveryone: Boolean(data.deletedForEveryone),
               deletedFor: deletedForArr,
@@ -693,6 +705,91 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       unsubs.forEach(u => u());
     };
   }, [authUser, needsUsername, friendUids]);
+
+  // Real-time listener for typing status of friends
+  const [typingStatusMap, setTypingStatusMap] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (!authUser || needsUsername || friendUids.length === 0) {
+      setTypingStatusMap({});
+      return;
+    }
+
+    const unsubs: Array<() => void> = [];
+
+    friendUids.forEach(friendId => {
+      const chatId = [authUser.uid, friendId].sort().join('_');
+      const typingRef = doc(db, 'users', friendId, 'typing', chatId);
+
+      const unsub = onSnapshot(typingRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          setTypingStatusMap(prev => ({
+            ...prev,
+            [friendId]: Boolean(data?.isTyping)
+          }));
+        } else {
+          setTypingStatusMap(prev => ({
+            ...prev,
+            [friendId]: false
+          }));
+        }
+      }, (err) => {
+        handleFirestoreError(`Typing status error for ${friendId}`, err, () => {});
+      });
+
+      unsubs.push(unsub);
+    });
+
+    return () => {
+      unsubs.forEach(u => u());
+    };
+  }, [authUser, needsUsername, friendUids]);
+
+  const setTypingStatus = async (contactId: string, isTyping: boolean) => {
+    if (!authUser || !contactId) return;
+    const chatId = [authUser.uid, contactId].sort().join('_');
+    const typingRef = doc(db, 'users', authUser.uid, 'typing', chatId);
+    try {
+      await setDoc(typingRef, {
+        isTyping: Boolean(isTyping),
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    } catch (e) {
+      console.warn('Failed to update typing status:', e);
+    }
+  };
+
+  const markMessagesAsRead = async (contactId: string) => {
+    if (!authUser || !contactId) return;
+    const chatId = [authUser.uid, contactId].sort().join('_');
+    const chatMsgs = messages[contactId] || [];
+    const unseenMsgs = chatMsgs.filter(m => m.senderId === contactId && m.receiverId === authUser.uid && (!m.seen || !m.isRead));
+
+    if (unseenMsgs.length === 0) return;
+
+    try {
+      const batch = writeBatch(db);
+      let count = 0;
+      unseenMsgs.forEach(m => {
+        const msgRef = doc(db, 'chats', chatId, 'messages', m.id);
+        batch.update(msgRef, { seen: true, isRead: true });
+        count++;
+      });
+      if (count > 0) {
+        await batch.commit();
+      }
+    } catch (err) {
+      console.warn('Failed marking messages as read:', err);
+    }
+  };
+
+  // Automatically mark messages as read when active contact is open
+  useEffect(() => {
+    if (activeContactId && authUser) {
+      markMessagesAsRead(activeContactId);
+    }
+  }, [activeContactId, messages, authUser]);
 
   // Real-time listener for Friend Status Updates
   useEffect(() => {
@@ -1044,9 +1141,11 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         type: finalMedia ? finalMedia.type : 'text',
         media: finalMedia,
         replyTo: replyTo || null,
+        seen: isSelfChat ? true : false,
         isRead: isSelfChat ? true : false,
         createdAt: serverTimestamp(),
       });
+      setTypingStatus(receiverId, false).catch(() => {});
     } catch (err: any) {
       console.error('Error sending message to Firestore:', err);
       if (err?.message?.includes('exceeds the maximum allowed size') || err?.code === 'invalid-argument') {
@@ -1058,9 +1157,11 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           type: 'text',
           media: null,
           replyTo: replyTo || null,
+          seen: isSelfChat ? true : false,
           isRead: isSelfChat ? true : false,
           createdAt: serverTimestamp(),
         });
+        setTypingStatus(receiverId, false).catch(() => {});
       } else {
         throw err;
       }
@@ -1685,6 +1786,31 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setActiveTab('chats');
   };
 
+  const setupLocalSession = (email: string, displayName: string) => {
+    const username = email.split('@')[0]?.toLowerCase() || 'guest';
+    const uid = 'demo_' + String(username).replace(/[^a-zA-Z0-9]/g, '_') + '_' + Math.random().toString(36).substring(2, 6);
+    const mockUser: any = {
+      uid,
+      email: email || 'guest@calcchat.app',
+      displayName: displayName || 'Demo User',
+      photoURL: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+    };
+    setAuthUser(mockUser);
+    setUser({
+      id: uid,
+      name: mockUser.displayName,
+      username: username,
+      avatar: mockUser.photoURL,
+      status: 'Available on Secret Vault',
+      isOnline: true,
+      email: mockUser.email,
+      providerId: 'demo',
+      firebaseUid: uid,
+    });
+    setNeedsUsername(false);
+    return mockUser;
+  };
+
   const signInWithGoogle = async () => {
     setAuthError(null);
     if (firebaseAuth && googleProvider) {
@@ -1692,38 +1818,94 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         await signInWithPopup(firebaseAuth, googleProvider);
       } catch (error: any) {
         console.error('Sign in failed:', error);
+        if (error?.code === 'auth/unauthorized-domain' || error?.message?.includes('unauthorized-domain')) {
+          const domainMsg = 'Google Sign-In is restricted on preview domains in Firebase Authorized Domains. Switching to Demo Session or use Guest Access.';
+          setAuthError(domainMsg);
+          setupLocalSession('google.user@calcchat.app', 'Google User');
+          return;
+        } else if (error?.code === 'auth/operation-not-allowed' || error?.message?.includes('operation-not-allowed')) {
+          setupLocalSession('google.user@calcchat.app', 'Google User');
+          return;
+        }
         setAuthError(error.message);
         throw error;
+      }
+    } else {
+      setupLocalSession('google.user@calcchat.app', 'Google User');
+    }
+  };
+
+  const signInAsGuest = async () => {
+    setAuthError(null);
+    if (!firebaseAuth) {
+      setupLocalSession('guest@calcchat.app', 'Guest User');
+      return;
+    }
+    try {
+      await signInAnonymously(firebaseAuth);
+    } catch (anonErr: any) {
+      console.warn('Anonymous auth failed or disabled, trying demo email or local session fallback:', anonErr);
+      const demoEmail = 'guest.demo@calcchat.app';
+      const demoPass = 'DemoVault123!';
+      try {
+        await signInWithEmailAndPassword(firebaseAuth, demoEmail, demoPass);
+      } catch (signInErr: any) {
+        if (signInErr.code === 'auth/user-not-found' || signInErr.code === 'auth/invalid-credential') {
+          try {
+            const res = await createUserWithEmailAndPassword(firebaseAuth, demoEmail, demoPass);
+            if (res.user) {
+              await updateAuthProfile(res.user, { displayName: 'Guest User' });
+            }
+          } catch (createErr) {
+            setupLocalSession('guest.demo@calcchat.app', 'Guest User');
+          }
+        } else {
+          setupLocalSession('guest.demo@calcchat.app', 'Guest User');
+        }
       }
     }
   };
 
   const signInWithEmail = async (email: string, pass: string) => {
     setAuthError(null);
-    if (firebaseAuth) {
-      try {
-        await signInWithEmailAndPassword(firebaseAuth, email, pass);
-      } catch (error: any) {
-        console.error('Email sign in failed:', error);
-        setAuthError(error.message);
-        throw error;
+    if (!firebaseAuth) {
+      setupLocalSession(email, email.split('@')[0] || 'Demo User');
+      return;
+    }
+    try {
+      await signInWithEmailAndPassword(firebaseAuth, email, pass);
+    } catch (error: any) {
+      console.error('Email sign in failed:', error);
+      if (error?.code === 'auth/operation-not-allowed' || error?.message?.includes('operation-not-allowed')) {
+        console.warn('Firebase Email auth is disabled in console. Switching to Demo Local Session.');
+        setupLocalSession(email, email.split('@')[0] || 'Demo User');
+        return;
       }
+      setAuthError(error.message);
+      throw error;
     }
   };
 
   const signUpWithEmail = async (email: string, pass: string, name: string) => {
     setAuthError(null);
-    if (firebaseAuth) {
-      try {
-        const res = await createUserWithEmailAndPassword(firebaseAuth, email, pass);
-        if (res.user) {
-          await updateAuthProfile(res.user, { displayName: name });
-        }
-      } catch (error: any) {
-        console.error('Email registration failed:', error);
-        setAuthError(error.message);
-        throw error;
+    if (!firebaseAuth) {
+      setupLocalSession(email, name || email.split('@')[0] || 'Demo User');
+      return;
+    }
+    try {
+      const res = await createUserWithEmailAndPassword(firebaseAuth, email, pass);
+      if (res.user) {
+        await updateAuthProfile(res.user, { displayName: name });
       }
+    } catch (error: any) {
+      console.error('Email registration failed:', error);
+      if (error?.code === 'auth/operation-not-allowed' || error?.message?.includes('operation-not-allowed')) {
+        console.warn('Firebase Email auth is disabled in console. Switching to Demo Local Session.');
+        setupLocalSession(email, name || email.split('@')[0] || 'Demo User');
+        return;
+      }
+      setAuthError(error.message);
+      throw error;
     }
   };
 
@@ -1813,19 +1995,60 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const unblockContact = (contactId: string) => {
     setBlockedContactIds(prev => prev.filter(id => id !== contactId));
   };
-  const toggleStarMessage = () => {};
-  const togglePinMessage = () => {};
-  const forwardMessage = () => {};
-  const setTypingStatus = () => {};
+  const toggleStarMessage = async (contactId: string, msgId: string) => {
+    if (!authUser) return;
+    const chatId = [authUser.uid, contactId].sort().join('_');
+    const msg = (messages[contactId] || []).find(m => m.id === msgId);
+    if (!msg) return;
+    await updateDoc(doc(db, 'chats', chatId, 'messages', msgId), {
+      isStarred: !msg.isStarred
+    }).catch(err => console.warn('Failed to star message:', err));
+  };
+
+  const togglePinMessage = async (contactId: string, msgId: string) => {
+    if (!authUser) return;
+    const chatId = [authUser.uid, contactId].sort().join('_');
+    const msg = (messages[contactId] || []).find(m => m.id === msgId);
+    if (!msg) return;
+    await updateDoc(doc(db, 'chats', chatId, 'messages', msgId), {
+      isPinned: !msg.isPinned
+    }).catch(err => console.warn('Failed to pin message:', err));
+  };
+
+  const forwardMessage = async (msg: Message, targetContactIds: string[]) => {
+    if (!authUser || !msg || !targetContactIds || targetContactIds.length === 0) return;
+    for (const targetId of targetContactIds) {
+      try {
+        await sendMessage(targetId, msg.text || '', msg.media || undefined, undefined);
+      } catch (err) {
+        console.warn(`Error forwarding message to ${targetId}:`, err);
+      }
+    }
+  };
+
+  const contactsWithUnreadAndTyping = contacts.map(c => {
+    const cMsgs = messages[c.id] || [];
+    const unreadCount = c.isSelf
+      ? 0
+      : cMsgs.filter(m => m.senderId === c.id && m.receiverId === authUser?.uid && (!m.seen || !m.isRead)).length;
+    const isTyping = Boolean(typingStatusMap[c.id]);
+    return {
+      ...c,
+      unreadCount,
+      isTyping,
+    };
+  });
+
+  const computedUnreadTotal = contactsWithUnreadAndTyping.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
 
   return (
     <VaultContext.Provider value={{
       isUnlocked,
       user,
       settings,
-      contacts,
+      contacts: contactsWithUnreadAndTyping,
       friendUids,
-      unreadTotal,
+      unreadTotal: computedUnreadTotal,
       messages,
       callLogs,
       activeCall,
@@ -1858,6 +2081,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       signInWithGoogle,
       signInWithEmail,
       signUpWithEmail,
+      signInAsGuest,
       signOutGoogle,
       setActiveContactId,
       setActiveTab,
@@ -1868,7 +2092,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       toggleStarMessage,
       togglePinMessage,
       forwardMessage,
+      typingStatusMap,
       setTypingStatus,
+      markMessagesAsRead,
       setCustomNickname,
       clearCustomNickname,
       getContactDisplayName,

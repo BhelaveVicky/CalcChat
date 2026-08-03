@@ -77,6 +77,7 @@ export interface Message {
   isSent?: boolean;
   isDelivered?: boolean;
   isRead?: boolean;
+  seen?: boolean;
   isStarred?: boolean;
   isPinned?: boolean;
   isEdited?: boolean;

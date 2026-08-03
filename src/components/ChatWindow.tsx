@@ -94,12 +94,48 @@ export const ChatWindow: React.FC = () => {
   const [editingMsg, setEditingMsg] = useState<Message | null>(null);
   const [forwardingMsg, setForwardingMsg] = useState<Message | null>(null);
   const [forwardContactIds, setForwardContactIds] = useState<string[]>([]);
+  const [forwardSearch, setForwardSearch] = useState('');
   const [msgContextMenuId, setMsgContextMenuId] = useState<string | null>(null);
 
   // WhatsApp Delete Message Modal States
   const [deleteModalMsg, setDeleteModalMsg] = useState<Message | null>(null);
   const [deleteConfirmType, setDeleteConfirmType] = useState<'everyone' | 'me' | null>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto clear typing timeout when switching chats or unmounting
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
+      if (activeContactId) {
+        setTypingStatus(activeContactId, false);
+      }
+    };
+  }, [activeContactId]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setInputText(val);
+
+    if (!activeContactId) return;
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+
+    if (val.trim().length > 0) {
+      setTypingStatus(activeContactId, true);
+      typingTimeoutRef.current = setTimeout(() => {
+        setTypingStatus(activeContactId, false);
+      }, 1000);
+    } else {
+      setTypingStatus(activeContactId, false);
+    }
+  };
 
   // Audio Voice Recording & Playback States
   const [isRecording, setIsRecording] = useState(false);
@@ -392,7 +428,13 @@ export const ChatWindow: React.FC = () => {
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputText.trim()) return;
+    if (!inputText.trim() || !activeContactId) return;
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+    setTypingStatus(activeContactId, false);
 
     if (editingMsg) {
       editMessage(activeContactId, editingMsg.id, inputText.trim());
@@ -1179,6 +1221,24 @@ export const ChatWindow: React.FC = () => {
                 type="button"
                 onClick={() => {
                   if (selectedMsgIds.length === 0) return;
+                  const firstMsg = curMessages.find(m => selectedMsgIds.includes(m.id));
+                  if (firstMsg) {
+                    setForwardingMsg(firstMsg);
+                    setForwardContactIds([]);
+                    setForwardSearch('');
+                  }
+                  setIsSelectMode(false);
+                  setSelectedMsgIds([]);
+                }}
+                className="p-1.5 hover:bg-white/10 rounded-full text-white"
+                title="Forward selected"
+              >
+                <Forward className="w-5 h-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectedMsgIds.length === 0) return;
                   const selMsgs = curMessages.filter(m => selectedMsgIds.includes(m.id)).map(m => m.text).join('\n');
                   navigator.clipboard.writeText(selMsgs);
                   showToast(`Copied ${selectedMsgIds.length} messages`);
@@ -1597,12 +1657,12 @@ export const ChatWindow: React.FC = () => {
 
                       {/* Delivery Status Indicator */}
                       {isMe && (
-                        msg.isRead ? (
-                          <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb] shrink-0" />
-                        ) : msg.isDelivered ? (
-                          <CheckCheck className="w-3.5 h-3.5 text-[#8696a0] shrink-0" />
+                        (msg.isRead || msg.seen) ? (
+                          <CheckCheck className="w-4 h-4 text-emerald-500 shrink-0 font-bold drop-shadow-xs" />
+                        ) : (msg.isDelivered || msg.isSent) ? (
+                          <CheckCheck className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300/80' : 'text-gray-500'} shrink-0`} />
                         ) : (
-                          <Check className="w-3.5 h-3.5 text-[#8696a0] shrink-0" />
+                          <Check className={`w-3.5 h-3.5 ${isDark ? 'text-slate-300/80' : 'text-gray-500'} shrink-0`} />
                         )
                       )}
                     </div>
@@ -1881,7 +1941,7 @@ export const ChatWindow: React.FC = () => {
                   type="text"
                   placeholder="Message"
                   value={inputText}
-                  onChange={e => setInputText(e.target.value)}
+                  onChange={handleInputChange}
                   className={`flex-1 bg-transparent focus:outline-none text-base py-1 ${
                     isDark ? 'text-[#e9edef] placeholder-[#8596a0]' : 'text-gray-900 placeholder-gray-400'
                   }`}
@@ -2017,52 +2077,101 @@ export const ChatWindow: React.FC = () => {
 
       {/* Forward Message Modal */}
       {forwardingMsg && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <div className={`w-full max-w-sm rounded-3xl p-5 shadow-2xl animate-scale-in ${
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 animate-fade-in">
+          <div className={`w-full max-w-sm rounded-3xl p-5 shadow-2xl animate-scale-in flex flex-col max-h-[85vh] ${
             isDark ? 'bg-[#111b21] border border-[#222e35] text-white' : 'bg-white text-gray-900'
           }`}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-base">Forward Message</h3>
-              <button onClick={() => setForwardingMsg(null)} className="p-1 hover:bg-black/10 rounded-full">
+            <div className="flex items-center justify-between mb-3 shrink-0">
+              <div className="flex items-center gap-2">
+                <Forward className="w-5 h-5 text-[#00a8ff]" />
+                <h3 className="font-bold text-base">Forward Message</h3>
+              </div>
+              <button 
+                onClick={() => {
+                  setForwardingMsg(null);
+                  setForwardSearch('');
+                  setForwardContactIds([]);
+                }} 
+                className="p-1 hover:bg-black/10 rounded-full text-gray-400 hover:text-white"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="max-h-60 overflow-y-auto space-y-2 mb-4">
-              {contacts.map(c => (
-                <div
-                  key={c.id}
-                  onClick={() => {
-                    setForwardContactIds(prev =>
-                      prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
-                    );
-                  }}
-                  className={`p-2.5 rounded-2xl flex items-center justify-between cursor-pointer border transition-colors ${
-                    forwardContactIds.includes(c.id)
-                      ? 'bg-[#00a8ff]/20 border-[#00a8ff]'
-                      : (isDark ? 'bg-[#202c33] border-transparent' : 'bg-gray-100 border-gray-200')
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <img src={c.avatar} className="w-8 h-8 rounded-full object-cover" />
-                    <span className="text-xs font-semibold">{c.name}</span>
-                  </div>
-                  {forwardContactIds.includes(c.id) && <Check className="w-4 h-4 text-[#00a8ff]" />}
-                </div>
-              ))}
+            {/* Message Preview Box */}
+            <div className={`p-3 rounded-2xl mb-3 text-xs shrink-0 border ${
+              isDark ? 'bg-[#202c33] border-[#2a3942]/60 text-[#8696a0]' : 'bg-gray-100 border-gray-200 text-gray-600'
+            }`}>
+              <span className="font-bold block text-[#00a8ff] mb-0.5">Message Content</span>
+              <p className="line-clamp-2 text-xs font-medium text-current">
+                {forwardingMsg.text || (forwardingMsg.media ? `[${forwardingMsg.media.type}] ${forwardingMsg.media.name || ''}` : 'Media Attachment')}
+              </p>
+            </div>
+
+            {/* Contact Search Input */}
+            <div className="mb-3 shrink-0">
+              <input
+                type="text"
+                placeholder="Search contacts..."
+                value={forwardSearch}
+                onChange={e => setForwardSearch(e.target.value)}
+                className={`w-full px-3.5 py-2 rounded-xl text-xs focus:outline-none border ${
+                  isDark
+                    ? 'bg-[#202c33] border-[#2a3942] text-white placeholder-gray-400 focus:border-[#00a8ff]'
+                    : 'bg-gray-100 border-gray-300 text-gray-900 placeholder-gray-500 focus:border-sky-500'
+                }`}
+              />
+            </div>
+
+            {/* Contacts list */}
+            <div className="overflow-y-auto space-y-2 mb-4 flex-1 pr-1 max-h-60">
+              {contacts
+                .filter(c => {
+                  if (!forwardSearch.trim()) return true;
+                  const q = forwardSearch.trim().toLowerCase();
+                  return c.name.toLowerCase().includes(q) || (c.status && c.status.toLowerCase().includes(q));
+                })
+                .map(c => {
+                  const isSelected = forwardContactIds.includes(c.id);
+                  return (
+                    <div
+                      key={c.id}
+                      onClick={() => {
+                        setForwardContactIds(prev =>
+                          prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
+                        );
+                      }}
+                      className={`p-2.5 rounded-2xl flex items-center justify-between cursor-pointer border transition-colors ${
+                        isSelected
+                          ? 'bg-[#00a8ff]/20 border-[#00a8ff]'
+                          : (isDark ? 'bg-[#202c33] border-transparent hover:bg-[#2a3942]' : 'bg-gray-100 border-gray-200 hover:bg-gray-200')
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <img src={c.avatar} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <span className="text-xs font-semibold block truncate">{getContactDisplayName(c)}</span>
+                        </div>
+                      </div>
+                      {isSelected && <Check className="w-4 h-4 text-[#00a8ff] shrink-0" />}
+                    </div>
+                  );
+                })}
             </div>
 
             <button
-              onClick={() => {
-                if (forwardContactIds.length === 0) return;
-                forwardMessage(forwardingMsg, forwardContactIds);
-                showToast(`Forwarded to ${forwardContactIds.length} chats`);
+              onClick={async () => {
+                if (forwardContactIds.length === 0 || !forwardingMsg) return;
+                await forwardMessage(forwardingMsg, forwardContactIds);
+                showToast(`Forwarded message to ${forwardContactIds.length} chat${forwardContactIds.length > 1 ? 's' : ''}`);
                 setForwardingMsg(null);
+                setForwardContactIds([]);
+                setForwardSearch('');
               }}
               disabled={forwardContactIds.length === 0}
-              className="w-full bg-[#00a8ff] text-[#0b141a] font-bold py-3 rounded-xl text-xs hover:bg-[#0088cc] transition-colors disabled:opacity-50"
+              className="w-full bg-[#00a8ff] text-[#0b141a] font-bold py-3 rounded-xl text-xs hover:bg-[#0091ea] transition-colors disabled:opacity-50 shrink-0 shadow-lg cursor-pointer"
             >
-              Send Forward
+              Send Forward ({forwardContactIds.length})
             </button>
           </div>
         </div>

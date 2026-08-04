@@ -321,18 +321,39 @@ export const ChatWindow: React.FC = () => {
     }
   };
 
-  const handleCopyMessage = (msg: Message) => {
-    if (!msg.text) {
+  const toggleMessageSelection = (msgId: string) => {
+    setSelectedMsgIds(prev => {
+      if (prev.includes(msgId)) {
+        return prev.filter(id => id !== msgId);
+      } else {
+        return [...prev, msgId];
+      }
+    });
+    setActiveReactionMsgId(null);
+  };
+
+  const handleCopySelectedMessages = (selectedMsgs: Message[]) => {
+    if (selectedMsgs.length === 0) return;
+    const textContent = selectedMsgs
+      .map(m => m.text)
+      .filter(Boolean)
+      .join('\n');
+
+    if (!textContent) {
       showToast('No text content to copy.');
       return;
     }
-    navigator.clipboard.writeText(msg.text).then(() => {
-      showToast('Message copied');
+    navigator.clipboard.writeText(textContent).then(() => {
+      showToast(selectedMsgs.length === 1 ? 'Message copied' : `${selectedMsgs.length} messages copied`);
       setSelectedMsgIds([]);
       setActiveReactionMsgId(null);
     }).catch(() => {
-      showToast('Failed to copy message.');
+      showToast('Failed to copy messages.');
     });
+  };
+
+  const handleCopyMessage = (msg: Message) => {
+    handleCopySelectedMessages([msg]);
   };
 
   const handlePinMessage = (msg: Message) => {
@@ -377,7 +398,15 @@ export const ChatWindow: React.FC = () => {
     setSelectedMsgIds([]);
   };
 
-  const handleMsgTouchStart = (msg: Message) => {
+  // Swipe to Reply States
+  const [swipingMsgId, setSwipingMsgId] = useState<string | null>(null);
+  const [swipeOffset, setSwipeOffset] = useState<number>(0);
+  const [hasTriggeredHaptic, setHasTriggeredHaptic] = useState<boolean>(false);
+
+  const swipeStartRef = useRef<{ x: number; y: number; msgId: string; isHorizontal?: boolean } | null>(null);
+  const isSwipingRef = useRef<boolean>(false);
+
+  const handleMsgTouchOrMouseDown = (msg: Message) => {
     if (msg.deletedForEveryone) return;
     if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
     longPressTimerRef.current = setTimeout(() => {
@@ -388,15 +417,102 @@ export const ChatWindow: React.FC = () => {
         if (prev.includes(msg.id)) return prev;
         return [...prev, msg.id];
       });
-      setActiveReactionMsgId(msg.id);
+      setActiveReactionMsgId(null);
     }, 380);
   };
 
-  const handleMsgTouchEndOrMove = () => {
+  const handleMsgTouchOrMouseUp = () => {
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
+  };
+
+  const handleSwipeStart = (e: React.TouchEvent | React.MouseEvent, msg: Message) => {
+    if (msg.deletedForEveryone || isSelectMode) return;
+
+    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+
+    swipeStartRef.current = {
+      x: clientX,
+      y: clientY,
+      msgId: msg.id,
+      isHorizontal: undefined,
+    };
+    isSwipingRef.current = false;
+
+    handleMsgTouchOrMouseDown(msg);
+  };
+
+  const handleSwipeMove = (e: React.TouchEvent | React.MouseEvent, msg: Message) => {
+    if (!swipeStartRef.current || swipeStartRef.current.msgId !== msg.id || isSelectMode) return;
+
+    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+
+    const dx = clientX - swipeStartRef.current.x;
+    const dy = clientY - swipeStartRef.current.y;
+
+    if (swipeStartRef.current.isHorizontal === undefined) {
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+        if (Math.abs(dx) > Math.abs(dy) && dx > 0) {
+          swipeStartRef.current.isHorizontal = true;
+          isSwipingRef.current = true;
+          setSwipingMsgId(msg.id);
+
+          if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+          }
+        } else {
+          swipeStartRef.current.isHorizontal = false;
+          return;
+        }
+      } else {
+        return;
+      }
+    }
+
+    if (swipeStartRef.current.isHorizontal) {
+      if (dx > 0) {
+        const maxOffset = 70;
+        const offset = dx > maxOffset ? maxOffset + (dx - maxOffset) * 0.2 : dx;
+        setSwipeOffset(offset);
+
+        const SWIPE_THRESHOLD = 45;
+        if (offset >= SWIPE_THRESHOLD && !hasTriggeredHaptic) {
+          setHasTriggeredHaptic(true);
+          if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+            try { window.navigator.vibrate(35); } catch (_) {}
+          }
+        } else if (offset < SWIPE_THRESHOLD && hasTriggeredHaptic) {
+          setHasTriggeredHaptic(false);
+        }
+      }
+    }
+  };
+
+  const handleSwipeEnd = (msg: Message) => {
+    handleMsgTouchOrMouseUp();
+
+    if (swipingMsgId === msg.id && isSwipingRef.current) {
+      const SWIPE_THRESHOLD = 45;
+      if (swipeOffset >= SWIPE_THRESHOLD) {
+        setReplyingToMsg(msg);
+        if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+          try { window.navigator.vibrate(25); } catch (_) {}
+        }
+      }
+    }
+
+    setSwipeOffset(0);
+    setTimeout(() => {
+      setSwipingMsgId(null);
+      setHasTriggeredHaptic(false);
+      isSwipingRef.current = false;
+      swipeStartRef.current = null;
+    }, 200);
   };
 
   // Close modals on Escape key press
@@ -555,8 +671,14 @@ export const ChatWindow: React.FC = () => {
     } else {
       const replyContext = replyingToMsg ? {
         id: replyingToMsg.id,
-        senderName: replyingToMsg.senderId === user.id ? 'You' : contact.name,
-        text: replyingToMsg.text,
+        senderName: replyingToMsg.senderId === user.id ? 'You' : (contact?.name || 'User'),
+        text: replyingToMsg.text || (replyingToMsg.media ? (
+          replyingToMsg.media.type === 'image' ? '📷 Photo' :
+          replyingToMsg.media.type === 'video' ? '📹 Video' :
+          replyingToMsg.media.type === 'audio' ? '🎤 Voice Note' :
+          replyingToMsg.media.type === 'location' ? '📍 Location' :
+          replyingToMsg.media.type === 'contact' ? '👤 Contact' : `📁 ${replyingToMsg.media.name || 'File'}`
+        ) : 'Message'),
       } : undefined;
 
       sendMessage(activeContactId, inputText.trim(), undefined, replyContext);
@@ -1001,7 +1123,7 @@ export const ChatWindow: React.FC = () => {
             onReply={handleReplySelection}
             onForward={handleForwardSelection}
             onDelete={handleDeleteSelection}
-            onCopy={handleCopyMessage}
+            onCopy={handleCopySelectedMessages}
             onPin={handlePinMessage}
           />
         ) : (
@@ -1396,51 +1518,61 @@ export const ChatWindow: React.FC = () => {
                     )}
                     <div
                       id={`msg_${msg.id}`}
-                      className={`flex flex-col group ${isMe ? 'items-end' : 'items-start'} relative my-1`}
-                    >
-                      {activeReactionMsgId === msg.id && (
-                        <EmojiReactionBar
-                          isDark={isDark}
-                          currentReaction={msg.reactions?.[authUser?.uid || user.id]}
-                          onSelectEmoji={(emoji) => handleSelectReaction(msg.id, emoji)}
-                          onClose={() => setActiveReactionMsgId(null)}
-                        />
-                      )}
-
-                      <div
-                        onTouchStart={() => handleMsgTouchStart(msg)}
-                        onTouchEnd={handleMsgTouchEndOrMove}
-                        onTouchMove={handleMsgTouchEndOrMove}
-                        onContextMenu={(e) => {
-                          e.preventDefault();
+                      onTouchStart={() => handleMsgTouchOrMouseDown(msg)}
+                      onTouchEnd={handleMsgTouchOrMouseUp}
+                      onTouchMove={handleMsgTouchOrMouseUp}
+                      onMouseDown={() => handleMsgTouchOrMouseDown(msg)}
+                      onMouseUp={handleMsgTouchOrMouseUp}
+                      onMouseLeave={handleMsgTouchOrMouseUp}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        if (!msg.deletedForEveryone) {
                           if (!isSelectMode) {
                             setSelectedMsgIds([msg.id]);
-                            setActiveReactionMsgId(msg.id);
+                            setActiveReactionMsgId(null);
+                          } else {
+                            toggleMessageSelection(msg.id);
                           }
-                        }}
-                        onClick={() => {
-                          if (isSelectMode) {
-                            if (isSelected) {
-                              setSelectedMsgIds(selectedMsgIds.filter(id => id !== msg.id));
-                            } else {
-                              setSelectedMsgIds([...selectedMsgIds, msg.id]);
-                            }
-                          }
-                        }}
-                        className={`max-w-[85%] sm:max-w-[75%] px-4 py-2.5 text-sm relative shadow-sm transition-all select-none ${
-                          isMe ? 'rounded-[20px] rounded-br-[3px]' : 'rounded-[20px] rounded-bl-[3px]'
-                        } ${
-                          isSelectMode ? 'cursor-pointer' : ''
-                        } ${
-                          isSelected ? 'ring-2 ring-pink-500 bg-pink-500/20 scale-[1.01]' : ''
-                        } ${
-                          highlightedMsgId === msg.id ? 'ring-2 ring-amber-400 animate-pulse' : ''
-                        } ${
-                          isMe
-                            ? 'bg-[#ea4c89] text-white shadow-pink-500/10'
-                            : (isDark ? 'bg-[#202c33] text-[#e9edef]' : 'bg-white text-gray-900 border border-gray-100')
-                        }`}
-                      >
+                        }
+                      }}
+                      onClick={(e) => {
+                        if (isSelectMode) {
+                          e.stopPropagation();
+                          toggleMessageSelection(msg.id);
+                        }
+                      }}
+                      style={{
+                        backgroundColor: isSelected ? 'rgba(236,72,153,0.12)' : undefined
+                      }}
+                      className={`message-row w-full px-3 sm:px-6 py-1.5 transition-colors duration-150 ease-in-out relative select-none ${
+                        isSelectMode 
+                          ? 'cursor-pointer hover:bg-[rgba(236,72,153,0.18)]' 
+                          : ''
+                      }`}
+                    >
+                      <div className={`flex flex-col group ${isMe ? 'items-end' : 'items-start'} relative w-full`}>
+                        {activeReactionMsgId === msg.id && !isSelectMode && (
+                          <EmojiReactionBar
+                            isDark={isDark}
+                            currentReaction={msg.reactions?.[authUser?.uid || user.id]}
+                            onSelectEmoji={(emoji) => handleSelectReaction(msg.id, emoji)}
+                            onClose={() => setActiveReactionMsgId(null)}
+                          />
+                        )}
+
+                        <div
+                          className={`max-w-[85%] sm:max-w-[75%] px-4 py-2.5 text-sm relative shadow-sm transition-all select-none ${
+                            isMe ? 'rounded-[20px] rounded-br-[3px]' : 'rounded-[20px] rounded-bl-[3px]'
+                          } ${
+                            isSelectMode ? 'pointer-events-none' : ''
+                          } ${
+                            highlightedMsgId === msg.id ? 'ring-2 ring-amber-400 animate-pulse' : ''
+                          } ${
+                            isMe
+                              ? 'bg-[#ea4c89] text-white shadow-pink-500/10'
+                              : (isDark ? 'bg-[#202c33] text-[#e9edef]' : 'bg-white text-gray-900 border border-gray-100')
+                          }`}
+                        >
                     {/* Speech Bubble Tail - Outgoing */}
                     {isMe && (
                       <svg
@@ -1940,7 +2072,8 @@ export const ChatWindow: React.FC = () => {
 
                   </div>
                 </div>
-              </React.Fragment>
+              </div>
+            </React.Fragment>
             );
           });
         })()

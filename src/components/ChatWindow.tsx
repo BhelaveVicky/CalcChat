@@ -398,14 +398,6 @@ export const ChatWindow: React.FC = () => {
     setSelectedMsgIds([]);
   };
 
-  // Swipe to Reply States
-  const [swipingMsgId, setSwipingMsgId] = useState<string | null>(null);
-  const [swipeOffset, setSwipeOffset] = useState<number>(0);
-  const [hasTriggeredHaptic, setHasTriggeredHaptic] = useState<boolean>(false);
-
-  const swipeStartRef = useRef<{ x: number; y: number; msgId: string; isHorizontal?: boolean } | null>(null);
-  const isSwipingRef = useRef<boolean>(false);
-
   const handleMsgTouchOrMouseDown = (msg: Message) => {
     if (msg.deletedForEveryone) return;
     if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
@@ -426,93 +418,6 @@ export const ChatWindow: React.FC = () => {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
-  };
-
-  const handleSwipeStart = (e: React.TouchEvent | React.MouseEvent, msg: Message) => {
-    if (msg.deletedForEveryone || isSelectMode) return;
-
-    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
-
-    swipeStartRef.current = {
-      x: clientX,
-      y: clientY,
-      msgId: msg.id,
-      isHorizontal: undefined,
-    };
-    isSwipingRef.current = false;
-
-    handleMsgTouchOrMouseDown(msg);
-  };
-
-  const handleSwipeMove = (e: React.TouchEvent | React.MouseEvent, msg: Message) => {
-    if (!swipeStartRef.current || swipeStartRef.current.msgId !== msg.id || isSelectMode) return;
-
-    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
-
-    const dx = clientX - swipeStartRef.current.x;
-    const dy = clientY - swipeStartRef.current.y;
-
-    if (swipeStartRef.current.isHorizontal === undefined) {
-      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
-        if (Math.abs(dx) > Math.abs(dy) && dx > 0) {
-          swipeStartRef.current.isHorizontal = true;
-          isSwipingRef.current = true;
-          setSwipingMsgId(msg.id);
-
-          if (longPressTimerRef.current) {
-            clearTimeout(longPressTimerRef.current);
-            longPressTimerRef.current = null;
-          }
-        } else {
-          swipeStartRef.current.isHorizontal = false;
-          return;
-        }
-      } else {
-        return;
-      }
-    }
-
-    if (swipeStartRef.current.isHorizontal) {
-      if (dx > 0) {
-        const maxOffset = 70;
-        const offset = dx > maxOffset ? maxOffset + (dx - maxOffset) * 0.2 : dx;
-        setSwipeOffset(offset);
-
-        const SWIPE_THRESHOLD = 45;
-        if (offset >= SWIPE_THRESHOLD && !hasTriggeredHaptic) {
-          setHasTriggeredHaptic(true);
-          if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
-            try { window.navigator.vibrate(35); } catch (_) {}
-          }
-        } else if (offset < SWIPE_THRESHOLD && hasTriggeredHaptic) {
-          setHasTriggeredHaptic(false);
-        }
-      }
-    }
-  };
-
-  const handleSwipeEnd = (msg: Message) => {
-    handleMsgTouchOrMouseUp();
-
-    if (swipingMsgId === msg.id && isSwipingRef.current) {
-      const SWIPE_THRESHOLD = 45;
-      if (swipeOffset >= SWIPE_THRESHOLD) {
-        setReplyingToMsg(msg);
-        if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
-          try { window.navigator.vibrate(25); } catch (_) {}
-        }
-      }
-    }
-
-    setSwipeOffset(0);
-    setTimeout(() => {
-      setSwipingMsgId(null);
-      setHasTriggeredHaptic(false);
-      isSwipingRef.current = false;
-      swipeStartRef.current = null;
-    }, 200);
   };
 
   // Close modals on Escape key press
@@ -671,14 +576,8 @@ export const ChatWindow: React.FC = () => {
     } else {
       const replyContext = replyingToMsg ? {
         id: replyingToMsg.id,
-        senderName: replyingToMsg.senderId === user.id ? 'You' : (contact?.name || 'User'),
-        text: replyingToMsg.text || (replyingToMsg.media ? (
-          replyingToMsg.media.type === 'image' ? '📷 Photo' :
-          replyingToMsg.media.type === 'video' ? '📹 Video' :
-          replyingToMsg.media.type === 'audio' ? '🎤 Voice Note' :
-          replyingToMsg.media.type === 'location' ? '📍 Location' :
-          replyingToMsg.media.type === 'contact' ? '👤 Contact' : `📁 ${replyingToMsg.media.name || 'File'}`
-        ) : 'Message'),
+        senderName: replyingToMsg.senderId === user.id ? 'You' : contact.name,
+        text: replyingToMsg.text,
       } : undefined;
 
       sendMessage(activeContactId, inputText.trim(), undefined, replyContext);

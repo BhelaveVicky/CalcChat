@@ -1476,6 +1476,60 @@ export const ChatWindow: React.FC = () => {
                           </div>
                         )}
 
+                        {/* Status Reply Card */}
+                        {msg.statusReply && (
+                          <div className={`p-2 rounded-xl border-l-4 mb-2 text-xs border-pink-500 flex items-center gap-2.5 ${
+                            isDark ? 'bg-black/30' : 'bg-pink-500/10'
+                          }`}>
+                            {msg.statusReply.statusMediaUrl ? (
+                              <img
+                                src={msg.statusReply.statusMediaUrl}
+                                alt="Status preview"
+                                className="w-11 h-11 object-cover rounded-lg shrink-0 border border-white/20"
+                              />
+                            ) : (
+                              <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center shrink-0 text-white font-bold text-[10px] p-1 text-center truncate">
+                                Status
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-pink-400 text-[11px] truncate">
+                                Reply to {msg.statusReply.statusOwnerName}'s Status
+                              </p>
+                              {msg.statusReply.statusText && (
+                                <p className="truncate opacity-80 text-[11px]">{msg.statusReply.statusText}</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Status Reaction Card */}
+                        {msg.statusReaction && (
+                          <div className={`p-2 rounded-xl border-l-4 mb-2 text-xs border-pink-500 flex items-center gap-2.5 ${
+                            isDark ? 'bg-black/30' : 'bg-pink-500/10'
+                          }`}>
+                            {msg.statusReaction.statusMediaUrl ? (
+                              <img
+                                src={msg.statusReaction.statusMediaUrl}
+                                alt="Status preview"
+                                className="w-11 h-11 object-cover rounded-lg shrink-0 border border-white/20"
+                              />
+                            ) : (
+                              <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center shrink-0 text-white font-bold text-[10px] p-1 text-center truncate">
+                                Status
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-pink-400 text-[11px] truncate flex items-center gap-1">
+                                Reacted {msg.statusReaction.emoji} to status
+                              </p>
+                              {msg.statusReaction.statusText && (
+                                <p className="truncate opacity-80 text-[11px]">{msg.statusReaction.statusText}</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
                         {/* Quoted Reply Context */}
                         {msg.replyTo && (
                           <div className={`p-2 rounded-lg border-l-4 mb-2 text-xs border-[#00a8ff] ${

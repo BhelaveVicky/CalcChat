@@ -7,16 +7,18 @@ import {
 import { 
   collection, collectionGroup, doc, getDoc, setDoc, updateDoc, deleteDoc, 
   onSnapshot, query, where, orderBy, serverTimestamp, 
-  addDoc, getDocs, writeBatch, arrayUnion, arrayRemove, runTransaction, deleteField
+  addDoc, getDocs, writeBatch, arrayUnion, arrayRemove, runTransaction, deleteField, increment
 } from 'firebase/firestore';
 import { 
   CallInfo, CallLog, CallType, CallDirection, CallStatus, Contact, MediaAttachment, Message, 
-  UserProfile, VaultSettings, FriendRequest, FriendStatus, StatusUpdate 
+  UserProfile, VaultSettings, FriendRequest, FriendStatus, StatusUpdate,
+  StatusSeenRecord, StatusLikeRecord, StatusReactionRecord, StatusReplyData, StatusReactionData
 } from '../types';
 import { DEFAULT_SETTINGS, DEFAULT_USER } from '../data/initialData';
 import { isFirebaseConfigured, firebaseAuth, googleProvider, db } from '../lib/firebase';
 import { compressImage } from '../lib/mediaCompressor';
 import { playMessageArrivalSound } from '../lib/soundUtils';
+import { formatStatusTime } from '../lib/dateUtils';
 
 export interface ActiveCallState {
   id: string;
@@ -78,7 +80,16 @@ interface VaultContextType {
     friendStatus: FriendStatus;
     requestId?: string;
   }>>;
-  postStatusUpdate: (text?: string, mediaUrl?: string, mediaType?: 'image' | 'video') => Promise<void>;
+  postStatusUpdate: (text?: string, mediaUrl?: string, mediaType?: 'image' | 'video', caption?: string, bgColor?: string) => Promise<void>;
+  deleteStatusUpdate: (statusId: string) => Promise<void>;
+  likeStatusUpdate: (statusId: string) => Promise<void>;
+  markStatusAsSeen: (statusId: string) => Promise<void>;
+  replyToStatus: (status: StatusUpdate, replyText: string) => Promise<void>;
+  reactToStatus: (status: StatusUpdate, emoji: string) => Promise<void>;
+  getSeenRecords: (statusId: string) => StatusSeenRecord[];
+  getLikeRecords: (statusId: string) => StatusLikeRecord[];
+  statusSeenRecordsMap?: Record<string, StatusSeenRecord[]>;
+  statusLikeRecordsMap?: Record<string, StatusLikeRecord[]>;
   unlockVault: (code: string) => boolean;
   lockVault: () => void;
   signInWithGoogle: () => Promise<void>;
@@ -168,6 +179,15 @@ const fallbackVaultContext: VaultContextType = {
   isFriend: () => false,
   searchFirebaseUsers: async () => [],
   postStatusUpdate: async () => {},
+  deleteStatusUpdate: async () => {},
+  likeStatusUpdate: async () => {},
+  markStatusAsSeen: async () => {},
+  replyToStatus: async () => {},
+  reactToStatus: async () => {},
+  getSeenRecords: () => [],
+  getLikeRecords: () => [],
+  statusSeenRecordsMap: {},
+  statusLikeRecordsMap: {},
   unlockVault: () => false,
   lockVault: () => {},
   signInWithGoogle: async () => {},
@@ -379,6 +399,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [activeCall, setActiveCall] = useState<ActiveCallState | null>(null);
   const [callPermissionError, setCallPermissionError] = useState<string | null>(null);
   const [statusUpdates, setStatusUpdates] = useState<StatusUpdate[]>([]);
+  const [statusSeenRecordsMap, setStatusSeenRecordsMap] = useState<Record<string, StatusSeenRecord[]>>({});
+  const [statusLikeRecordsMap, setStatusLikeRecordsMap] = useState<Record<string, StatusLikeRecord[]>>({});
   const [blockedContactIds, setBlockedContactIds] = useState<string[]>([]);
   const [blockedByContactIds, setBlockedByContactIds] = useState<string[]>([]);
   const [customNicknames, setCustomNicknames] = useState<Record<string, string>>({});
@@ -1032,7 +1054,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [activeContactId, messages, authUser]);
 
-  // Real-time listener for Friend Status Updates
+  // Real-time listener for Friend Status Updates with 24-hour auto delete filter
   useEffect(() => {
     if (!authUser || needsUsername) return;
 
@@ -1044,23 +1066,43 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const unsub = onSnapshot(statusQuery, (snapshot) => {
       const allowedUids = new Set([authUser.uid, ...friendUids]);
       const list: StatusUpdate[] = [];
+      const nowMs = Date.now();
+      const twentyFourHoursMs = 24 * 60 * 60 * 1000;
 
       snapshot.docs.forEach(d => {
         const data = d.data();
         if (allowedUids.has(data.userId)) {
-          list.push({
-            id: d.id,
-            userId: data.userId,
-            userName: data.userName,
-            userAvatar: data.userAvatar,
-            text: data.text,
-            mediaUrl: data.mediaUrl,
-            mediaType: data.mediaType,
-            createdAt: data.createdAt,
-            expiresAt: data.expiresAt,
-            likes: data.likes || [],
-            repliesCount: data.repliesCount || 0,
-          });
+          // Calculate creation time
+          let createdMs = nowMs;
+          if (data.createdAt?.toMillis) {
+            createdMs = data.createdAt.toMillis();
+          } else if (data.createdAt?.seconds) {
+            createdMs = data.createdAt.seconds * 1000;
+          } else if (typeof data.createdAt === 'number') {
+            createdMs = data.createdAt;
+          }
+
+          // Exclude statuses older than 24 hours
+          if (nowMs - createdMs <= twentyFourHoursMs) {
+            list.push({
+              id: d.id,
+              userId: data.userId,
+              userName: data.userName,
+              userAvatar: data.userAvatar,
+              text: data.text,
+              mediaUrl: data.mediaUrl,
+              mediaType: data.mediaType,
+              caption: data.caption,
+              bgColor: data.bgColor,
+              createdAt: data.createdAt,
+              expiresAt: data.expiresAt,
+              likesCount: data.likesCount || (data.likes ? data.likes.length : 0),
+              seenCount: data.seenCount || (data.seenUserIds ? data.seenUserIds.length : 0),
+              repliesCount: data.repliesCount || 0,
+              likes: data.likes || [],
+              seenUserIds: data.seenUserIds || [],
+            });
+          }
         }
       });
 
@@ -1069,6 +1111,43 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     return () => unsub();
   }, [authUser, needsUsername, friendUids]);
+
+  // Real-time listeners for Status Subcollections (Seen & Likes)
+  useEffect(() => {
+    if (!authUser || needsUsername || statusUpdates.length === 0) return;
+
+    const unsubs: Array<() => void> = [];
+
+    statusUpdates.forEach((st) => {
+      // Subcollection listener for Seen
+      const seenQuery = query(collection(db, 'status', st.id, 'seen'));
+      const unsubSeen = onSnapshot(seenQuery, (snap) => {
+        const records: StatusSeenRecord[] = snap.docs.map(d => ({
+          id: d.id,
+          statusId: st.id,
+          ...d.data()
+        } as StatusSeenRecord));
+        setStatusSeenRecordsMap(prev => ({ ...prev, [st.id]: records }));
+      }, () => {});
+      unsubs.push(unsubSeen);
+
+      // Subcollection listener for Likes
+      const likesQuery = query(collection(db, 'status', st.id, 'likes'));
+      const unsubLikes = onSnapshot(likesQuery, (snap) => {
+        const records: StatusLikeRecord[] = snap.docs.map(d => ({
+          id: d.id,
+          statusId: st.id,
+          ...d.data()
+        } as StatusLikeRecord));
+        setStatusLikeRecordsMap(prev => ({ ...prev, [st.id]: records }));
+      }, () => {});
+      unsubs.push(unsubLikes);
+    });
+
+    return () => {
+      unsubs.forEach(u => u());
+    };
+  }, [authUser, needsUsername, statusUpdates]);
 
   // Check if contactId is in friends list or is a group
   const isFriend = (contactId: string): boolean => {
@@ -1394,28 +1473,206 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Post Status Update
-  const postStatusUpdate = async (text?: string, mediaUrl?: string, mediaType?: 'image' | 'video') => {
-    if (!authUser) return;
+  const postStatusUpdate = async (
+    text?: string,
+    mediaUrl?: string,
+    mediaType?: 'image' | 'video',
+    caption?: string,
+    bgColor?: string
+  ) => {
+    let currentAuthUser = authUser;
+    if (!currentAuthUser && firebaseAuth) {
+      try {
+        const res = await signInAnonymously(firebaseAuth);
+        currentAuthUser = res.user;
+      } catch (e) {
+        console.warn('Anonymous sign in attempt failed before posting status:', e);
+      }
+    }
+
+    if (!currentAuthUser) {
+      console.warn('No authenticated user available to post status update.');
+      return;
+    }
 
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 Hours
 
-    await addDoc(collection(db, 'status'), {
+    let processedMediaUrl = mediaUrl || '';
+    if (processedMediaUrl && mediaType === 'image' && processedMediaUrl.length > 300000) {
+      try {
+        const compressed = await compressImage(processedMediaUrl, 1080, 350000);
+        if (compressed) processedMediaUrl = compressed;
+      } catch (e) {
+        console.warn('Status image compression error:', e);
+      }
+    }
+
+    try {
+      await addDoc(collection(db, 'status'), {
+        userId: currentAuthUser.uid,
+        userName: user.name || currentAuthUser.displayName || 'User',
+        userAvatar: user.avatar || currentAuthUser.photoURL || '',
+        text: text || '',
+        mediaUrl: processedMediaUrl,
+        mediaType: mediaType || 'image',
+        caption: caption || '',
+        bgColor: bgColor || '#ff2e93',
+        createdAt: serverTimestamp(),
+        expiresAt: expiresAt.toISOString(),
+        likesCount: 0,
+        seenCount: 0,
+        repliesCount: 0,
+        likes: [],
+        seenUserIds: [],
+      });
+    } catch (err: any) {
+      console.error('Failed to post status:', err);
+      handleFirestoreError('postStatusUpdate', err);
+    }
+  };
+
+  // Delete Status Update
+  const deleteStatusUpdate = async (statusId: string) => {
+    if (!authUser || !statusId) return;
+    try {
+      await deleteDoc(doc(db, 'status', statusId));
+    } catch (e) {
+      console.error('Error deleting status:', e);
+    }
+  };
+
+  // Like or Unlike Status Update
+  const likeStatusUpdate = async (statusId: string) => {
+    if (!authUser || !statusId) return;
+
+    const statusRef = doc(db, 'status', statusId);
+    const likeDocRef = doc(db, 'status', statusId, 'likes', authUser.uid);
+
+    const now = new Date();
+    const timeFormatted = formatStatusTime(now);
+
+    const likeDocSnap = await getDoc(likeDocRef).catch(() => null);
+
+    if (likeDocSnap && likeDocSnap.exists()) {
+      // Unlike
+      await deleteDoc(likeDocRef).catch(() => {});
+      await updateDoc(statusRef, {
+        likes: arrayRemove(authUser.uid),
+        likesCount: increment(-1),
+      }).catch(() => {});
+    } else {
+      // Like
+      await setDoc(likeDocRef, {
+        userId: authUser.uid,
+        userName: user.name || authUser.displayName || 'User',
+        userAvatar: user.avatar || authUser.photoURL || '',
+        likedAt: serverTimestamp(),
+        likeTime: timeFormatted,
+      }).catch(() => {});
+
+      await updateDoc(statusRef, {
+        likes: arrayUnion(authUser.uid),
+        likesCount: increment(1),
+      }).catch(() => {});
+    }
+  };
+
+  // Mark Status As Seen
+  const markStatusAsSeen = async (statusId: string) => {
+    if (!authUser || !statusId) return;
+
+    const statusRef = doc(db, 'status', statusId);
+    const seenDocRef = doc(db, 'status', statusId, 'seen', authUser.uid);
+
+    const now = new Date();
+    const timeFormatted = formatStatusTime(now);
+
+    const seenSnap = await getDoc(seenDocRef).catch(() => null);
+    if (!seenSnap || !seenSnap.exists()) {
+      await setDoc(seenDocRef, {
+        userId: authUser.uid,
+        userName: user.name || authUser.displayName || 'User',
+        userAvatar: user.avatar || authUser.photoURL || '',
+        seenAt: serverTimestamp(),
+        seenTime: timeFormatted,
+      }).catch(() => {});
+
+      await updateDoc(statusRef, {
+        seenUserIds: arrayUnion(authUser.uid),
+        seenCount: increment(1),
+      }).catch(() => {});
+    }
+  };
+
+  // Reply to Status Update
+  const replyToStatus = async (status: StatusUpdate, replyText: string) => {
+    if (!authUser || !status) return;
+
+    const statusReplyData: StatusReplyData = {
+      statusId: status.id,
+      statusMediaUrl: status.mediaUrl,
+      statusText: status.text,
+      statusMediaType: status.mediaType,
+      statusOwnerName: status.userName,
+      statusOwnerId: status.userId,
+      textReply: replyText,
+    };
+
+    await sendMessage(status.userId, replyText, undefined, undefined, statusReplyData);
+
+    await updateDoc(doc(db, 'status', status.id), {
+      repliesCount: increment(1),
+    }).catch(() => {});
+  };
+
+  // React to Status Update with Emoji
+  const reactToStatus = async (status: StatusUpdate, emoji: string) => {
+    if (!authUser || !status) return;
+
+    const statusReactionData: StatusReactionData = {
+      statusId: status.id,
+      statusMediaUrl: status.mediaUrl,
+      statusText: status.text,
+      statusMediaType: status.mediaType,
+      statusOwnerName: status.userName,
+      statusOwnerId: status.userId,
+      emoji: emoji,
+    };
+
+    const reactionText = `Reacted ${emoji} to your Status`;
+    await sendMessage(status.userId, reactionText, undefined, undefined, undefined, statusReactionData);
+
+    const now = new Date();
+    const timeFormatted = formatStatusTime(now);
+
+    await setDoc(doc(db, 'status', status.id, 'reactions', authUser.uid), {
       userId: authUser.uid,
-      userName: user.name,
-      userAvatar: user.avatar,
-      text: text || '',
-      mediaUrl: mediaUrl || '',
-      mediaType: mediaType || 'image',
+      userName: user.name || authUser.displayName || 'User',
+      userAvatar: user.avatar || authUser.photoURL || '',
+      emoji: emoji,
       createdAt: serverTimestamp(),
-      expiresAt,
-      likes: [],
-      repliesCount: 0,
-    });
+      reactionTime: timeFormatted,
+    }).catch(() => {});
+  };
+
+  const getSeenRecords = (statusId: string): StatusSeenRecord[] => {
+    return statusSeenRecordsMap[statusId] || [];
+  };
+
+  const getLikeRecords = (statusId: string): StatusLikeRecord[] => {
+    return statusLikeRecordsMap[statusId] || [];
   };
 
   // Send Message in Firestore
-  const sendMessage = async (receiverId: string, text: string, media?: MediaAttachment, replyTo?: Message['replyTo']) => {
+  const sendMessage = async (
+    receiverId: string,
+    text: string,
+    media?: MediaAttachment,
+    replyTo?: Message['replyTo'],
+    statusReply?: StatusReplyData,
+    statusReaction?: StatusReactionData
+  ) => {
     const isGroupChat = contacts.some(c => c.id === receiverId && c.isGroup) || groupContacts.some(g => g.id === receiverId) || receiverId.startsWith('group_');
 
     if (!authUser) throw new Error('Not authenticated.');
@@ -1452,15 +1709,25 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     try {
+      const messageType = statusReply
+        ? 'status_reply'
+        : statusReaction
+        ? 'status_reaction'
+        : finalMedia
+        ? finalMedia.type
+        : 'text';
+
       await addDoc(msgRef, {
         senderId: authUser.uid,
         senderName: user.name || authUser?.displayName || 'You',
         senderAvatar: user.avatar || authUser.photoURL || '',
         receiverId,
         text: text || '',
-        type: finalMedia ? finalMedia.type : 'text',
+        type: messageType,
         media: finalMedia,
         replyTo: replyTo || null,
+        statusReply: statusReply || null,
+        statusReaction: statusReaction || null,
         seen: isSelfChat ? true : false,
         isRead: isSelfChat ? true : false,
         createdAt: serverTimestamp(),
@@ -1479,6 +1746,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           type: 'text',
           media: null,
           replyTo: replyTo || null,
+          statusReply: statusReply || null,
+          statusReaction: statusReaction || null,
           seen: isSelfChat ? true : false,
           isRead: isSelfChat ? true : false,
           createdAt: serverTimestamp(),
@@ -2189,18 +2458,20 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       try {
         await signInWithPopup(firebaseAuth, googleProvider);
       } catch (error: any) {
-        console.error('Sign in failed:', error);
-        if (error?.code === 'auth/unauthorized-domain' || error?.message?.includes('unauthorized-domain')) {
-          const domainMsg = 'Google Sign-In is restricted on preview domains in Firebase Authorized Domains. Switching to Demo Session or use Guest Access.';
-          setAuthError(domainMsg);
-          setupLocalSession('google.user@calcchat.app', 'Google User');
-          return;
-        } else if (error?.code === 'auth/operation-not-allowed' || error?.message?.includes('operation-not-allowed')) {
-          setupLocalSession('google.user@calcchat.app', 'Google User');
-          return;
+        console.warn('Google Sign-In error:', error?.code || error?.message);
+        if (error?.code === 'auth/unauthorized-domain' || error?.message?.includes('unauthorized-domain') || error?.code === 'auth/operation-not-allowed' || error?.message?.includes('operation-not-allowed')) {
+          try {
+            const anonRes = await signInAnonymously(firebaseAuth);
+            if (anonRes.user) {
+              await updateAuthProfile(anonRes.user, { displayName: 'Google User (Demo)' });
+            }
+            return;
+          } catch (anonErr) {
+            setupLocalSession('google.user@calcchat.app', 'Google User');
+            return;
+          }
         }
         setAuthError(error.message);
-        throw error;
       }
     } else {
       setupLocalSession('google.user@calcchat.app', 'Google User');
@@ -2604,6 +2875,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       sentFriendRequests,
       allRegisteredUsers,
       statusUpdates,
+      statusSeenRecordsMap,
+      statusLikeRecordsMap,
       completeUsernameSetup,
       sendFriendRequest,
       acceptFriendRequest,
@@ -2612,6 +2885,13 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       isFriend,
       searchFirebaseUsers,
       postStatusUpdate,
+      deleteStatusUpdate,
+      likeStatusUpdate,
+      markStatusAsSeen,
+      replyToStatus,
+      reactToStatus,
+      getSeenRecords,
+      getLikeRecords,
       unlockVault,
       lockVault,
       signInWithGoogle,

@@ -91,6 +91,44 @@ export function formatMessageTime(rawTimestamp: any, fallbackTime?: string): str
   });
 }
 
+// Format status timestamp according to WhatsApp spec: "Today • 2:15 PM", "Yesterday • 8:40 PM", "05 Aug 2026 • 10:30 AM"
+export function formatStatusTime(rawTimestamp: any): string {
+  const date = parseMessageDate(rawTimestamp);
+  if (!date) {
+    if (typeof rawTimestamp === 'string' && rawTimestamp.trim().length > 0) {
+      return rawTimestamp;
+    }
+    return 'Today • 12:00 PM';
+  }
+
+  const now = new Date();
+  const startOfNow = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  const diffTime = startOfNow.getTime() - startOfDate.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+  const timeStr = date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+
+  if (diffDays === 0) {
+    return `Today • ${timeStr}`;
+  }
+
+  if (diffDays === 1) {
+    return `Yesterday • ${timeStr}`;
+  }
+
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = date.toLocaleDateString('en-US', { month: 'short' });
+  const year = date.getFullYear();
+
+  return `${day} ${month} ${year} • ${timeStr}`;
+}
+
 // Date key for grouping (e.g. YYYY-MM-DD)
 export function getMessageDateKey(rawTimestamp: any): string {
   const date = parseMessageDate(rawTimestamp);

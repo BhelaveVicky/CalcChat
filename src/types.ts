@@ -98,7 +98,28 @@ export interface Message {
     text: string;
   };
   reactions?: Record<string, string>;
+  statusReply?: {
+    statusId: string;
+    statusMediaUrl?: string;
+    statusText?: string;
+    statusMediaType?: 'image' | 'video';
+    statusOwnerName?: string;
+    statusOwnerId?: string;
+    textReply?: string;
+  };
+  statusReaction?: {
+    statusId: string;
+    statusMediaUrl?: string;
+    statusText?: string;
+    statusMediaType?: 'image' | 'video';
+    statusOwnerName?: string;
+    statusOwnerId?: string;
+    emoji: string;
+  };
 }
+
+export type StatusReplyData = NonNullable<Message['statusReply']>;
+export type StatusReactionData = NonNullable<Message['statusReaction']>;
 
 export interface Contact {
   id: string;
@@ -163,10 +184,47 @@ export interface StatusUpdate {
   text?: string;
   mediaUrl?: string;
   mediaType?: 'image' | 'video';
+  caption?: string;
+  bgColor?: string;
   createdAt: any;
   expiresAt: any;
-  likes?: string[];
+  formattedTime?: string;
+  likesCount?: number;
+  seenCount?: number;
   repliesCount?: number;
+  likes?: string[];
+  seenUserIds?: string[];
+}
+
+export interface StatusSeenRecord {
+  id: string;
+  statusId: string;
+  userId: string;
+  userName: string;
+  userAvatar: string;
+  seenAt: any;
+  seenTime: string;
+}
+
+export interface StatusLikeRecord {
+  id: string;
+  statusId: string;
+  userId: string;
+  userName: string;
+  userAvatar: string;
+  likedAt: any;
+  likeTime: string;
+}
+
+export interface StatusReactionRecord {
+  id: string;
+  statusId: string;
+  userId: string;
+  userName: string;
+  userAvatar: string;
+  emoji: string;
+  createdAt: any;
+  reactionTime: string;
 }
 
 export interface AppNotification {

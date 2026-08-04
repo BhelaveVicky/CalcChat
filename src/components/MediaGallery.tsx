@@ -6,6 +6,9 @@ import {
   Move, ZoomIn, ZoomOut, Sliders, RefreshCw, Maximize2, ArrowUp, ArrowDown, ArrowLeft, ArrowRight
 } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
+import { StatusUpdate } from '../types';
+import { StatusCard } from './status/StatusCard';
+import { StatusViewer } from './status/StatusViewer';
 
 export interface StatusSlide {
   id: string;
@@ -40,7 +43,14 @@ export interface StatusUser {
 }
 
 export const MediaGallery: React.FC = () => {
-  const { sendMessage, contacts, user, settings: vaultSettings } = useVault();
+  const { 
+    sendMessage, contacts, user, authUser, settings: vaultSettings,
+    statusUpdates, postStatusUpdate, deleteStatusUpdate, likeStatusUpdate,
+    markStatusAsSeen, replyToStatus, reactToStatus, getSeenRecords, getLikeRecords
+  } = useVault();
+
+  // Selected Status Viewer group index
+  const [selectedGroupIndex, setSelectedGroupIndex] = useState<number | null>(null);
 
   const isDark = vaultSettings.theme !== 'material-light' && vaultSettings.theme !== 'light';
 
@@ -358,39 +368,79 @@ export const MediaGallery: React.FC = () => {
     }
   };
 
-  const handlePublishStatus = () => {
-    const newSlide: StatusSlide = {
-      id: `my_slide_${Date.now()}`,
-      image: creatorType === 'media' && selectedMediaUrl ? selectedMediaUrl : undefined,
-      text: creatorType === 'text' ? statusText : undefined,
-      bgColor: creatorType === 'text' ? statusBgColor : undefined,
-      time: 'Just now',
-      caption: statusCaption,
-      viewsCount: 0,
-      viewers: [],
-      filter: selectedFilter,
-      rotation: photoRotation,
-      zoom: photoZoom,
-      positionX: photoPositionX,
-      positionY: photoPositionY,
-      fitMode: photoFitMode,
-      photoTextOverlay: photoTextOverlay,
-      photoTextColor: photoTextColor,
-      canvasBg: photoCanvasBg,
-      privacySetting: privacySetting,
-      privacyContacts: [...selectedPrivacyContactIds]
-    };
+  // Real-time Firestore Status Groups
+  const myStatuses = statusUpdates.filter(s => authUser && s.userId === authUser.uid);
+  const myGroup = {
+    userId: authUser?.uid || 'me',
+    userName: user.name || authUser?.displayName || 'My Status',
+    userAvatar: user.avatar || authUser?.photoURL || '',
+    statuses: myStatuses,
+    hasUnviewed: false,
+    latestCreatedAt: myStatuses[0]?.createdAt,
+  };
 
-    setMySlides((prev) => [...prev, newSlide]);
-    setShowCreatorModal(false);
-    setStatusText('');
-    setStatusCaption('');
-    setSelectedMediaUrl(null);
-    resetPhotoEditor();
+  const otherUsersMap = new Map<string, StatusUpdate[]>();
+  statusUpdates.forEach(s => {
+    if (authUser && s.userId !== authUser.uid) {
+      if (!otherUsersMap.has(s.userId)) {
+        otherUsersMap.set(s.userId, []);
+      }
+      otherUsersMap.get(s.userId)!.push(s);
+    }
+  });
 
-    const label = getPrivacyLabel();
-    setPrivacyToast(`Status uploaded (${label})`);
-    setTimeout(() => setPrivacyToast(null), 3500);
+  const friendGroups: {
+    userId: string;
+    userName: string;
+    userAvatar: string;
+    statuses: StatusUpdate[];
+    hasUnviewed: boolean;
+    latestCreatedAt: any;
+  }[] = [];
+
+  otherUsersMap.forEach((statuses, uId) => {
+    const firstStatus = statuses[0];
+    const hasUnviewed = statuses.some(s => authUser && (!s.seenUserIds || !s.seenUserIds.includes(authUser.uid)));
+    friendGroups.push({
+      userId: uId,
+      userName: firstStatus.userName || 'Friend',
+      userAvatar: firstStatus.userAvatar || '',
+      statuses,
+      hasUnviewed,
+      latestCreatedAt: firstStatus.createdAt,
+    });
+  });
+
+  const recentFriendGroups = friendGroups.filter(g => g.hasUnviewed);
+  const viewedFriendGroups = friendGroups.filter(g => !g.hasUnviewed);
+
+  const allViewerGroups = [
+    myGroup,
+    ...friendGroups
+  ].filter(g => g.statuses.length > 0);
+
+  const handlePublishStatus = async () => {
+    try {
+      if (creatorType === 'text') {
+        if (!statusText.trim()) return;
+        await postStatusUpdate(statusText, '', 'image', statusCaption, statusBgColor);
+      } else {
+        if (!selectedMediaUrl) return;
+        await postStatusUpdate(statusCaption || 'Status update', selectedMediaUrl, 'image', statusCaption, '#ea4c89');
+      }
+
+      setShowCreatorModal(false);
+      setStatusText('');
+      setStatusCaption('');
+      setSelectedMediaUrl(null);
+      resetPhotoEditor();
+
+      const label = getPrivacyLabel();
+      setPrivacyToast(`Status uploaded (${label})`);
+      setTimeout(() => setPrivacyToast(null), 3500);
+    } catch (err) {
+      console.error('Failed to post status:', err);
+    }
   };
 
   const handleToggleMute = (statusId: string, e: React.MouseEvent) => {
@@ -452,146 +502,45 @@ export const MediaGallery: React.FC = () => {
       </div>
 
       <div className="p-3 sm:p-4 space-y-4 max-w-2xl mx-auto w-full">
-
         {/* My Status Card */}
-        <div className={`p-3.5 rounded-2xl transition-all shadow-xs border ${
-          isDark ? 'bg-[#202c33]/70 border-[#2a3942]/50 hover:bg-[#202c33]' : 'bg-white border-gray-200 hover:shadow-md'
-        }`}>
-          <div className="flex items-center justify-between">
-            <div 
-              onClick={() => {
-                if (mySlides.length > 0) {
-                  setActiveUserIndex(-1);
-                  setCurrentSlideIndex(0);
-                  setProgress(0);
-                } else {
-                  setCreatorType('text');
-                  setShowCreatorModal(true);
-                }
-              }}
-              className="flex items-center gap-3.5 min-w-0 cursor-pointer flex-1"
-            >
-              <div className="relative shrink-0">
-                <div className={`w-14 h-14 rounded-full p-[2px] border-2 ${
-                  mySlides.length > 0 ? 'border-[#00a8ff]' : 'border-gray-300 dark:border-[#2a3942]'
-                } flex items-center justify-center overflow-hidden`}>
-                  <img 
-                    src={user.avatar} 
-                    alt="My status" 
-                    className="w-full h-full rounded-full object-cover"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setCreatorType('text');
-                    setShowCreatorModal(true);
-                  }}
-                  className="absolute bottom-0 right-0 w-5 h-5 bg-[#00a8ff] text-[#0b141a] rounded-full flex items-center justify-center font-bold text-xs shadow-md border-2 border-white dark:border-[#111b21]"
-                  title="Add status"
-                >
-                  <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                </button>
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <h3 className="font-semibold text-base leading-tight truncate">My status</h3>
-                <p className={`text-xs sm:text-sm truncate mt-0.5 ${
-                  isDark ? 'text-[#8596a0]' : 'text-gray-500'
-                }`}>
-                  {mySlides.length > 0 
-                    ? `${mySlides.length} update${mySlides.length > 1 ? 's' : ''} • Tap to view` 
-                    : 'Tap to add status update'}
-                </p>
-              </div>
-            </div>
-
-            {/* Quick Actions for My Status */}
-            <div className="flex items-center gap-1 shrink-0">
-              <label 
-                className={`p-2.5 rounded-full cursor-pointer transition-colors ${
-                  isDark ? 'bg-[#111b21] hover:bg-[#2a3942] text-[#00a8ff]' : 'bg-sky-50 hover:bg-sky-100 text-sky-700'
-                }`}
-                title="Camera status"
-              >
-                <Camera className="w-5 h-5" />
-                <input type="file" accept="image/*,video/*" onChange={handleFileUpload} className="hidden" />
-              </label>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setCreatorType('text');
-                  setShowCreatorModal(true);
-                }}
-                className={`p-2.5 rounded-full cursor-pointer transition-colors ${
-                  isDark ? 'bg-[#111b21] hover:bg-[#2a3942] text-[#8596a0]' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                }`}
-                title="Text status"
-              >
-                <Pencil className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </div>
+        <StatusCard
+          statusGroup={myGroup}
+          isSelf={true}
+          isDark={isDark}
+          onClick={() => {
+            if (myStatuses.length > 0) {
+              setSelectedGroupIndex(0);
+            } else {
+              setCreatorType('text');
+              setShowCreatorModal(true);
+            }
+          }}
+          onAddStatus={() => {
+            setCreatorType('text');
+            setShowCreatorModal(true);
+          }}
+        />
 
         {/* Section: Recent Updates */}
-        {unreadStatuses.length > 0 && (
+        {recentFriendGroups.length > 0 && (
           <div className="space-y-2">
             <h4 className={`text-xs font-bold uppercase tracking-wider px-1 ${
               isDark ? 'text-[#8596a0]' : 'text-gray-500'
             }`}>
-              Recent updates ({unreadStatuses.length})
+              Recent updates ({recentFriendGroups.length})
             </h4>
-
-            <div className="space-y-1.5">
-              {unreadStatuses.map((status) => {
-                const globalIdx = contactsStatus.findIndex((s) => s.id === status.id);
+            <div className="space-y-1">
+              {recentFriendGroups.map((group) => {
+                const groupIdx = allViewerGroups.findIndex(g => g.userId === group.userId);
                 return (
-                  <div
-                    key={status.id}
+                  <StatusCard
+                    key={group.userId}
+                    statusGroup={group}
+                    isDark={isDark}
                     onClick={() => {
-                      setActiveUserIndex(globalIdx);
-                      setCurrentSlideIndex(0);
-                      setProgress(0);
+                      if (groupIdx !== -1) setSelectedGroupIndex(groupIdx);
                     }}
-                    className={`p-3 rounded-2xl transition-all cursor-pointer flex items-center justify-between border ${
-                      isDark ? 'bg-[#202c33]/50 hover:bg-[#202c33] border-[#2a3942]/40' : 'bg-white hover:bg-gray-100/80 border-gray-200/80 shadow-2xs'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3.5 min-w-0">
-                      <div className="relative shrink-0">
-                        <div className="w-13 h-13 rounded-full p-[2.5px] border-[2.5px] border-[#00a8ff] flex items-center justify-center">
-                          <img
-                            src={status.avatar}
-                            alt={status.name}
-                            className="w-full h-full rounded-full object-cover"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="min-w-0">
-                        <h4 className="font-semibold text-sm sm:text-base leading-tight truncate">{status.name}</h4>
-                        <p className={`text-xs sm:text-sm mt-0.5 truncate ${
-                          isDark ? 'text-[#8596a0]' : 'text-gray-500'
-                        }`}>
-                          {status.time}
-                        </p>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={(e) => handleToggleMute(status.id, e)}
-                      className={`p-2 rounded-full transition-colors opacity-0 hover:opacity-100 group-hover:opacity-100 ${
-                        isDark ? 'hover:bg-[#111b21] text-[#8596a0]' : 'hover:bg-gray-200 text-gray-500'
-                      }`}
-                      title="Mute status"
-                    >
-                      <EyeOff className="w-4 h-4" />
-                    </button>
-                  </div>
+                  />
                 );
               })}
             </div>
@@ -599,110 +548,28 @@ export const MediaGallery: React.FC = () => {
         )}
 
         {/* Section: Viewed Updates */}
-        {viewedStatuses.length > 0 && (
+        {viewedFriendGroups.length > 0 && (
           <div className="space-y-2 pt-2">
             <h4 className={`text-xs font-bold uppercase tracking-wider px-1 ${
               isDark ? 'text-[#8596a0]' : 'text-gray-500'
             }`}>
-              Viewed updates ({viewedStatuses.length})
+              Viewed updates ({viewedFriendGroups.length})
             </h4>
-
-            <div className="space-y-1.5">
-              {viewedStatuses.map((status) => {
-                const globalIdx = contactsStatus.findIndex((s) => s.id === status.id);
+            <div className="space-y-1">
+              {viewedFriendGroups.map((group) => {
+                const groupIdx = allViewerGroups.findIndex(g => g.userId === group.userId);
                 return (
-                  <div
-                    key={status.id}
+                  <StatusCard
+                    key={group.userId}
+                    statusGroup={group}
+                    isDark={isDark}
                     onClick={() => {
-                      setActiveUserIndex(globalIdx);
-                      setCurrentSlideIndex(0);
-                      setProgress(0);
+                      if (groupIdx !== -1) setSelectedGroupIndex(groupIdx);
                     }}
-                    className={`p-3 rounded-2xl transition-all cursor-pointer flex items-center justify-between border ${
-                      isDark ? 'bg-[#111b21]/50 hover:bg-[#202c33]/50 border-[#2a3942]/30' : 'bg-gray-50 hover:bg-gray-100 border-gray-200/60'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3.5 min-w-0">
-                      <div className="relative shrink-0">
-                        <div className={`w-13 h-13 rounded-full p-[2.5px] border-[2px] ${
-                          isDark ? 'border-[#8596a0]/40' : 'border-gray-300'
-                        } flex items-center justify-center`}>
-                          <img
-                            src={status.avatar}
-                            alt={status.name}
-                            className="w-full h-full rounded-full object-cover grayscale-20"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="min-w-0">
-                        <h4 className={`font-semibold text-sm sm:text-base leading-tight truncate ${
-                          isDark ? 'text-[#8596a0]' : 'text-gray-700'
-                        }`}>{status.name}</h4>
-                        <p className={`text-xs sm:text-sm mt-0.5 truncate ${
-                          isDark ? 'text-[#8596a0]/70' : 'text-gray-400'
-                        }`}>
-                          {status.time}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+                  />
                 );
               })}
             </div>
-          </div>
-        )}
-
-        {/* Section: Muted Updates */}
-        {mutedStatuses.length > 0 && (
-          <div className="space-y-2 pt-2">
-            <button
-              type="button"
-              onClick={() => setShowMutedSection(!showMutedSection)}
-              className={`w-full py-2 px-1 flex items-center justify-between font-bold text-xs uppercase tracking-wider ${
-                isDark ? 'text-[#8596a0]' : 'text-gray-500'
-              }`}
-            >
-              <span>Muted updates ({mutedStatuses.length})</span>
-              <ChevronDown className={`w-4 h-4 transition-transform ${showMutedSection ? 'rotate-180' : ''}`} />
-            </button>
-
-            {showMutedSection && (
-              <div className="space-y-1.5 animate-fade-in">
-                {mutedStatuses.map((status) => {
-                  const globalIdx = contactsStatus.findIndex((s) => s.id === status.id);
-                  return (
-                    <div
-                      key={status.id}
-                      onClick={() => {
-                        setActiveUserIndex(globalIdx);
-                        setCurrentSlideIndex(0);
-                        setProgress(0);
-                      }}
-                      className={`p-3 rounded-2xl transition-all cursor-pointer flex items-center justify-between border opacity-60 hover:opacity-100 ${
-                        isDark ? 'bg-[#111b21] border-[#2a3942]/30' : 'bg-gray-100 border-gray-200'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        <img src={status.avatar} alt={status.name} className="w-11 h-11 rounded-full object-cover" />
-                        <div className="min-w-0">
-                          <h4 className="font-semibold text-sm truncate">{status.name}</h4>
-                          <p className="text-xs text-gray-500">{status.time}</p>
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={(e) => handleToggleMute(status.id, e)}
-                        className="text-xs text-[#00a8ff] font-semibold hover:underline"
-                      >
-                        Unmute
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
         )}
 
@@ -733,274 +600,24 @@ export const MediaGallery: React.FC = () => {
         </label>
       </div>
 
-      {/* Status Viewer Modal */}
-      {activeUser && activeSlide && (
-        <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between animate-fade-in text-white select-none">
-          
-          {/* Top Header */}
-          <div className="p-3 pt-3 bg-gradient-to-b from-black/80 via-black/40 to-transparent z-40 space-y-2.5">
-            
-            {/* Segmented Progress Bars */}
-            <div className="w-full flex items-center gap-1 px-0.5">
-              {activeUser.slides.map((slide, idx) => (
-                <div 
-                  key={slide.id} 
-                  className="flex-1 h-1 bg-white/30 rounded-full overflow-hidden"
-                >
-                  <div 
-                    className="h-full bg-white transition-all duration-75 ease-linear rounded-full"
-                    style={{
-                      width: idx < currentSlideIndex 
-                        ? '100%' 
-                        : idx === currentSlideIndex 
-                          ? `${progress}%` 
-                          : '0%'
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
-
-            {/* User Info & Controls */}
-            <div className="flex items-center justify-between pt-1">
-              <div className="flex items-center gap-3 min-w-0">
-                <img 
-                  src={activeUser.avatar} 
-                  alt={activeUser.name} 
-                  className="w-9 h-9 rounded-full object-cover border border-white/20 shrink-0" 
-                />
-                <div className="min-w-0">
-                  <h4 className="font-semibold text-sm sm:text-base leading-tight truncate">{activeUser.name}</h4>
-                  <p className="text-[11px] sm:text-xs text-white/80 truncate">{activeSlide.time}</p>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center gap-1 shrink-0">
-                {activeUser.id === 'my' && (
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteMySlide(activeSlide.id)}
-                    className="p-1.5 hover:bg-white/10 rounded-full text-rose-400 transition-colors"
-                    title="Delete status slide"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => setIsPaused(!isPaused)}
-                  className="p-1.5 hover:bg-white/10 rounded-full text-white/90 transition-colors"
-                  title={isPaused ? "Play" : "Pause"}
-                >
-                  {isPaused ? <Play className="w-5 h-5 fill-current" /> : <Pause className="w-5 h-5 fill-current" />}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setIsMuted(!isMuted)}
-                  className="p-1.5 hover:bg-white/10 rounded-full text-white/90 transition-colors"
-                  title={isMuted ? "Unmute" : "Mute"}
-                >
-                  {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={closeStoryViewer}
-                  className="p-1.5 hover:bg-white/10 rounded-full text-white/90 transition-colors"
-                  title="Close"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Story Main Viewport */}
-          <div className="flex-1 flex items-center justify-center relative px-2 overflow-hidden">
-            
-            {/* Display Text Status or Image Status */}
-            {activeSlide.text ? (
-              <div className={`w-full max-w-md h-[70vh] rounded-3xl bg-gradient-to-br ${activeSlide.bgColor || 'from-[#00a8ff] to-[#0284c7]'} flex items-center justify-center p-8 text-center shadow-2xl relative overflow-hidden`}>
-                <p className="text-2xl sm:text-3xl font-bold tracking-wide text-white leading-relaxed drop-shadow">
-                  {activeSlide.text}
-                </p>
-              </div>
-            ) : (
-              <div 
-                className="relative w-full max-w-md h-[72vh] rounded-2xl overflow-hidden flex items-center justify-center border border-white/10 shadow-2xl transition-all"
-                style={{ backgroundColor: activeSlide.canvasBg || '#000000' }}
-              >
-                <img 
-                  src={activeSlide.image} 
-                  alt="Story Content" 
-                  className={`transition-all duration-200 select-none pointer-events-none ${
-                    activeSlide.filter === 'vintage' ? 'sepia contrast-125' :
-                    activeSlide.filter === 'mono' ? 'grayscale' :
-                    activeSlide.filter === 'cyber' ? 'hue-rotate-90 saturate-200' :
-                    activeSlide.filter === 'warm' ? 'brightness-105 saturate-150' :
-                    activeSlide.filter === 'dramatic' ? 'contrast-150 brightness-90' : ''
-                  }`}
-                  style={{
-                    transform: `rotate(${activeSlide.rotation || 0}deg) scale(${activeSlide.zoom || 1}) translate(${activeSlide.positionX || 0}px, ${activeSlide.positionY || 0}px)`,
-                    objectFit: activeSlide.fitMode || 'contain',
-                    maxHeight: '100%',
-                    maxWidth: '100%',
-                    width: activeSlide.fitMode === 'cover' || activeSlide.fitMode === 'fill' ? '100%' : 'auto',
-                    height: activeSlide.fitMode === 'cover' || activeSlide.fitMode === 'fill' ? '100%' : 'auto',
-                  }}
-                />
-
-                {/* Text overlay on image if specified */}
-                {activeSlide.photoTextOverlay && (
-                  <div 
-                    className="absolute z-20 px-4 py-2 rounded-xl backdrop-blur-md bg-black/40 font-bold text-center max-w-[85%] shadow-lg drop-shadow border border-white/10 pointer-events-none"
-                    style={{ color: activeSlide.photoTextColor || '#ffffff' }}
-                  >
-                    {activeSlide.photoTextOverlay}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Reaction Emoji Animation Bubble */}
-            {reactionBubble && (
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-7xl animate-bounce z-50">
-                {reactionBubble}
-              </div>
-            )}
-
-            {/* Optional Caption Overlay */}
-            {activeSlide.caption && (
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-md px-5 py-2.5 rounded-2xl max-w-sm text-center text-sm sm:text-base font-medium text-white z-30 shadow-lg border border-white/10">
-                {activeSlide.caption}
-              </div>
-            )}
-
-            {/* Interactive Touch Areas (Mobile Tap Left/Right) */}
-            <div 
-              onClick={handlePrevSlide}
-              onMouseDown={() => setIsPaused(true)}
-              onMouseUp={() => setIsPaused(false)}
-              onTouchStart={() => setIsPaused(true)}
-              onTouchEnd={() => setIsPaused(false)}
-              className="absolute left-0 top-0 w-1/2 h-full z-20 cursor-pointer opacity-0"
-              title="Previous slide"
-            />
-            <div 
-              onClick={handleNextSlide}
-              onMouseDown={() => setIsPaused(true)}
-              onMouseUp={() => setIsPaused(false)}
-              onTouchStart={() => setIsPaused(true)}
-              onTouchEnd={() => setIsPaused(false)}
-              className="absolute right-0 top-0 w-1/2 h-full z-20 cursor-pointer opacity-0"
-              title="Next slide"
-            />
-
-            {/* Desktop Side Arrows */}
-            <button
-              type="button"
-              onClick={handlePrevSlide}
-              className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-black/50 hover:bg-black/80 backdrop-blur text-white items-center justify-center cursor-pointer border border-white/20 transition-transform hover:scale-110 shadow-xl"
-            >
-              <ChevronLeft className="w-7 h-7" />
-            </button>
-            <button
-              type="button"
-              onClick={handleNextSlide}
-              className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 z-30 w-12 h-12 rounded-full bg-black/50 hover:bg-black/80 backdrop-blur text-white items-center justify-center cursor-pointer border border-white/20 transition-transform hover:scale-110 shadow-xl"
-            >
-              <ChevronRight className="w-7 h-7" />
-            </button>
-          </div>
-
-          {/* Bottom Bar: Owner View Count or Reply Controls */}
-          {activeUser.id === 'my' ? (
-            <div className="p-3 bg-gradient-to-t from-black/90 via-black/60 to-transparent flex flex-col items-center justify-center z-40">
-              <button
-                type="button"
-                onClick={() => setShowViewersSheet(!showViewersSheet)}
-                className="flex items-center gap-2 bg-white/15 hover:bg-white/25 px-5 py-2 rounded-full backdrop-blur transition-all font-medium text-xs sm:text-sm cursor-pointer border border-white/20"
-              >
-                <Eye className="w-4 h-4 text-[#00a8ff]" />
-                <span>Seen by {activeSlide.viewsCount || 0}</span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${showViewersSheet ? 'rotate-180' : ''}`} />
-              </button>
-            </div>
-          ) : (
-            <div className="p-3 bg-gradient-to-t from-black/90 via-black/60 to-transparent flex flex-col gap-2 z-40">
-              {/* Quick Reaction Bar */}
-              <div className="flex items-center justify-center gap-3 py-1">
-                {['❤️', '😂', '😍', '😮', '😢', '👍', '🔥'].map((emoji) => (
-                  <button
-                    key={emoji}
-                    type="button"
-                    onClick={() => handleSendReaction(emoji)}
-                    className="text-2xl hover:scale-125 transition-transform active:scale-95 p-1"
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-
-              {/* Reply Input Form */}
-              <form onSubmit={handleSendReply} className="flex items-center gap-2">
-                <input
-                  type="text"
-                  placeholder="Reply..."
-                  value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
-                  onFocus={() => setIsPaused(true)}
-                  onBlur={() => setIsPaused(false)}
-                  className="flex-1 bg-[#202c33]/90 border border-white/20 rounded-full px-4 py-2.5 text-sm text-white placeholder-white/60 focus:outline-none focus:border-[#00a8ff] backdrop-blur"
-                />
-                <button
-                  type="submit"
-                  disabled={!replyText.trim()}
-                  className="bg-[#00a8ff] disabled:opacity-40 hover:bg-[#0088cc] text-[#0b141a] p-2.5 rounded-full font-bold transition-all shadow cursor-pointer"
-                >
-                  <Send className="w-5 h-5 ml-0.5" />
-                </button>
-              </form>
-            </div>
-          )}
-
-          {/* Owner Viewers List Sheet */}
-          {showViewersSheet && activeUser.id === 'my' && (
-            <div className="absolute bottom-0 left-0 right-0 max-h-[50vh] bg-[#111b21] rounded-t-3xl p-4 border-t border-[#202c33] z-50 overflow-y-auto animate-slide-up text-white">
-              <div className="flex items-center justify-between pb-3 border-b border-[#202c33]">
-                <h4 className="font-bold text-sm flex items-center gap-2">
-                  <Eye className="w-4 h-4 text-[#00a8ff]" />
-                  <span>Views ({activeSlide.viewers?.length || 0})</span>
-                </h4>
-                <button type="button" onClick={() => setShowViewersSheet(false)}>
-                  <X className="w-5 h-5 text-gray-400" />
-                </button>
-              </div>
-
-              <div className="py-2 space-y-3">
-                {activeSlide.viewers && activeSlide.viewers.length > 0 ? (
-                  activeSlide.viewers.map((viewer, idx) => (
-                    <div key={idx} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <img src={viewer.avatar} alt={viewer.name} className="w-9 h-9 rounded-full object-cover" />
-                        <div>
-                          <p className="text-sm font-semibold">{viewer.name}</p>
-                          <p className="text-xs text-gray-400">{viewer.time}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-center text-xs text-gray-400 py-4">No views yet</p>
-                )}
-              </div>
-            </div>
-          )}
-
-        </div>
+      {/* Real-time Firestore Status Viewer Modal */}
+      {selectedGroupIndex !== null && allViewerGroups[selectedGroupIndex] && (
+        <StatusViewer
+          statusGroups={allViewerGroups}
+          initialGroupIndex={selectedGroupIndex}
+          currentUserId={authUser?.uid || 'me'}
+          currentUserName={user.name || authUser?.displayName || 'Me'}
+          currentUserAvatar={user.avatar || authUser?.photoURL || ''}
+          onClose={() => setSelectedGroupIndex(null)}
+          onLikeStatus={likeStatusUpdate}
+          onMarkSeen={markStatusAsSeen}
+          onSendReply={replyToStatus}
+          onSendReaction={reactToStatus}
+          onDeleteStatus={deleteStatusUpdate}
+          getSeenRecords={getSeenRecords}
+          getLikeRecords={getLikeRecords}
+          isDark={isDark}
+        />
       )}
 
       {/* Creator Studio Modal (Text / Media Status Creation & Photo Editor) */}

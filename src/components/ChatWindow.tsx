@@ -321,39 +321,18 @@ export const ChatWindow: React.FC = () => {
     }
   };
 
-  const toggleMessageSelection = (msgId: string) => {
-    setSelectedMsgIds(prev => {
-      if (prev.includes(msgId)) {
-        return prev.filter(id => id !== msgId);
-      } else {
-        return [...prev, msgId];
-      }
-    });
-    setActiveReactionMsgId(null);
-  };
-
-  const handleCopySelectedMessages = (selectedMsgs: Message[]) => {
-    if (selectedMsgs.length === 0) return;
-    const textContent = selectedMsgs
-      .map(m => m.text)
-      .filter(Boolean)
-      .join('\n');
-
-    if (!textContent) {
+  const handleCopyMessage = (msg: Message) => {
+    if (!msg.text) {
       showToast('No text content to copy.');
       return;
     }
-    navigator.clipboard.writeText(textContent).then(() => {
-      showToast(selectedMsgs.length === 1 ? 'Message copied' : `${selectedMsgs.length} messages copied`);
+    navigator.clipboard.writeText(msg.text).then(() => {
+      showToast('Message copied');
       setSelectedMsgIds([]);
       setActiveReactionMsgId(null);
     }).catch(() => {
-      showToast('Failed to copy messages.');
+      showToast('Failed to copy message.');
     });
-  };
-
-  const handleCopyMessage = (msg: Message) => {
-    handleCopySelectedMessages([msg]);
   };
 
   const handlePinMessage = (msg: Message) => {
@@ -398,7 +377,7 @@ export const ChatWindow: React.FC = () => {
     setSelectedMsgIds([]);
   };
 
-  const handleMsgTouchOrMouseDown = (msg: Message) => {
+  const handleMsgTouchStart = (msg: Message) => {
     if (msg.deletedForEveryone) return;
     if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
     longPressTimerRef.current = setTimeout(() => {
@@ -409,11 +388,11 @@ export const ChatWindow: React.FC = () => {
         if (prev.includes(msg.id)) return prev;
         return [...prev, msg.id];
       });
-      setActiveReactionMsgId(null);
+      setActiveReactionMsgId(msg.id);
     }, 380);
   };
 
-  const handleMsgTouchOrMouseUp = () => {
+  const handleMsgTouchEndOrMove = () => {
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
@@ -1022,7 +1001,7 @@ export const ChatWindow: React.FC = () => {
             onReply={handleReplySelection}
             onForward={handleForwardSelection}
             onDelete={handleDeleteSelection}
-            onCopy={handleCopySelectedMessages}
+            onCopy={handleCopyMessage}
             onPin={handlePinMessage}
           />
         ) : (
@@ -1417,61 +1396,51 @@ export const ChatWindow: React.FC = () => {
                     )}
                     <div
                       id={`msg_${msg.id}`}
-                      onTouchStart={() => handleMsgTouchOrMouseDown(msg)}
-                      onTouchEnd={handleMsgTouchOrMouseUp}
-                      onTouchMove={handleMsgTouchOrMouseUp}
-                      onMouseDown={() => handleMsgTouchOrMouseDown(msg)}
-                      onMouseUp={handleMsgTouchOrMouseUp}
-                      onMouseLeave={handleMsgTouchOrMouseUp}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        if (!msg.deletedForEveryone) {
+                      className={`flex flex-col group ${isMe ? 'items-end' : 'items-start'} relative my-1`}
+                    >
+                      {activeReactionMsgId === msg.id && (
+                        <EmojiReactionBar
+                          isDark={isDark}
+                          currentReaction={msg.reactions?.[authUser?.uid || user.id]}
+                          onSelectEmoji={(emoji) => handleSelectReaction(msg.id, emoji)}
+                          onClose={() => setActiveReactionMsgId(null)}
+                        />
+                      )}
+
+                      <div
+                        onTouchStart={() => handleMsgTouchStart(msg)}
+                        onTouchEnd={handleMsgTouchEndOrMove}
+                        onTouchMove={handleMsgTouchEndOrMove}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
                           if (!isSelectMode) {
                             setSelectedMsgIds([msg.id]);
-                            setActiveReactionMsgId(null);
-                          } else {
-                            toggleMessageSelection(msg.id);
+                            setActiveReactionMsgId(msg.id);
                           }
-                        }
-                      }}
-                      onClick={(e) => {
-                        if (isSelectMode) {
-                          e.stopPropagation();
-                          toggleMessageSelection(msg.id);
-                        }
-                      }}
-                      style={{
-                        backgroundColor: isSelected ? 'rgba(236,72,153,0.12)' : undefined
-                      }}
-                      className={`message-row w-full px-3 sm:px-6 py-1.5 transition-colors duration-150 ease-in-out relative select-none ${
-                        isSelectMode 
-                          ? 'cursor-pointer hover:bg-[rgba(236,72,153,0.18)]' 
-                          : ''
-                      }`}
-                    >
-                      <div className={`flex flex-col group ${isMe ? 'items-end' : 'items-start'} relative w-full`}>
-                        {activeReactionMsgId === msg.id && !isSelectMode && (
-                          <EmojiReactionBar
-                            isDark={isDark}
-                            currentReaction={msg.reactions?.[authUser?.uid || user.id]}
-                            onSelectEmoji={(emoji) => handleSelectReaction(msg.id, emoji)}
-                            onClose={() => setActiveReactionMsgId(null)}
-                          />
-                        )}
-
-                        <div
-                          className={`max-w-[85%] sm:max-w-[75%] px-4 py-2.5 text-sm relative shadow-sm transition-all select-none ${
-                            isMe ? 'rounded-[20px] rounded-br-[3px]' : 'rounded-[20px] rounded-bl-[3px]'
-                          } ${
-                            isSelectMode ? 'pointer-events-none' : ''
-                          } ${
-                            highlightedMsgId === msg.id ? 'ring-2 ring-amber-400 animate-pulse' : ''
-                          } ${
-                            isMe
-                              ? 'bg-[#ea4c89] text-white shadow-pink-500/10'
-                              : (isDark ? 'bg-[#202c33] text-[#e9edef]' : 'bg-white text-gray-900 border border-gray-100')
-                          }`}
-                        >
+                        }}
+                        onClick={() => {
+                          if (isSelectMode) {
+                            if (isSelected) {
+                              setSelectedMsgIds(selectedMsgIds.filter(id => id !== msg.id));
+                            } else {
+                              setSelectedMsgIds([...selectedMsgIds, msg.id]);
+                            }
+                          }
+                        }}
+                        className={`max-w-[85%] sm:max-w-[75%] px-4 py-2.5 text-sm relative shadow-sm transition-all select-none ${
+                          isMe ? 'rounded-[20px] rounded-br-[3px]' : 'rounded-[20px] rounded-bl-[3px]'
+                        } ${
+                          isSelectMode ? 'cursor-pointer' : ''
+                        } ${
+                          isSelected ? 'ring-2 ring-pink-500 bg-pink-500/20 scale-[1.01]' : ''
+                        } ${
+                          highlightedMsgId === msg.id ? 'ring-2 ring-amber-400 animate-pulse' : ''
+                        } ${
+                          isMe
+                            ? 'bg-[#ea4c89] text-white shadow-pink-500/10'
+                            : (isDark ? 'bg-[#202c33] text-[#e9edef]' : 'bg-white text-gray-900 border border-gray-100')
+                        }`}
+                      >
                     {/* Speech Bubble Tail - Outgoing */}
                     {isMe && (
                       <svg
@@ -1971,8 +1940,7 @@ export const ChatWindow: React.FC = () => {
 
                   </div>
                 </div>
-              </div>
-            </React.Fragment>
+              </React.Fragment>
             );
           });
         })()

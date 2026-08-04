@@ -193,4 +193,3 @@ export interface VaultSettings {
   notificationsEnabled: boolean;
   chatWallpaper?: string;
 }
-  

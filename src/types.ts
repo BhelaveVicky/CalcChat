@@ -19,14 +19,17 @@ export interface UserProfile {
 
 export type CallType = 'voice' | 'video';
 export type CallDirection = 'incoming' | 'outgoing';
-export type CallStatus = 'connected' | 'missed' | 'rejected' | 'cancelled' | 'busy' | 'ended' | 'ringing' | 'connecting';
+export type CallStatus = 'completed' | 'missed' | 'rejected' | 'cancelled' | 'busy' | 'failed' | 'connected' | 'ended' | 'ringing' | 'connecting';
 
 export interface CallInfo {
   id: string;
   type: CallType;
+  callType?: CallType;
   direction: CallDirection;
   status: CallStatus;
   duration?: string;
+  startedAt?: any;
+  endedAt?: any;
   startTime?: string;
   endTime?: string;
   callerId: string;
@@ -37,14 +40,17 @@ export interface CallLog {
   id: string;
   contactId: string;
   type: CallType;
+  callType?: CallType;
   direction: CallDirection;
   status: CallStatus;
   timestamp: string;
   createdAt?: any;
+  startedAt?: any;
+  endedAt?: any;
   duration?: string;
   isMissed?: boolean;
-  callerId?: string;
-  receiverId?: string;
+  callerId: string;
+  receiverId: string;
 }
 
 export interface MediaAttachment {

@@ -1,0 +1,101 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isOwner(userId);
+
+      match /blockedContacts/{contactId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /deletedCalls/{callId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /typing/{chatId} {
+        allow read, write: if isSignedIn();
+      }
+    }
+
+    // Usernames Registry
+    match /usernames/{usernameLower} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
+    }
+
+    // Custom Nicknames
+    match /customNicknames/{docId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Chats Collection
+    match /chats/{chatId} {
+      allow read, list, create, update, delete: if isSignedIn();
+
+      match /messages/{messageId} {
+        allow read, list, create, update, delete: if isSignedIn();
+      }
+    }
+
+    // Friend Requests
+    match /friendRequests/{requestId} {
+      allow read, list, create, update, delete: if isSignedIn();
+    }
+
+    // Friends Relationship
+    match /friends/{friendshipId} {
+      allow read, list, create, update, delete: if isSignedIn();
+    }
+
+    // Groups
+    match /groups/{groupId} {
+      allow read, list, create, update, delete: if isSignedIn();
+    }
+
+    // Status Updates & Stories
+    match /status/{statusId} {
+      allow read, list, create, update, delete: if isSignedIn();
+
+      match /seen/{userId} {
+        allow read, write: if isSignedIn();
+      }
+
+      match /likes/{userId} {
+        allow read, write: if isSignedIn();
+      }
+
+      match /reactions/{userId} {
+        allow read, write: if isSignedIn();
+      }
+    }
+
+    // WebRTC Calls
+    match /calls/{callId} {
+      allow read, list, create, update, delete: if isSignedIn();
+
+      match /callerCandidates/{candidateId} {
+        allow read, write: if isSignedIn();
+      }
+
+      match /receiverCandidates/{candidateId} {
+        allow read, write: if isSignedIn();
+      }
+    }
+  }
+}

@@ -125,7 +125,9 @@ interface VaultContextType {
   toggleVideoCall: () => void;
   toggleSpeakerCall: () => void;
   switchCameraCall: () => void;
-  clearCallLogs: () => void;
+  deleteCallLog: (callId: string) => Promise<void>;
+  deleteMultipleCallLogs: (callIds: string[]) => Promise<void>;
+  clearCallLogs: () => Promise<void>;
   updateSettings: (newSettings: Partial<VaultSettings>) => void;
   updateProfile: (newProfile: Partial<UserProfile>) => Promise<void>;
   addContact: (name: string, status: string, isAi: boolean) => void;
@@ -220,7 +222,9 @@ const fallbackVaultContext: VaultContextType = {
   toggleVideoCall: () => {},
   toggleSpeakerCall: () => {},
   switchCameraCall: () => {},
-  clearCallLogs: () => {},
+  deleteCallLog: async () => {},
+  deleteMultipleCallLogs: async () => {},
+  clearCallLogs: async () => {},
   updateSettings: () => {},
   updateProfile: async () => {},
   addContact: () => {},
@@ -1552,29 +1556,92 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const now = new Date();
     const timeFormatted = formatStatusTime(now);
 
-    const likeDocSnap = await getDoc(likeDocRef).catch(() => null);
+    const bestName = user.name && user.name !== 'User' ? user.name : (authUser.displayName || user.username || 'User');
+    const bestAvatar = user.avatar || authUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
 
-    if (likeDocSnap && likeDocSnap.exists()) {
-      // Unlike
-      await deleteDoc(likeDocRef).catch(() => {});
-      await updateDoc(statusRef, {
-        likes: arrayRemove(authUser.uid),
-        likesCount: increment(-1),
-      }).catch(() => {});
-    } else {
-      // Like
-      await setDoc(likeDocRef, {
-        userId: authUser.uid,
-        userName: user.name || authUser.displayName || 'User',
-        userAvatar: user.avatar || authUser.photoURL || '',
-        likedAt: serverTimestamp(),
-        likeTime: timeFormatted,
-      }).catch(() => {});
+    try {
+      const likeDocSnap = await getDoc(likeDocRef).catch(() => null);
 
-      await updateDoc(statusRef, {
-        likes: arrayUnion(authUser.uid),
-        likesCount: increment(1),
-      }).catch(() => {});
+      if (likeDocSnap && likeDocSnap.exists()) {
+        // Unlike
+        await deleteDoc(likeDocRef).catch(() => {});
+        await updateDoc(statusRef, {
+          likes: arrayRemove(authUser.uid),
+          likesCount: increment(-1),
+        }).catch(() => {});
+
+        // Instant local state updates
+        setStatusUpdates(prev => prev.map(s => {
+          if (s.id === statusId) {
+            const currentLikes = s.likes || [];
+            return {
+              ...s,
+              likes: currentLikes.filter(id => id !== authUser.uid),
+              likesCount: Math.max(0, (s.likesCount || 0) - 1),
+            };
+          }
+          return s;
+        }));
+
+        setStatusLikeRecordsMap(prev => {
+          const current = prev[statusId] || [];
+          return {
+            ...prev,
+            [statusId]: current.filter(r => r.userId !== authUser.uid)
+          };
+        });
+      } else {
+        // Like
+        const newRecord: StatusLikeRecord = {
+          id: authUser.uid,
+          statusId,
+          userId: authUser.uid,
+          userName: bestName,
+          userAvatar: bestAvatar,
+          likeTime: timeFormatted,
+        };
+
+        await setDoc(likeDocRef, {
+          userId: authUser.uid,
+          userName: bestName,
+          userAvatar: bestAvatar,
+          likedAt: serverTimestamp(),
+          likeTime: timeFormatted,
+        }).catch(() => {});
+
+        await updateDoc(statusRef, {
+          likes: arrayUnion(authUser.uid),
+          likesCount: increment(1),
+        }).catch(() => {});
+
+        // Instant local state updates
+        setStatusUpdates(prev => prev.map(s => {
+          if (s.id === statusId) {
+            const currentLikes = s.likes || [];
+            if (!currentLikes.includes(authUser.uid)) {
+              return {
+                ...s,
+                likes: [...currentLikes, authUser.uid],
+                likesCount: (s.likesCount || 0) + 1,
+              };
+            }
+          }
+          return s;
+        }));
+
+        setStatusLikeRecordsMap(prev => {
+          const current = prev[statusId] || [];
+          if (!current.some(r => r.userId === authUser.uid)) {
+            return {
+              ...prev,
+              [statusId]: [...current, newRecord]
+            };
+          }
+          return prev;
+        });
+      }
+    } catch (e) {
+      console.warn('Error toggling status like:', e);
     }
   };
 
@@ -1588,20 +1655,62 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const now = new Date();
     const timeFormatted = formatStatusTime(now);
 
-    const seenSnap = await getDoc(seenDocRef).catch(() => null);
-    if (!seenSnap || !seenSnap.exists()) {
-      await setDoc(seenDocRef, {
-        userId: authUser.uid,
-        userName: user.name || authUser.displayName || 'User',
-        userAvatar: user.avatar || authUser.photoURL || '',
-        seenAt: serverTimestamp(),
-        seenTime: timeFormatted,
-      }).catch(() => {});
+    const bestName = user.name && user.name !== 'User' ? user.name : (authUser.displayName || user.username || 'User');
+    const bestAvatar = user.avatar || authUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
 
-      await updateDoc(statusRef, {
-        seenUserIds: arrayUnion(authUser.uid),
-        seenCount: increment(1),
-      }).catch(() => {});
+    try {
+      const seenSnap = await getDoc(seenDocRef).catch(() => null);
+      if (!seenSnap || !seenSnap.exists()) {
+        await setDoc(seenDocRef, {
+          userId: authUser.uid,
+          userName: bestName,
+          userAvatar: bestAvatar,
+          seenAt: serverTimestamp(),
+          seenTime: timeFormatted,
+        }).catch(() => {});
+
+        await updateDoc(statusRef, {
+          seenUserIds: arrayUnion(authUser.uid),
+          seenCount: increment(1),
+        }).catch(() => {});
+
+        // Instant local state updates
+        setStatusUpdates(prev => prev.map(s => {
+          if (s.id === statusId) {
+            const currentSeen = s.seenUserIds || [];
+            if (!currentSeen.includes(authUser.uid)) {
+              return {
+                ...s,
+                seenUserIds: [...currentSeen, authUser.uid],
+                seenCount: (s.seenCount || 0) + 1,
+              };
+            }
+          }
+          return s;
+        }));
+
+        const newRecord: StatusSeenRecord = {
+          id: authUser.uid,
+          statusId,
+          userId: authUser.uid,
+          userName: bestName,
+          userAvatar: bestAvatar,
+          seenTime: timeFormatted,
+        };
+
+        setStatusSeenRecordsMap(prev => {
+          const current = prev[statusId] || [];
+          if (!current.some(r => r.userId === authUser.uid)) {
+            return {
+              ...prev,
+              [statusId]: [...current, newRecord]
+            };
+          }
+          return prev;
+        });
+      }
+    } catch (e) {
+      console.warn('Error marking status as seen:', e);
     }
   };
 
@@ -1657,11 +1766,105 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const getSeenRecords = (statusId: string): StatusSeenRecord[] => {
-    return statusSeenRecordsMap[statusId] || [];
+    const mapRecords = statusSeenRecordsMap[statusId] || [];
+    const st = statusUpdates.find(s => s.id === statusId);
+    
+    const recordUserIds = new Set(mapRecords.map(r => r.userId));
+    const merged: StatusSeenRecord[] = [...mapRecords];
+
+    if (st && st.seenUserIds && Array.isArray(st.seenUserIds)) {
+      st.seenUserIds.forEach(uid => {
+        if (!recordUserIds.has(uid)) {
+          recordUserIds.add(uid);
+          const contact = contacts.find(c => c.id === uid);
+          const regUser = allRegisteredUsers.find(u => u.uid === uid || u.id === uid);
+          const name = customNicknames[uid] || 
+                       (contact ? getContactDisplayName(contact) : null) || 
+                       regUser?.displayName || 
+                       regUser?.username || 
+                       'User';
+          const avatar = contact?.avatar || regUser?.photoURL || regUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
+          
+          merged.push({
+            id: `seen_${uid}`,
+            statusId,
+            userId: uid,
+            userName: name,
+            userAvatar: avatar,
+            seenTime: 'Recently',
+          });
+        }
+      });
+    }
+
+    return merged.map(r => {
+      const contact = contacts.find(c => c.id === r.userId);
+      const regUser = allRegisteredUsers.find(u => u.uid === r.userId || u.id === r.userId);
+      const resolvedName = customNicknames[r.userId] || 
+                           (contact ? getContactDisplayName(contact) : null) || 
+                           regUser?.displayName || 
+                           regUser?.username || 
+                           (r.userName && r.userName !== 'User' ? r.userName : '') || 
+                           r.userName || 
+                           'User';
+      const resolvedAvatar = contact?.avatar || regUser?.photoURL || regUser?.avatar || r.userAvatar;
+      return {
+        ...r,
+        userName: resolvedName,
+        userAvatar: resolvedAvatar,
+      };
+    });
   };
 
   const getLikeRecords = (statusId: string): StatusLikeRecord[] => {
-    return statusLikeRecordsMap[statusId] || [];
+    const mapRecords = statusLikeRecordsMap[statusId] || [];
+    const st = statusUpdates.find(s => s.id === statusId);
+    
+    const recordUserIds = new Set(mapRecords.map(r => r.userId));
+    const merged: StatusLikeRecord[] = [...mapRecords];
+
+    if (st && st.likes && Array.isArray(st.likes)) {
+      st.likes.forEach(uid => {
+        if (!recordUserIds.has(uid)) {
+          recordUserIds.add(uid);
+          const contact = contacts.find(c => c.id === uid);
+          const regUser = allRegisteredUsers.find(u => u.uid === uid || u.id === uid);
+          const name = customNicknames[uid] || 
+                       (contact ? getContactDisplayName(contact) : null) || 
+                       regUser?.displayName || 
+                       regUser?.username || 
+                       'User';
+          const avatar = contact?.avatar || regUser?.photoURL || regUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
+          
+          merged.push({
+            id: `like_${uid}`,
+            statusId,
+            userId: uid,
+            userName: name,
+            userAvatar: avatar,
+            likeTime: 'Recently',
+          });
+        }
+      });
+    }
+
+    return merged.map(r => {
+      const contact = contacts.find(c => c.id === r.userId);
+      const regUser = allRegisteredUsers.find(u => u.uid === r.userId || u.id === r.userId);
+      const resolvedName = customNicknames[r.userId] || 
+                           (contact ? getContactDisplayName(contact) : null) || 
+                           regUser?.displayName || 
+                           regUser?.username || 
+                           (r.userName && r.userName !== 'User' ? r.userName : '') || 
+                           r.userName || 
+                           'User';
+      const resolvedAvatar = contact?.avatar || regUser?.photoURL || regUser?.avatar || r.userAvatar;
+      return {
+        ...r,
+        userName: resolvedName,
+        userAvatar: resolvedAvatar,
+      };
+    });
   };
 
   // Send Message in Firestore
@@ -1876,7 +2079,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Cleanup Call Resources
-  const cleanupCall = (finalStatus: CallStatus | 'cancelled' | 'busy' | 'rejected' | 'ended' = 'ended') => {
+  const cleanupCall = (finalStatus: CallStatus | 'cancelled' | 'busy' | 'rejected' | 'ended' | 'failed' | 'missed' = 'ended') => {
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => track.stop());
       localStreamRef.current = null;
@@ -1904,20 +2107,39 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const secs = currentCall.durationSeconds % 60;
       const durStr = `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
 
-      let resolvedStatus: CallStatus = 'ended';
+      let resolvedStatus: CallStatus = 'completed';
       if (finalStatus === 'rejected') resolvedStatus = 'rejected';
       else if (finalStatus === 'cancelled') resolvedStatus = 'cancelled';
       else if (finalStatus === 'busy') resolvedStatus = 'busy';
+      else if (finalStatus === 'failed') resolvedStatus = 'failed';
+      else if (finalStatus === 'missed') resolvedStatus = 'missed';
       else if (currentCall.status !== 'connected') resolvedStatus = 'missed';
+
+      const callerId = currentCall.direction === 'outgoing' ? user.id : currentCall.contactId;
+      const receiverId = currentCall.direction === 'outgoing' ? currentCall.contactId : user.id;
+
+      if (currentCall.id) {
+        setDoc(doc(db, 'calls', currentCall.id), {
+          callType: currentCall.type,
+          type: currentCall.type,
+          callerId,
+          receiverId,
+          status: resolvedStatus,
+          duration: resolvedStatus === 'completed' ? durStr : '00:00',
+          durationSeconds: currentCall.durationSeconds,
+          endedAt: serverTimestamp(),
+        }, { merge: true }).catch(err => console.warn('Error saving call doc status:', err));
+      }
 
       const info: CallInfo = {
         id: currentCall.id,
         type: currentCall.type,
+        callType: currentCall.type,
         direction: currentCall.direction,
         status: resolvedStatus,
-        callerId: currentCall.direction === 'outgoing' ? user.id : currentCall.contactId,
-        receiverId: currentCall.direction === 'outgoing' ? currentCall.contactId : user.id,
-        duration: durStr,
+        callerId,
+        receiverId,
+        duration: resolvedStatus === 'completed' ? durStr : undefined,
       };
 
       recordCallInChat(currentCall.contactId, info);
@@ -1997,7 +2219,13 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const data = docSnap.data();
       const isOutgoing = data.callerId === authUser.uid;
       const contactId = isOutgoing ? data.receiverId : data.callerId;
-      const isMissed = data.status === 'missed' || data.status === 'rejected' || data.status === 'busy' || data.status === 'cancelled';
+
+      let rawStatus: CallStatus = data.status || 'completed';
+      if ((rawStatus as string) === 'ended' || (rawStatus as string) === 'connected') {
+        rawStatus = 'completed';
+      }
+
+      const isMissed = rawStatus === 'missed' || rawStatus === 'rejected' || rawStatus === 'busy' || rawStatus === 'cancelled' || rawStatus === 'failed';
 
       let dur = data.duration || '00:00';
       if (!data.duration && data.durationSeconds) {
@@ -2006,23 +2234,40 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         dur = `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
       }
 
+      const callType = data.callType || data.type || 'voice';
+
       return {
         id: docSnap.id,
         contactId,
-        type: data.type || 'voice',
+        type: callType,
+        callType,
         direction: isOutgoing ? 'outgoing' : 'incoming',
-        status: data.status || 'ended',
-        createdAt: data.createdAt,
-        timestamp: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now',
-        duration: dur,
+        status: rawStatus,
+        createdAt: data.createdAt || data.startedAt,
+        startedAt: data.startedAt || data.createdAt,
+        endedAt: data.endedAt,
+        timestamp: (data.createdAt || data.startedAt)?.toDate ? (data.createdAt || data.startedAt).toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now',
+        duration: rawStatus === 'completed' ? dur : '',
         isMissed,
-        callerId: data.callerId,
-        receiverId: data.receiverId,
+        callerId: data.callerId || (isOutgoing ? authUser.uid : contactId),
+        receiverId: data.receiverId || (isOutgoing ? contactId : authUser.uid),
       };
+    };
+
+    const getLocalDeletedCallIds = (): Set<string> => {
+      try {
+        const item = localStorage.getItem(`vault_deleted_calls_${authUser.uid}`);
+        if (item) {
+          const parsed = JSON.parse(item);
+          if (Array.isArray(parsed)) return new Set(parsed);
+        }
+      } catch (e) {}
+      return new Set();
     };
 
     let callerDocs: CallLog[] = [];
     let receiverDocs: CallLog[] = [];
+    let deletedCallIds = getLocalDeletedCallIds();
 
     const updateCombinedCallLogs = () => {
       const logsMap = new Map<string, CallLog>();
@@ -2035,8 +2280,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               const info = m.callInfo;
               const isOutgoing = m.senderId === authUser.uid;
               const isMissed = info.status === 'missed' || info.status === 'rejected' || info.status === 'busy' || info.status === 'cancelled';
-              logsMap.set(m.id, {
-                id: m.id,
+              const logKey = info.id || m.id;
+              logsMap.set(logKey, {
+                id: logKey,
                 contactId: isOutgoing ? (m.receiverId || cId) : (m.senderId || cId),
                 type: info.type,
                 direction: isOutgoing ? 'outgoing' : 'incoming',
@@ -2060,15 +2306,61 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
       });
 
+      // Filter out deleted calls
+      const currentDeleted = getLocalDeletedCallIds();
+      deletedCallIds.forEach(id => currentDeleted.add(id));
+
+      const filtered = Array.from(logsMap.values()).filter(log => !currentDeleted.has(log.id));
+
       // Sort by creation time descending
-      const sorted = Array.from(logsMap.values()).sort((a, b) => {
+      const sorted = filtered.sort((a, b) => {
         const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0);
         const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0);
         return timeB - timeA;
       });
 
-      setCallLogs(sorted);
+      // Secondary deduplication pass to ensure single calls are never shown twice
+      const deduplicated: CallLog[] = [];
+      sorted.forEach(log => {
+        const timeMs = log.createdAt?.toMillis ? log.createdAt.toMillis() : (log.createdAt?.seconds ? log.createdAt.seconds * 1000 : 0);
+
+        const isDuplicate = deduplicated.some(existing => {
+          if (existing.id === log.id) return true;
+          if (existing.contactId !== log.contactId) return false;
+          if (existing.type !== log.type) return false;
+
+          const existingTimeMs = existing.createdAt?.toMillis ? existing.createdAt.toMillis() : (existing.createdAt?.seconds ? existing.createdAt.seconds * 1000 : 0);
+
+          if (timeMs > 0 && existingTimeMs > 0) {
+            // Within 2 minutes (120,000ms) for same contact & call type
+            return Math.abs(timeMs - existingTimeMs) < 120000;
+          }
+
+          // Fallback timestamp check
+          return existing.timestamp && log.timestamp && existing.timestamp === log.timestamp;
+        });
+
+        if (!isDuplicate) {
+          deduplicated.push(log);
+        }
+      });
+
+      setCallLogs(deduplicated);
     };
+
+    const unsubDeleted = onSnapshot(collection(db, 'users', authUser.uid, 'deletedCalls'), (snap) => {
+      const remoteIds = snap.docs.map(d => d.id);
+      const local = getLocalDeletedCallIds();
+      remoteIds.forEach(id => local.add(id));
+      deletedCallIds = local;
+      try {
+        localStorage.setItem(`vault_deleted_calls_${authUser.uid}`, JSON.stringify(Array.from(local)));
+      } catch (e) {}
+      updateCombinedCallLogs();
+    }, (err) => {
+      console.warn('Deleted calls snapshot warning:', err);
+      updateCombinedCallLogs();
+    });
 
     const callerQuery = query(
       collection(db, 'calls'),
@@ -2091,6 +2383,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }, (err) => handleFirestoreError('Receiver calls snapshot error:', err, () => {}));
 
     return () => {
+      unsubDeleted();
       unsubCaller();
       unsubReceiver();
     };
@@ -2489,8 +2782,65 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const clearCallLogs = () => {
+  const markCallsDeleted = (ids: string[]) => {
+    if (!authUser || !ids.length) return;
+    try {
+      const key = `vault_deleted_calls_${authUser.uid}`;
+      const raw = localStorage.getItem(key);
+      const existing: string[] = raw ? JSON.parse(raw) : [];
+      const updated = Array.from(new Set([...existing, ...ids]));
+      localStorage.setItem(key, JSON.stringify(updated));
+    } catch (e) {}
+  };
+
+  const deleteCallLog = async (callId: string) => {
+    setCallLogs(prev => prev.filter(c => c.id !== callId));
+    if (!authUser) return;
+    markCallsDeleted([callId]);
+
+    try {
+      await deleteDoc(doc(db, 'calls', callId)).catch(() => {});
+      await setDoc(doc(db, 'users', authUser.uid, 'deletedCalls', callId), { deletedAt: serverTimestamp() }).catch(() => {});
+    } catch (e) {
+      console.warn('Error deleting call log:', e);
+    }
+  };
+
+  const deleteMultipleCallLogs = async (callIds: string[]) => {
+    if (!callIds || !callIds.length) return;
+    const setIds = new Set(callIds);
+    setCallLogs(prev => prev.filter(c => !setIds.has(c.id)));
+    if (!authUser) return;
+    markCallsDeleted(callIds);
+
+    try {
+      const batch = writeBatch(db);
+      callIds.forEach(cId => {
+        batch.delete(doc(db, 'calls', cId));
+        batch.set(doc(db, 'users', authUser.uid, 'deletedCalls', cId), { deletedAt: serverTimestamp() });
+      });
+      await batch.commit().catch(() => {});
+    } catch (e) {
+      console.warn('Error deleting multiple call logs:', e);
+    }
+  };
+
+  const clearCallLogs = async () => {
+    const allIds = callLogs.map(c => c.id);
     setCallLogs([]);
+    if (!authUser || !allIds.length) return;
+    markCallsDeleted(allIds);
+
+    try {
+      const batch = writeBatch(db);
+      allIds.forEach(cId => {
+        batch.delete(doc(db, 'calls', cId));
+        batch.set(doc(db, 'users', authUser.uid, 'deletedCalls', cId), { deletedAt: serverTimestamp() });
+      });
+      await batch.commit().catch(() => {});
+    } catch (e) {
+      console.warn('Error clearing call logs:', e);
+    }
   };
 
   const unlockVault = (code: string): boolean => {
@@ -3010,6 +3360,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       toggleVideoCall,
       toggleSpeakerCall,
       switchCameraCall,
+      deleteCallLog,
+      deleteMultipleCallLogs,
       clearCallLogs,
       updateSettings,
       updateProfile,

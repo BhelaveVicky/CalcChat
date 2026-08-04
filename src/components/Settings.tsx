@@ -261,7 +261,7 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
             }`}
           >
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-red-500 to-pink-600 shadow-lg">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-red-500 to-blue-600 shadow-lg">
                 <Trash2 className="w-5 h-5 text-white" />
               </div>
               <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>{t('deleteHistory')}</span>
@@ -560,7 +560,7 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                     isDark ? 'bg-[#282828] border-[#333333] hover:bg-[#333333]' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
                   }`}
                 >
-                  <div className="p-3 rounded-xl bg-gradient-to-br from-red-500 to-pink-600 shadow-lg">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-red-500 to-blue-600 shadow-lg">
                     <Download className="w-6 h-6 text-white" />
                   </div>
                   <div className="flex-1 text-left">

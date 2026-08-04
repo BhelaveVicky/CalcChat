@@ -187,7 +187,7 @@ export const CallsView: React.FC = () => {
           /* Standard Header */
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#ff2e93] to-[#ff758c] flex items-center justify-center text-white shadow-md shadow-pink-500/20">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#ff2e93] to-[#ff758c] flex items-center justify-center text-white shadow-md shadow-blue-500/20">
                 <PhoneCall className="w-4.5 h-4.5" />
               </div>
               <h2 className={`text-xl font-bold tracking-tight ${isDark ? 'text-[#e9edef]' : 'text-gray-900'}`}>
@@ -198,7 +198,7 @@ export const CallsView: React.FC = () => {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowNewCallModal(true)}
-                className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white hover:opacity-90 transition-all active:scale-95 shadow-md shadow-pink-500/25 flex items-center gap-1.5 text-xs font-semibold"
+                className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white hover:opacity-90 transition-all active:scale-95 shadow-md shadow-blue-500/25 flex items-center gap-1.5 text-xs font-semibold"
                 title="Start New Call"
               >
                 <Plus className="w-4 h-4" />
@@ -238,10 +238,10 @@ export const CallsView: React.FC = () => {
         {/* Search Bar */}
         <div className={`flex items-center gap-3 px-4 py-2 rounded-full text-sm transition-all border ${
           isDark 
-            ? 'bg-[#202c33] text-[#e9edef] border-pink-500/10 focus-within:border-[#ff2e93]/50' 
+            ? 'bg-[#202c33] text-[#e9edef] border-blue-500/10 focus-within:border-[#ff2e93]/50' 
             : 'bg-gray-100 text-gray-900 border-gray-200 focus-within:border-[#ff2e93]/50'
         }`}>
-          <Search className={`w-4 h-4 shrink-0 ${isDark ? 'text-pink-400/70' : 'text-pink-500/70'}`} />
+          <Search className={`w-4 h-4 shrink-0 ${isDark ? 'text-blue-400/70' : 'text-blue-500/70'}`} />
           <input
             type="text"
             value={searchQuery}
@@ -270,10 +270,10 @@ export const CallsView: React.FC = () => {
                 onClick={() => setFilterTab(tab.id as FilterTab)}
                 className={`relative px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
                   isActive
-                    ? 'bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white shadow-md shadow-pink-500/30'
+                    ? 'bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white shadow-md shadow-blue-500/30'
                     : isDark
                       ? 'bg-[#202c33] text-gray-300 hover:text-white hover:bg-[#202c33]/80'
-                      : 'bg-pink-50 text-pink-700 hover:bg-pink-100'
+                      : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
                 }`}
               >
                 {tab.label}
@@ -386,10 +386,10 @@ export const CallsView: React.FC = () => {
                     isSelected
                       ? isDark 
                         ? 'bg-[#ff2e93]/20 border-[#ff2e93]' 
-                        : 'bg-pink-100 border-pink-400'
+                        : 'bg-blue-100 border-blue-400'
                       : isDark 
                         ? 'bg-[#111b21] hover:bg-[#202c33]/70 border-[#202c33]' 
-                        : 'bg-white hover:bg-pink-50/40 border-gray-100 shadow-xs'
+                        : 'bg-white hover:bg-blue-50/40 border-gray-100 shadow-xs'
                   }`}
                 >
                   {/* Selection Checkbox */}
@@ -411,7 +411,7 @@ export const CallsView: React.FC = () => {
                       className={`w-12 h-12 rounded-full object-cover border-2 ${
                         isRed
                           ? 'border-rose-500/60'
-                          : isDark ? 'border-[#ff2e93]/30' : 'border-pink-200'
+                          : isDark ? 'border-[#ff2e93]/30' : 'border-blue-200'
                       }`}
                     />
                     <div className={`absolute -bottom-0.5 -right-0.5 p-1 rounded-full text-white ${badgeBg}`}>
@@ -439,7 +439,7 @@ export const CallsView: React.FC = () => {
 
                   {/* Date & Time */}
                   <div className="flex flex-col items-end shrink-0 text-right gap-0.5">
-                    <div className="text-xs font-semibold text-[#ff2e93] dark:text-pink-400">
+                    <div className="text-xs font-semibold text-[#ff2e93] dark:text-blue-400">
                       {dateStr}
                     </div>
                     <div className={`text-[11px] ${isDark ? 'text-[#8596a0]' : 'text-gray-500'}`}>
@@ -490,7 +490,7 @@ export const CallsView: React.FC = () => {
             {/* Empty State when no logs match */}
             {filteredLogs.length === 0 && (
               <div className={`py-16 px-6 text-center text-sm flex flex-col items-center justify-center gap-3 rounded-3xl border border-dashed my-4 ${
-                isDark ? 'border-[#202c33] bg-[#111b21]/50 text-[#8596a0]' : 'border-pink-200 text-gray-500 bg-pink-50/20'
+                isDark ? 'border-[#202c33] bg-[#111b21]/50 text-[#8596a0]' : 'border-blue-200 text-gray-500 bg-blue-50/20'
               }`}>
                 <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-[#ff2e93]/20 to-[#ff758c]/20 flex items-center justify-center text-[#ff2e93]">
                   <PhoneCall className="w-8 h-8" />
@@ -512,7 +512,7 @@ export const CallsView: React.FC = () => {
                 {filterTab === 'all' && (
                   <button
                     onClick={() => setShowNewCallModal(true)}
-                    className="mt-2 px-4 py-2 rounded-full bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white text-xs font-semibold shadow-md shadow-pink-500/20 hover:opacity-90 transition-all active:scale-95 flex items-center gap-2"
+                    className="mt-2 px-4 py-2 rounded-full bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white text-xs font-semibold shadow-md shadow-blue-500/20 hover:opacity-90 transition-all active:scale-95 flex items-center gap-2"
                   >
                     <Plus className="w-4 h-4" />
                     <span>Start a New Call</span>
@@ -528,7 +528,7 @@ export const CallsView: React.FC = () => {
       {showNewCallModal && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
           <div className={`w-full max-w-sm rounded-3xl p-5 shadow-2xl border ${
-            isDark ? 'bg-[#111b21] border-[#202c33] text-white' : 'bg-white border-pink-100 text-gray-900'
+            isDark ? 'bg-[#111b21] border-[#202c33] text-white' : 'bg-white border-blue-100 text-gray-900'
           }`}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold flex items-center gap-2 text-[#ff2e93]">
@@ -548,7 +548,7 @@ export const CallsView: React.FC = () => {
                 <div 
                   key={c.id}
                   className={`p-3 rounded-2xl flex items-center justify-between border ${
-                    isDark ? 'border-[#202c33] hover:bg-[#202c33]' : 'border-gray-100 hover:bg-pink-50/40'
+                    isDark ? 'border-[#202c33] hover:bg-[#202c33]' : 'border-gray-100 hover:bg-blue-50/40'
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
@@ -592,7 +592,7 @@ export const CallsView: React.FC = () => {
       {showClearAllConfirm && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
           <div className={`w-full max-w-sm rounded-3xl p-6 shadow-2xl border text-center space-y-4 ${
-            isDark ? 'bg-[#111b21] border-[#202c33] text-white' : 'bg-white border-pink-100 text-gray-900'
+            isDark ? 'bg-[#111b21] border-[#202c33] text-white' : 'bg-white border-blue-100 text-gray-900'
           }`}>
             <div className="w-14 h-14 rounded-full bg-rose-500/15 text-rose-500 flex items-center justify-center mx-auto">
               <AlertTriangle className="w-7 h-7" />
@@ -629,7 +629,7 @@ export const CallsView: React.FC = () => {
       {showDeleteSelectedConfirm && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
           <div className={`w-full max-w-sm rounded-3xl p-6 shadow-2xl border text-center space-y-4 ${
-            isDark ? 'bg-[#111b21] border-[#202c33] text-white' : 'bg-white border-pink-100 text-gray-900'
+            isDark ? 'bg-[#111b21] border-[#202c33] text-white' : 'bg-white border-blue-100 text-gray-900'
           }`}>
             <div className="w-14 h-14 rounded-full bg-rose-500/15 text-rose-500 flex items-center justify-center mx-auto">
               <Trash2 className="w-7 h-7" />

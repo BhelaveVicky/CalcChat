@@ -55,7 +55,7 @@ export const UserProfileView: React.FC = () => {
   const [showClearHistoryConfirmModal, setShowClearHistoryConfirmModal] = useState(false);
   const [blockSearch, setBlockSearch] = useState('');
 
-  // Admin User Search & Blue Tick Management States
+  // Admin User Search & blue Tick Management States
   const [adminUserSearch, setAdminUserSearch] = useState('');
   const [adminUsersList, setAdminUsersList] = useState<any[]>([]);
   const [isLoadingAdminUsers, setIsLoadingAdminUsers] = useState(false);
@@ -96,7 +96,7 @@ export const UserProfileView: React.FC = () => {
     }
   }, [showAdminModal]);
 
-  const handleToggleBlueTick = async (targetUser: any) => {
+  const handleToggleblueTick = async (targetUser: any) => {
     if (!db) return;
     const newVerified = !targetUser.isVerified;
     try {
@@ -113,8 +113,8 @@ export const UserProfileView: React.FC = () => {
       const targetHandle = targetUser.username ? `@${targetUser.username}` : targetUser.name;
       setSnack(
         newVerified
-          ? `Blue Tick granted to ${targetHandle}!`
-          : `Blue Tick removed for ${targetHandle}.`
+          ? `blue Tick granted to ${targetHandle}!`
+          : `blue Tick removed for ${targetHandle}.`
       );
     } catch (err) {
       console.error('Error updating blue tick:', err);
@@ -360,7 +360,7 @@ export const UserProfileView: React.FC = () => {
               {userName ? userName.charAt(0).toLowerCase() : 'p'}
             </div>
           )}
-          {/* Sky Blue Online Status Dot */}
+          {/* Sky blue Online Status Dot */}
           <span className={`w-4 h-4 bg-[#00a8ff] border-2 rounded-full absolute bottom-0.5 right-0.5 ${
             isDark ? 'border-[#0b141a]' : 'border-white'
           }`}></span>
@@ -484,7 +484,7 @@ export const UserProfileView: React.FC = () => {
                     {editName ? editName.charAt(0).toLowerCase() : 'p'}
                   </div>
                 )}
-                {/* Blue Camera Badge */}
+                {/* blue Camera Badge */}
                 <div className={`absolute bottom-0 right-0 bg-[#0095f6] text-white p-2.5 rounded-full shadow-lg border-2 hover:bg-[#0081d6] transition-colors ${
                   isDark ? 'border-[#0b141a]' : 'border-white'
                 }`}>
@@ -1579,10 +1579,10 @@ export const UserProfileView: React.FC = () => {
                   { name: 'Dark Charcoal', bg: '#111b21', color: '#111b21' },
                   { name: 'Deep Slate', bg: '#1e293b', color: '#1e293b' },
                   { name: 'Emerald Dark', bg: '#062c1b', color: '#062c1b' },
-                  { name: 'Sky Blue', bg: '#e3f2fd', color: '#e3f2fd' },
+                  { name: 'Sky blue', bg: '#e3f2fd', color: '#e3f2fd' },
                   { name: 'Mint Green', bg: '#e8f5e9', color: '#e8f5e9' },
                   { name: 'Lavender', bg: '#f3e5f5', color: '#f3e5f5' },
-                  { name: 'Blush Pink', bg: '#fce4ec', color: '#fce4ec' },
+                  { name: 'Blush blue', bg: '#fce4ec', color: '#fce4ec' },
                 ].map((swatch) => {
                   const isSelected = 
                     (swatch.bg === 'default' && (!vaultSettings?.chatWallpaper || vaultSettings?.chatWallpaper === 'default')) ||
@@ -1757,7 +1757,7 @@ export const UserProfileView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Blue Switch Toggle */}
+              {/* blue Switch Toggle */}
               <button
                 type="button"
                 onClick={() => {
@@ -1788,7 +1788,7 @@ export const UserProfileView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Blue Switch Toggle */}
+              {/* blue Switch Toggle */}
               <button
                 type="button"
                 onClick={() => {
@@ -1819,7 +1819,7 @@ export const UserProfileView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Blue Switch Toggle */}
+              {/* blue Switch Toggle */}
               <button
                 type="button"
                 onClick={() => {
@@ -1850,7 +1850,7 @@ export const UserProfileView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Blue Switch Toggle */}
+              {/* blue Switch Toggle */}
               <button
                 type="button"
                 onClick={() => {
@@ -1983,18 +1983,18 @@ export const UserProfileView: React.FC = () => {
                   <p className="text-lg font-black text-emerald-400 flex items-center justify-center gap-1">
                     <VerifiedBadge className="w-4 h-4" /> Active
                   </p>
-                  <p className="text-[10px] text-emerald-400/80 font-medium mt-0.5">Blue Tick On</p>
+                  <p className="text-[10px] text-emerald-400/80 font-medium mt-0.5">blue Tick On</p>
                 </div>
               </div>
             </div>
 
-            {/* User Search & Grant Blue Tick Section */}
+            {/* User Search & Grant blue Tick Section */}
             <div className={`p-5 rounded-3xl border shadow-lg ${
               isDark ? 'bg-[#111b21] border-[#202c33]' : 'bg-gray-50 border-gray-200'
             }`}>
               <div className="flex items-center justify-between mb-2">
                 <h4 className="font-bold text-sm text-left flex items-center gap-2 text-white">
-                  <BadgeCheck className="w-5 h-5 text-[#00a8ff]" /> Search & Grant Blue Tick
+                  <BadgeCheck className="w-5 h-5 text-[#00a8ff]" /> Search & Grant blue Tick
                 </h4>
                 <button
                   type="button"
@@ -2090,7 +2090,7 @@ export const UserProfileView: React.FC = () => {
 
                       <button
                         type="button"
-                        onClick={() => handleToggleBlueTick(u)}
+                        onClick={() => handleToggleblueTick(u)}
                         className={`ml-2 px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
                           u.isVerified
                             ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500/20'
@@ -2101,7 +2101,7 @@ export const UserProfileView: React.FC = () => {
                           <>Remove Tick</>
                         ) : (
                           <>
-                            <VerifiedBadge className="w-3.5 h-3.5" /> Give Blue Tick
+                            <VerifiedBadge className="w-3.5 h-3.5" /> Give blue Tick
                           </>
                         )}
                       </button>
@@ -2139,7 +2139,7 @@ export const UserProfileView: React.FC = () => {
 
               <div className="flex items-center justify-between p-3 rounded-2xl bg-[#0b141a] border border-[#202c33] text-xs text-left">
                 <div>
-                  <p className="font-bold text-white">Blue Verified Badge</p>
+                  <p className="font-bold text-white">blue Verified Badge</p>
                   <p className="text-gray-400 text-[11px]">Displays on all admin profiles and chats</p>
                 </div>
                 <span className="px-2.5 py-1 rounded-full bg-[#00a8ff]/20 text-[#00a8ff] font-bold text-xs">ENABLED</span>

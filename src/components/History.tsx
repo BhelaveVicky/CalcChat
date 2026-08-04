@@ -159,7 +159,7 @@ export const History: React.FC<HistoryProps> = ({ onClose }) => {
             onClick={() => handleExport('pdf')}
             className="w-full px-4 py-4 rounded-xl bg-white dark:bg-[#2a2a2a] flex items-center gap-4 hover:bg-gray-50 dark:hover:bg-[#333333] transition-colors border border-gray-200 dark:border-gray-600"
           >
-            <div className="p-3 rounded-xl bg-gradient-to-br from-red-500 to-pink-600 shadow-lg">
+            <div className="p-3 rounded-xl bg-gradient-to-br from-red-500 to-blue-600 shadow-lg">
               <FileImage className="w-6 h-6 text-white" />
             </div>
             <div className="flex-1 text-left">
@@ -234,7 +234,7 @@ export const History: React.FC<HistoryProps> = ({ onClose }) => {
               className="bg-white dark:bg-[#2a2a2a] rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
               <div className="flex items-center gap-4">
-                <div className="p-4 rounded-2xl bg-gradient-to-br from-red-500 to-pink-600 shadow-lg">
+                <div className="p-4 rounded-2xl bg-gradient-to-br from-red-500 to-blue-600 shadow-lg">
                   <Trash2 className="w-7 h-7 text-white" />
                 </div>
                 <div className="flex-1 text-left">

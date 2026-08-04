@@ -65,7 +65,7 @@ export const StatusReply: React.FC<StatusReplyProps> = ({
           {replyText.trim().length > 0 && (
             <button
               type="submit"
-              className="absolute right-1.5 p-2 rounded-full bg-pink-500 hover:bg-pink-600 text-white transition-all cursor-pointer shadow"
+              className="absolute right-1.5 p-2 rounded-full bg-blue-500 hover:bg-blue-600 text-white transition-all cursor-pointer shadow"
             >
               <Send className="w-4 h-4 fill-current" />
             </button>

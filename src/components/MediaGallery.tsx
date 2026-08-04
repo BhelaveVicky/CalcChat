@@ -9,6 +9,7 @@ import { useVault } from '../context/VaultContext';
 import { StatusUpdate } from '../types';
 import { StatusCard } from './status/StatusCard';
 import { StatusViewer } from './status/StatusViewer';
+import { compressImage } from '../lib/mediaCompressor';
 
 export interface StatusSlide {
   id: string;
@@ -79,9 +80,10 @@ export const MediaGallery: React.FC = () => {
     return 'My all contacts';
   };
 
-  // State for Creator Studio (Text or Image Status)
+  // State for Creator Studio (Text or Image/Video Status)
   const [showCreatorModal, setShowCreatorModal] = useState(false);
   const [creatorType, setCreatorType] = useState<'text' | 'media'>('text');
+  const [creatorMediaType, setCreatorMediaType] = useState<'image' | 'video'>('image');
   const [statusText, setStatusText] = useState('');
   const [statusBgColor, setStatusBgColor] = useState('from-[#00a8ff] to-[#0284c7]');
   const [statusCaption, setStatusCaption] = useState('');
@@ -356,16 +358,95 @@ export const MediaGallery: React.FC = () => {
     }
   };
 
-  // Add new status from file picker or creator
+  // Add new status from file picker or creator (supports images and videos <= 60s)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setSelectedMediaUrl(url);
-      setCreatorType('media');
-      resetPhotoEditor();
-      setShowCreatorModal(true);
+    if (!file) return;
+
+    const fileType = file.type || '';
+
+    // Handle Video Upload
+    if (fileType.startsWith('video/')) {
+      const tempObjUrl = URL.createObjectURL(file);
+      const tempVideo = document.createElement('video');
+      tempVideo.preload = 'metadata';
+      tempVideo.src = tempObjUrl;
+
+      tempVideo.onloadedmetadata = () => {
+        const durationSec = tempVideo.duration;
+        URL.revokeObjectURL(tempObjUrl);
+
+        // Validation: Maximum 60 seconds (1 minute) video allowed
+        if (durationSec > 60.5) {
+          setPrivacyToast('⚠️ Video duration must be 60 seconds (1 minute) or less!');
+          setTimeout(() => setPrivacyToast(null), 4500);
+          e.target.value = '';
+          return;
+        }
+
+        // Check file size (e.g., max 15MB)
+        if (file.size > 15 * 1024 * 1024) {
+          setPrivacyToast('⚠️ Video file size is too large (max 15MB)');
+          setTimeout(() => setPrivacyToast(null), 4000);
+          e.target.value = '';
+          return;
+        }
+
+        setPrivacyToast('Processing video status...');
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const resultUrl = event.target?.result as string;
+          if (resultUrl) {
+            setSelectedMediaUrl(resultUrl);
+            setCreatorMediaType('video');
+            setCreatorType('media');
+            resetPhotoEditor();
+            setShowCreatorModal(true);
+            setPrivacyToast(null);
+          }
+        };
+        reader.onerror = () => {
+          setPrivacyToast('⚠️ Failed to process video file');
+          setTimeout(() => setPrivacyToast(null), 3000);
+        };
+        reader.readAsDataURL(file);
+      };
+
+      tempVideo.onerror = () => {
+        URL.revokeObjectURL(tempObjUrl);
+        setPrivacyToast('⚠️ Failed to load video. Format may not be supported.');
+        setTimeout(() => setPrivacyToast(null), 4000);
+        e.target.value = '';
+      };
+    } else {
+      // Handle Image Upload
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        let rawDataUrl = event.target?.result as string;
+        if (rawDataUrl) {
+          if (rawDataUrl.length > 350000) {
+            try {
+              const compressed = await compressImage(rawDataUrl, 1080, 350000);
+              if (compressed) rawDataUrl = compressed;
+            } catch (err) {
+              console.warn('Image compression error:', err);
+            }
+          }
+          setSelectedMediaUrl(rawDataUrl);
+          setCreatorMediaType('image');
+          setCreatorType('media');
+          resetPhotoEditor();
+          setShowCreatorModal(true);
+        }
+      };
+      reader.onerror = () => {
+        setPrivacyToast('⚠️ Failed to process image file');
+        setTimeout(() => setPrivacyToast(null), 3000);
+      };
+      reader.readAsDataURL(file);
     }
+
+    e.target.value = '';
   };
 
   // Real-time Firestore Status Groups
@@ -426,7 +507,26 @@ export const MediaGallery: React.FC = () => {
         await postStatusUpdate(statusText, '', 'image', statusCaption, statusBgColor);
       } else {
         if (!selectedMediaUrl) return;
-        await postStatusUpdate(statusCaption || 'Status update', selectedMediaUrl, 'image', statusCaption, '#ea4c89');
+
+        let finalMediaUrl = selectedMediaUrl;
+        const mediaKind = creatorMediaType;
+
+        if (mediaKind === 'image' && finalMediaUrl.length > 350000) {
+          try {
+            const compressed = await compressImage(finalMediaUrl, 1080, 350000);
+            if (compressed) finalMediaUrl = compressed;
+          } catch (e) {
+            console.warn('Image compression warning on publish:', e);
+          }
+        }
+
+        await postStatusUpdate(
+          statusCaption || (mediaKind === 'video' ? 'Video status' : 'Status update'),
+          finalMediaUrl,
+          mediaKind,
+          statusCaption,
+          '#ea4c89'
+        );
       }
 
       setShowCreatorModal(false);
@@ -640,7 +740,7 @@ export const MediaGallery: React.FC = () => {
             {creatorType === 'media' && (
               <h3 className="font-bold text-sm sm:text-base flex items-center gap-2">
                 <Sliders className="w-4 h-4 text-[#00a8ff]" />
-                <span>Photo Editor & Positioning</span>
+                <span>{creatorMediaType === 'video' ? 'Video Status Studio' : 'Photo Editor & Positioning'}</span>
               </h3>
             )}
 
@@ -689,12 +789,26 @@ export const MediaGallery: React.FC = () => {
               </div>
             ) : (
               <div className="w-full max-w-md flex flex-col items-center gap-3">
-                {/* Live Photo Workspace Canvas Frame */}
+                {/* Live Photo / Video Workspace Canvas Frame */}
                 <div 
-                  className="relative w-full h-[45vh] sm:h-[52vh] max-h-[520px] rounded-2xl overflow-hidden flex items-center justify-center border border-white/20 shadow-2xl transition-all relative"
+                  className="relative w-full h-[45vh] sm:h-[52vh] max-h-[520px] rounded-2xl overflow-hidden flex items-center justify-center border border-white/20 shadow-2xl transition-all relative bg-black"
                   style={{ backgroundColor: photoCanvasBg }}
                 >
-                  {selectedMediaUrl ? (
+                  {creatorMediaType === 'video' && selectedMediaUrl ? (
+                    <div className="w-full h-full flex items-center justify-center relative p-1 bg-black">
+                      <video
+                        src={selectedMediaUrl}
+                        controls
+                        autoPlay
+                        playsInline
+                        className="max-h-full max-w-full rounded-xl object-contain mx-auto shadow-2xl"
+                      />
+                      <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-cyan-400 border border-cyan-500/40 flex items-center gap-1.5 shadow-md">
+                        <Video className="w-3.5 h-3.5" />
+                        <span>Video Status (≤ 60s)</span>
+                      </div>
+                    </div>
+                  ) : selectedMediaUrl ? (
                     <img 
                       src={selectedMediaUrl} 
                       alt="Status Preview" 
@@ -717,12 +831,12 @@ export const MediaGallery: React.FC = () => {
                   ) : (
                     <div className="flex flex-col items-center justify-center text-gray-400 gap-2">
                       <ImageIcon className="w-12 h-12 stroke-1" />
-                      <p className="text-sm">Select an image to edit</p>
+                      <p className="text-sm">Select media to preview</p>
                     </div>
                   )}
 
-                  {/* Text Overlay on Canvas */}
-                  {photoTextOverlay && (
+                  {/* Text Overlay on Canvas (For Image Status) */}
+                  {creatorMediaType === 'image' && photoTextOverlay && (
                     <div 
                       className="absolute z-20 px-4 py-2 rounded-xl backdrop-blur-md bg-black/50 font-bold text-center max-w-[85%] shadow-lg drop-shadow border border-white/20 pointer-events-none"
                       style={{ color: photoTextColor }}
@@ -732,7 +846,8 @@ export const MediaGallery: React.FC = () => {
                   )}
                 </div>
 
-                {/* Photo Editor Tabs & Toolbar */}
+                {/* Photo Editor Tabs & Toolbar (Only shown for images) */}
+                {creatorMediaType === 'image' && (
                 <div className="w-full bg-[#111b21] border border-[#202c33] rounded-2xl p-3 space-y-3 shadow-xl">
                   {/* Tool Category Selector */}
                   <div className="flex items-center justify-around border-b border-[#202c33] pb-2 text-xs">
@@ -987,6 +1102,7 @@ export const MediaGallery: React.FC = () => {
                     </div>
                   )}
                 </div>
+                )}
               </div>
             )}
           </div>

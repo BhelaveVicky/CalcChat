@@ -89,7 +89,7 @@ const LoginPage: React.FC = () => {
         </p>
       </div>
 
-      {/* Middle Section: 3D Blue Lock Graphic */}
+      {/* Middle Section: 3D blue Lock Graphic */}
       <div className="my-6 sm:my-8 flex items-center justify-center w-full max-w-xs">
         <img 
           src={securityLock} 

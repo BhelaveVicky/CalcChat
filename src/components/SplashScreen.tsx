@@ -12,7 +12,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ isFadingOut = false 
         isFadingOut ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}
     >
-      {/* Soft Ambient Radial Blue Glow Background */}
+      {/* Soft Ambient Radial blue Glow Background */}
       <div className="absolute w-80 h-80 rounded-full bg-blue-500/10 blur-3xl pointer-events-none -z-10 animate-pulse"></div>
 
       {/* Main Content Box */}

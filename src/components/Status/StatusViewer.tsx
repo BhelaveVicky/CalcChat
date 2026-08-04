@@ -272,19 +272,27 @@ export const StatusViewer: React.FC<StatusViewerProps> = ({
 
         {/* Media Render */}
         {currentStatus.mediaType === 'video' ? (
-          <video
-            ref={videoRef}
-            src={currentStatus.mediaUrl}
-            autoPlay
-            playsInline
-            muted={isMuted}
-            onEnded={handleNextSlide}
-            className="max-h-full max-w-full object-contain mx-auto"
-          />
+          <div className="w-full h-full flex items-center justify-center relative">
+            <video
+              ref={videoRef}
+              src={currentStatus.mediaUrl}
+              autoPlay
+              playsInline
+              muted={isMuted}
+              onEnded={handleNextSlide}
+              onError={(e) => {
+                console.warn('Video playback error in StatusViewer:', e);
+              }}
+              className="max-h-full max-w-full object-contain mx-auto"
+            />
+          </div>
         ) : currentStatus.mediaUrl ? (
           <img
             src={currentStatus.mediaUrl}
             alt="Status Media"
+            onError={(e) => {
+              console.warn('Image load error in StatusViewer:', e);
+            }}
             className="max-h-full max-w-full object-contain mx-auto"
           />
         ) : (

@@ -139,15 +139,15 @@ export const StoriTitle: React.FC<{ className?: string; size?: 'xs' | 'sm' | 'md
 
   return (
     <span className={`inline-flex items-center font-extrabold select-none ${sizeClasses} ${className}`}>
-      {/* S - Blue */}
+      {/* S - blue */}
       <span className="bg-gradient-to-b from-[#00c6ff] to-[#0072ff] bg-clip-text text-transparent drop-shadow-md">S</span>
       {/* t - Orange */}
       <span className="bg-gradient-to-b from-[#ffb300] to-[#ff4e00] bg-clip-text text-transparent drop-shadow-md">t</span>
-      {/* o - Pink */}
+      {/* o - blue */}
       <span className="bg-gradient-to-b from-[#ff2a8d] to-[#9a00ff] bg-clip-text text-transparent drop-shadow-md">o</span>
       {/* r - Cyan/Teal */}
       <span className="bg-gradient-to-b from-[#00e5ff] to-[#00b894] bg-clip-text text-transparent drop-shadow-md">r</span>
-      {/* i - Purple with Pink Dot */}
+      {/* i - Purple with blue Dot */}
       <span className="bg-gradient-to-b from-[#7f00ff] to-[#e100ff] bg-clip-text text-transparent drop-shadow-md">i</span>
     </span>
   );
@@ -170,13 +170,13 @@ export const CallsTitle: React.FC<{ className?: string; size?: 'xs' | 'sm' | 'md
 
   return (
     <span className={`inline-flex items-center font-extrabold select-none ${sizeClasses} ${className}`}>
-      {/* C - Blue */}
+      {/* C - blue */}
       <span className="bg-gradient-to-b from-[#00c6ff] to-[#0072ff] bg-clip-text text-transparent drop-shadow-md">C</span>
       {/* a - Yellow/Orange */}
       <span className="bg-gradient-to-b from-[#ffb300] to-[#ff4e00] bg-clip-text text-transparent drop-shadow-md">a</span>
       {/* l - Green */}
       <span className="bg-gradient-to-b from-[#76ff03] to-[#00c853] bg-clip-text text-transparent drop-shadow-md">l</span>
-      {/* l - Pink */}
+      {/* l - blue */}
       <span className="bg-gradient-to-b from-[#ff2a8d] to-[#ff007f] bg-clip-text text-transparent drop-shadow-md">l</span>
       {/* s - Purple */}
       <span className="bg-gradient-to-b from-[#8e2de2] to-[#4a00e0] bg-clip-text text-transparent drop-shadow-md">s</span>
@@ -201,9 +201,9 @@ export const ProfileTitle: React.FC<{ className?: string; size?: 'xs' | 'sm' | '
 
   return (
     <span className={`inline-flex items-center font-extrabold select-none ${sizeClasses} ${className}`}>
-      {/* P - Blue */}
+      {/* P - blue */}
       <span className="bg-gradient-to-b from-[#00c6ff] to-[#0072ff] bg-clip-text text-transparent drop-shadow-md">P</span>
-      {/* r - Pink */}
+      {/* r - blue */}
       <span className="bg-gradient-to-b from-[#ff007f] to-[#ff5252] bg-clip-text text-transparent drop-shadow-md">r</span>
       {/* o - Purple */}
       <span className="bg-gradient-to-b from-[#8e2de2] to-[#4a00e0] bg-clip-text text-transparent drop-shadow-md">o</span>

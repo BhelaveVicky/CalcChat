@@ -25,7 +25,7 @@ export const StatusThumbnail: React.FC<StatusThumbnailProps> = ({
   }[size];
 
   const ringStyle = isUnviewed
-    ? 'p-[2px] bg-gradient-to-tr from-pink-500 via-rose-400 to-cyan-400 rounded-full'
+    ? 'p-[2px] bg-gradient-to-tr from-blue-500 via-rose-400 to-cyan-400 rounded-full'
     : 'p-[2px] bg-gray-300 dark:bg-gray-600 rounded-full';
 
   return (

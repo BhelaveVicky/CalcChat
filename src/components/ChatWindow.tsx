@@ -768,7 +768,7 @@ export const ChatWindow: React.FC = () => {
 
   const handleAttachMedia = (type: 'image' | 'video' | 'file') => {
     const sampleImages = [
-      { name: 'Blueprint_TopSecret.png', url: 'https://images.unsplash.com/photo-1509228468518-180dd4864904?w=600&auto=format&fit=crop&q=80' },
+      { name: 'blueprint_TopSecret.png', url: 'https://images.unsplash.com/photo-1509228468518-180dd4864904?w=600&auto=format&fit=crop&q=80' },
       { name: 'Confidential_Matrix_Code.jpg', url: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=600&auto=format&fit=crop&q=80' },
       { name: 'Surveillance_Camera_Grid.png', url: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=600&auto=format&fit=crop&q=80' }
     ];
@@ -1432,12 +1432,12 @@ export const ChatWindow: React.FC = () => {
                         } ${
                           isSelectMode ? 'cursor-pointer' : ''
                         } ${
-                          isSelected ? 'ring-2 ring-pink-500 bg-pink-500/20 scale-[1.01]' : ''
+                          isSelected ? 'ring-2 ring-blue-500 bg-blue-500/20 scale-[1.01]' : ''
                         } ${
                           highlightedMsgId === msg.id ? 'ring-2 ring-amber-400 animate-pulse' : ''
                         } ${
                           isMe
-                            ? 'bg-[#ea4c89] text-white shadow-pink-500/10'
+                            ? 'bg-[#ea4c89] text-white shadow-blue-500/10'
                             : (isDark ? 'bg-[#202c33] text-[#e9edef]' : 'bg-white text-gray-900 border border-gray-100')
                         }`}
                       >
@@ -1478,8 +1478,8 @@ export const ChatWindow: React.FC = () => {
 
                         {/* Status Reply Card */}
                         {msg.statusReply && (
-                          <div className={`p-2 rounded-xl border-l-4 mb-2 text-xs border-pink-500 flex items-center gap-2.5 ${
-                            isDark ? 'bg-black/30' : 'bg-pink-500/10'
+                          <div className={`p-2 rounded-xl border-l-4 mb-2 text-xs border-blue-500 flex items-center gap-2.5 ${
+                            isDark ? 'bg-black/30' : 'bg-blue-500/10'
                           }`}>
                             {msg.statusReply.statusMediaUrl ? (
                               <img
@@ -1488,12 +1488,12 @@ export const ChatWindow: React.FC = () => {
                                 className="w-11 h-11 object-cover rounded-lg shrink-0 border border-white/20"
                               />
                             ) : (
-                              <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center shrink-0 text-white font-bold text-[10px] p-1 text-center truncate">
+                              <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-blue-500 to-rose-600 flex items-center justify-center shrink-0 text-white font-bold text-[10px] p-1 text-center truncate">
                                 Status
                               </div>
                             )}
                             <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-pink-400 text-[11px] truncate">
+                              <p className="font-semibold text-blue-400 text-[11px] truncate">
                                 Reply to {msg.statusReply.statusOwnerName}'s Status
                               </p>
                               {msg.statusReply.statusText && (
@@ -1505,8 +1505,8 @@ export const ChatWindow: React.FC = () => {
 
                         {/* Status Reaction Card */}
                         {msg.statusReaction && (
-                          <div className={`p-2 rounded-xl border-l-4 mb-2 text-xs border-pink-500 flex items-center gap-2.5 ${
-                            isDark ? 'bg-black/30' : 'bg-pink-500/10'
+                          <div className={`p-2 rounded-xl border-l-4 mb-2 text-xs border-blue-500 flex items-center gap-2.5 ${
+                            isDark ? 'bg-black/30' : 'bg-blue-500/10'
                           }`}>
                             {msg.statusReaction.statusMediaUrl ? (
                               <img
@@ -1515,12 +1515,12 @@ export const ChatWindow: React.FC = () => {
                                 className="w-11 h-11 object-cover rounded-lg shrink-0 border border-white/20"
                               />
                             ) : (
-                              <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center shrink-0 text-white font-bold text-[10px] p-1 text-center truncate">
+                              <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-blue-500 to-rose-600 flex items-center justify-center shrink-0 text-white font-bold text-[10px] p-1 text-center truncate">
                                 Status
                               </div>
                             )}
                             <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-pink-400 text-[11px] truncate flex items-center gap-1">
+                              <p className="font-semibold text-blue-400 text-[11px] truncate flex items-center gap-1">
                                 Reacted {msg.statusReaction.emoji} to status
                               </p>
                               {msg.statusReaction.statusText && (

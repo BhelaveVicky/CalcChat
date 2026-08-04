@@ -33,7 +33,7 @@ export const StatusCard: React.FC<StatusCardProps> = ({
   const ringColor = isSelf && statuses.length === 0
     ? 'border-2 border-dashed border-gray-400'
     : hasUnviewed
-    ? 'p-[2.5px] bg-gradient-to-tr from-pink-500 via-rose-400 to-cyan-400 rounded-full'
+    ? 'p-[2.5px] bg-gradient-to-tr from-blue-500 via-rose-400 to-cyan-400 rounded-full'
     : 'p-[2px] bg-gray-400 dark:bg-gray-600 rounded-full';
 
   return (
@@ -54,7 +54,7 @@ export const StatusCard: React.FC<StatusCardProps> = ({
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full bg-pink-500/20 text-pink-500 flex items-center justify-center font-bold text-base">
+                <div className="w-full h-full bg-blue-500/20 text-blue-500 flex items-center justify-center font-bold text-base">
                   {userName ? userName.charAt(0).toUpperCase() : 'U'}
                 </div>
               )}
@@ -68,7 +68,7 @@ export const StatusCard: React.FC<StatusCardProps> = ({
                 e.stopPropagation();
                 if (onAddStatus) onAddStatus();
               }}
-              className="absolute bottom-0 right-0 p-1 rounded-full bg-pink-500 text-white shadow-lg border-2 border-white dark:border-[#111b21] hover:scale-110 active:scale-95 transition-transform"
+              className="absolute bottom-0 right-0 p-1 rounded-full bg-blue-500 text-white shadow-lg border-2 border-white dark:border-[#111b21] hover:scale-110 active:scale-95 transition-transform"
               title="Add Status Update"
             >
               <Plus className="w-3.5 h-3.5 stroke-[3]" />
@@ -92,7 +92,7 @@ export const StatusCard: React.FC<StatusCardProps> = ({
         {statuses.length > 0 && (
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-500/10 dark:bg-white/5 text-xs text-gray-500 dark:text-gray-400 font-semibold">
             <span>{statuses.length}</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-pink-500" />
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
           </div>
         )}
       </div>

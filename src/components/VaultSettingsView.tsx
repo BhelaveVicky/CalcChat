@@ -427,10 +427,10 @@ const ChatsSubView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               { name: 'Dark Charcoal', bg: '#111b21', color: '#111b21' },
               { name: 'Deep Slate', bg: '#1e293b', color: '#1e293b' },
               { name: 'Emerald Dark', bg: '#062c1b', color: '#062c1b' },
-              { name: 'Sky Blue', bg: '#e3f2fd', color: '#e3f2fd' },
+              { name: 'Sky blue', bg: '#e3f2fd', color: '#e3f2fd' },
               { name: 'Mint Green', bg: '#e8f5e9', color: '#e8f5e9' },
               { name: 'Lavender', bg: '#f3e5f5', color: '#f3e5f5' },
-              { name: 'Blush Pink', bg: '#fce4ec', color: '#fce4ec' },
+              { name: 'Blush blue', bg: '#fce4ec', color: '#fce4ec' },
             ].map((swatch) => {
               const isSelected = 
                 (swatch.bg === 'default' && (!vaultSettings?.chatWallpaper || vaultSettings?.chatWallpaper === 'default')) ||

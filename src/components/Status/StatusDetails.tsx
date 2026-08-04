@@ -87,7 +87,7 @@ export const StatusDetails: React.FC<StatusDetailsProps> = ({
             onClick={() => setActiveTab('all')}
             className={`p-2.5 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer ${
               activeTab === 'all'
-                ? 'bg-pink-500/20 border-2 border-pink-500 text-pink-500'
+                ? 'bg-blue-500/20 border-2 border-blue-500 text-blue-500'
                 : 'bg-gray-500/10 border border-transparent text-gray-400 hover:bg-gray-500/20'
             }`}
           >

@@ -55,7 +55,7 @@ export const VaultContainer: React.FC = () => {
   // Theme container classes
   let themeBg = isDark ? 'bg-[#0b141a] text-[#e9edef] font-sans' : 'bg-white text-gray-900 font-sans';
   if (isDark && vaultSettings.theme === 'amoled-black') themeBg = 'bg-black text-[#e9edef]';
-  if (isDark && vaultSettings.theme === 'cyberpunk') themeBg = 'bg-purple-950 text-pink-100';
+  if (isDark && vaultSettings.theme === 'cyberpunk') themeBg = 'bg-purple-950 text-blue-100';
   if (isDark && vaultSettings.theme === 'emerald-vault') themeBg = 'bg-emerald-950 text-emerald-100';
 
   const isChatOpenOnMobile = activeTab === 'chats' && activeContactId;

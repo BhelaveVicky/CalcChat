@@ -7,7 +7,7 @@ import {
 import { 
   collection, collectionGroup, doc, getDoc, setDoc, updateDoc, deleteDoc, 
   onSnapshot, query, where, orderBy, serverTimestamp, 
-  addDoc, getDocs, writeBatch, arrayUnion, arrayRemove, runTransaction
+  addDoc, getDocs, writeBatch, arrayUnion, arrayRemove, runTransaction, deleteField
 } from 'firebase/firestore';
 import { 
   CallInfo, CallLog, CallType, CallDirection, CallStatus, Contact, MediaAttachment, Message, 
@@ -96,6 +96,9 @@ interface VaultContextType {
   toggleStarMessage: (contactId: string, msgId: string) => void;
   togglePinMessage: (contactId: string, msgId: string) => void;
   forwardMessage: (msg: Message, targetContactIds: string[]) => void;
+  addReactionMessage: (contactId: string, msgId: string, emoji: string) => Promise<void>;
+  removeReactionMessage: (contactId: string, msgId: string) => Promise<void>;
+  deleteMultipleMessages: (contactId: string, msgIds: string[], deleteForEveryoneFlag?: boolean) => Promise<void>;
   typingStatusMap?: Record<string, boolean>;
   setTypingStatus: (contactId: string, isTyping: boolean) => Promise<void>;
   markMessagesAsRead: (contactId: string) => Promise<void>;
@@ -212,6 +215,9 @@ const fallbackVaultContext: VaultContextType = {
   unlockChatLock: () => {},
   blockContact: () => {},
   unblockContact: () => {},
+  addReactionMessage: async () => {},
+  removeReactionMessage: async () => {},
+  deleteMultipleMessages: async () => {},
 };
 
 const ICE_SERVERS: RTCConfiguration = {
@@ -918,6 +924,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               replyTo: data.replyTo,
               deletedForEveryone: Boolean(data.deletedForEveryone),
               deletedFor: deletedForArr,
+              reactions: data.reactions || {},
             };
           })
           .filter((m): m is Message => m !== null);
@@ -2479,11 +2486,68 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const togglePinMessage = async (contactId: string, msgId: string) => {
     if (!authUser) return;
     const chatId = getChatIdForContact(contactId);
+    const msgList = messages[contactId] || [];
+    const targetMsg = msgList.find(m => m.id === msgId);
+    if (!targetMsg) return;
+
+    const isCurrentlyPinned = targetMsg.isPinned;
+
+    if (isCurrentlyPinned) {
+      await updateDoc(doc(db, 'chats', chatId, 'messages', msgId), {
+        isPinned: false
+      }).catch(err => console.warn('Failed to unpin message:', err));
+    } else {
+      // Unpin any existing pinned message first (ONLY ONE pinned message per chat)
+      const currentlyPinned = msgList.filter(m => m.isPinned);
+      for (const oldPin of currentlyPinned) {
+        await updateDoc(doc(db, 'chats', chatId, 'messages', oldPin.id), {
+          isPinned: false
+        }).catch(() => {});
+      }
+      await updateDoc(doc(db, 'chats', chatId, 'messages', msgId), {
+        isPinned: true
+      }).catch(err => console.warn('Failed to pin message:', err));
+    }
+  };
+
+  const addReactionMessage = async (contactId: string, msgId: string, emoji: string) => {
+    if (!authUser) return;
+    const chatId = getChatIdForContact(contactId);
     const msg = (messages[contactId] || []).find(m => m.id === msgId);
     if (!msg) return;
-    await updateDoc(doc(db, 'chats', chatId, 'messages', msgId), {
-      isPinned: !msg.isPinned
-    }).catch(err => console.warn('Failed to pin message:', err));
+
+    const existingReaction = msg.reactions?.[authUser.uid];
+    const msgRef = doc(db, 'chats', chatId, 'messages', msgId);
+
+    if (existingReaction === emoji) {
+      await updateDoc(msgRef, {
+        [`reactions.${authUser.uid}`]: deleteField()
+      }).catch(err => console.warn('Failed to remove reaction:', err));
+    } else {
+      await updateDoc(msgRef, {
+        [`reactions.${authUser.uid}`]: emoji
+      }).catch(err => console.warn('Failed to add reaction:', err));
+    }
+  };
+
+  const removeReactionMessage = async (contactId: string, msgId: string) => {
+    if (!authUser) return;
+    const chatId = getChatIdForContact(contactId);
+    const msgRef = doc(db, 'chats', chatId, 'messages', msgId);
+    await updateDoc(msgRef, {
+      [`reactions.${authUser.uid}`]: deleteField()
+    }).catch(err => console.warn('Failed to remove reaction:', err));
+  };
+
+  const deleteMultipleMessages = async (contactId: string, msgIds: string[], deleteForEveryoneFlag: boolean = false) => {
+    if (!authUser || !msgIds || msgIds.length === 0) return;
+    for (const msgId of msgIds) {
+      if (deleteForEveryoneFlag) {
+        await deleteForEveryone(contactId, msgId).catch(() => {});
+      } else {
+        await deleteMessage(contactId, msgId).catch(() => {});
+      }
+    }
   };
 
   const forwardMessage = async (msg: Message, targetContactIds: string[]) => {
@@ -2565,6 +2629,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       toggleStarMessage,
       togglePinMessage,
       forwardMessage,
+      addReactionMessage,
+      removeReactionMessage,
+      deleteMultipleMessages,
       typingStatusMap,
       setTypingStatus,
       markMessagesAsRead,

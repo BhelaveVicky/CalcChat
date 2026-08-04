@@ -97,6 +97,7 @@ export interface Message {
     senderName: string;
     text: string;
   };
+  reactions?: Record<string, string>;
 }
 
 export interface Contact {
@@ -192,3 +193,4 @@ export interface VaultSettings {
   notificationsEnabled: boolean;
   chatWallpaper?: string;
 }
+  

@@ -16,6 +16,9 @@ import { formatChatDate, formatMessageTime } from '../lib/dateUtils';
 import { DateSeparator } from './DateSeparator';
 import { VideoMessagePlayer } from './VideoMessagePlayer';
 import { extractVideoMetadata } from '../lib/videoUtils';
+import { MessageSelectionToolbar } from './MessageSelectionToolbar';
+import { EmojiReactionBar } from './EmojiReactionBar';
+import { PinnedMessageBanner } from './PinnedMessageBanner';
 
 const EMOJI_LIST: string[] = [
   '😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','😘','😗','😚','😙',
@@ -75,7 +78,8 @@ export const ChatWindow: React.FC = () => {
     blockedContactIds, blockedByContactIds, startCall,
     customNicknames, getContactDisplayName, isFriend, unfriendContact,
     markViewOnceOpened, sendFriendRequest, acceptFriendRequest,
-    pendingFriendRequests, sentFriendRequests
+    pendingFriendRequests, sentFriendRequests,
+    addReactionMessage, removeReactionMessage, deleteMultipleMessages, authUser
   } = useVault();
 
   const [showUnfriendConfirmModal, setShowUnfriendConfirmModal] = useState(false);
@@ -104,8 +108,10 @@ export const ChatWindow: React.FC = () => {
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [showInChatSearch, setShowInChatSearch] = useState(false);
   const [inChatSearchQuery, setInChatSearchQuery] = useState('');
-  const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedMsgIds, setSelectedMsgIds] = useState<string[]>([]);
+  const isSelectMode = selectedMsgIds.length > 0;
+  const [activeReactionMsgId, setActiveReactionMsgId] = useState<string | null>(null);
+  const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [showRightSidebar, setShowRightSidebar] = useState(false);
   const [showNicknameModal, setShowNicknameModal] = useState(false);
@@ -304,16 +310,86 @@ export const ChatWindow: React.FC = () => {
     setTimeout(() => setToastMsg(null), 2500);
   };
 
+  const scrollToMessage = (msgId: string) => {
+    const elem = document.getElementById(`msg_${msgId}`);
+    if (elem) {
+      elem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setHighlightedMsgId(msgId);
+      setTimeout(() => setHighlightedMsgId(null), 2000);
+    } else {
+      showToast('Message not found in chat history.');
+    }
+  };
+
+  const handleCopyMessage = (msg: Message) => {
+    if (!msg.text) {
+      showToast('No text content to copy.');
+      return;
+    }
+    navigator.clipboard.writeText(msg.text).then(() => {
+      showToast('Message copied');
+      setSelectedMsgIds([]);
+      setActiveReactionMsgId(null);
+    }).catch(() => {
+      showToast('Failed to copy message.');
+    });
+  };
+
+  const handlePinMessage = (msg: Message) => {
+    if (!contact) return;
+    togglePinMessage(contact.id, msg.id);
+    showToast(msg.isPinned ? 'Message unpinned' : 'Message pinned');
+    setSelectedMsgIds([]);
+    setActiveReactionMsgId(null);
+  };
+
+  const handleDeleteSelection = async (selectedMsgs: Message[]) => {
+    if (!contact || selectedMsgs.length === 0) return;
+    if (selectedMsgs.length === 1) {
+      setDeleteModalMsg(selectedMsgs[0]);
+      setDeleteConfirmType(null);
+    } else {
+      const ids = selectedMsgs.map(m => m.id);
+      await deleteMultipleMessages(contact.id, ids, false);
+      showToast(`${ids.length} messages deleted`);
+      setSelectedMsgIds([]);
+      setActiveReactionMsgId(null);
+    }
+  };
+
+  const handleForwardSelection = (msg: Message) => {
+    setForwardingMsg(msg);
+    setForwardContactIds([]);
+    setSelectedMsgIds([]);
+    setActiveReactionMsgId(null);
+  };
+
+  const handleReplySelection = (msg: Message) => {
+    setReplyingToMsg(msg);
+    setSelectedMsgIds([]);
+    setActiveReactionMsgId(null);
+  };
+
+  const handleSelectReaction = async (msgId: string, emoji: string) => {
+    if (!contact) return;
+    await addReactionMessage(contact.id, msgId, emoji);
+    setActiveReactionMsgId(null);
+    setSelectedMsgIds([]);
+  };
+
   const handleMsgTouchStart = (msg: Message) => {
-    if (isSelectMode) return;
+    if (msg.deletedForEveryone) return;
     if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
     longPressTimerRef.current = setTimeout(() => {
-      if (window.navigator && window.navigator.vibrate) {
+      if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
         try { window.navigator.vibrate(40); } catch (e) {}
       }
-      setDeleteModalMsg(msg);
-      setDeleteConfirmType(null);
-    }, 450);
+      setSelectedMsgIds(prev => {
+        if (prev.includes(msg.id)) return prev;
+        return [...prev, msg.id];
+      });
+      setActiveReactionMsgId(msg.id);
+    }, 380);
   };
 
   const handleMsgTouchEndOrMove = () => {
@@ -913,316 +989,323 @@ export const ChatWindow: React.FC = () => {
       <div className={`flex-1 flex flex-col overflow-hidden relative h-full min-h-0 transition-colors ${
         isDark ? 'bg-[#0b141a] text-[#e9edef]' : 'bg-white text-gray-900'
       }`}>
-        
-        {/* Top Chat Header */}
-        <div className={`px-3 py-2.5 flex items-center justify-between shrink-0 z-20 border-b transition-colors ${
-          isDark ? 'bg-[#0b141a] border-[#1f2c34]/60 text-[#e9edef]' : 'bg-white border-gray-200 text-gray-900'
-        }`}>
-          <div className="flex items-center gap-2 min-w-0">
-            <button
-              id="vault_nav_back_trigger"
-              onClick={(e) => {
-                e.stopPropagation();
-                setActiveContactId(null);
-              }}
-              className={`p-1 rounded-full transition-colors mr-0.5 ${
-                isDark ? 'hover:bg-[#202c33] text-[#e9edef]' : 'hover:bg-gray-100 text-gray-700'
-              }`}
-              title="Back"
-            >
-              <ArrowLeft className="w-6 h-6" />
-            </button>
 
-            <div 
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(`/profile/${contact.id}`);
-              }} 
-              className="relative shrink-0 cursor-pointer group"
-              title="View Profile"
-            >
-              <img
-                src={contact.avatar}
-                alt={contact.name}
-                className={`w-10 h-10 rounded-full object-cover transition-transform group-hover:scale-105 ${isDark ? 'bg-[#202c33]' : 'bg-gray-200'}`}
-              />
-              {contact.isOnline && (
-                <span className={`absolute bottom-0 right-0 w-3 h-3 bg-[#00a8ff] rounded-full border-2 ${
-                  isDark ? 'border-[#0b141a]' : 'border-white'
-                }`}></span>
-              )}
-            </div>
+        {/* Top Chat Header OR Message Selection Toolbar */}
+        {isSelectMode ? (
+          <MessageSelectionToolbar
+            selectedMessages={curMessages.filter(m => selectedMsgIds.includes(m.id))}
+            onClearSelection={() => {
+              setSelectedMsgIds([]);
+              setActiveReactionMsgId(null);
+            }}
+            onReply={handleReplySelection}
+            onForward={handleForwardSelection}
+            onDelete={handleDeleteSelection}
+            onCopy={handleCopyMessage}
+            onPin={handlePinMessage}
+          />
+        ) : (
+          <div className={`px-3 py-2.5 flex items-center justify-between shrink-0 z-20 border-b transition-colors ${
+            isDark ? 'bg-[#0b141a] border-[#1f2c34]/60 text-[#e9edef]' : 'bg-white border-gray-200 text-gray-900'
+          }`}>
+            <div className="flex items-center gap-2 min-w-0">
+              <button
+                id="vault_nav_back_trigger"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveContactId(null);
+                }}
+                className={`p-1 rounded-full transition-colors mr-0.5 ${
+                  isDark ? 'hover:bg-[#202c33] text-[#e9edef]' : 'hover:bg-gray-100 text-gray-700'
+                }`}
+                title="Back"
+              >
+                <ArrowLeft className="w-6 h-6" />
+              </button>
 
-            <div 
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(`/profile/${contact.id}`);
-              }} 
-              className="min-w-0 ml-1 cursor-pointer"
-              title="View Profile"
-            >
-              <h2 className={`font-semibold text-base flex items-center gap-1.5 truncate ${
-                isDark ? 'text-[#e9edef]' : 'text-gray-900'
-              }`}>
-                <span className="truncate">{getContactDisplayName(contact)}</span>
-                {checkIsAdmin(contact) && <VerifiedBadge className="w-4 h-4 shrink-0" />}
-                {customNicknames[contact.id] && (
-                  <span title={`Custom nickname for ${contact.name}`}>
-                    <Tag className="w-3.5 h-3.5 text-[#00a8ff] shrink-0" />
-                  </span>
-                )}
-                {contact.isLocked && <Lock className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
-              </h2>
-              <p className={`text-xs truncate ${
-                contact.isTyping ? 'text-[#00a8ff] font-semibold animate-pulse' : (isDark ? 'text-[#8596a0]' : 'text-gray-500')
-              }`}>
-                {contact.isTyping 
-                  ? 'typing...' 
-                  : (contact.id === user.id || contact.isSelf 
-                    ? 'Message yourself • Personal Notes' 
-                    : (contact.isOnline ? 'Online' : contact.lastSeen || 'last seen recently'))}
-              </p>
-            </div>
-          </div>
-
-          <div className={`flex items-center gap-2.5 relative ${isDark ? 'text-[#e9edef]' : 'text-gray-700'}`}>
-            <button 
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (contact.id === user.id) {
-                  showToast('You cannot call yourself in Message Yourself.');
-                  return;
-                }
-                if (!isFriend(contact.id)) {
-                  showToast('Become friends to start a call.');
-                  return;
-                }
-                startCall(contact.id, 'video');
-              }} 
-              className="hover:opacity-80 p-1.5 rounded-full transition-colors text-[#00a8ff]"
-              title="Video call"
-            >
-              <Video className="w-5 h-5" />
-            </button>
-            <button 
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (contact.id === user.id) {
-                  showToast('You cannot call yourself in Message Yourself.');
-                  return;
-                }
-                if (!isFriend(contact.id)) {
-                  showToast('Become friends to start a call.');
-                  return;
-                }
-                startCall(contact.id, 'voice');
-              }} 
-              className="hover:opacity-80 p-1.5 rounded-full transition-colors text-[#00a8ff]"
-              title="Voice call"
-            >
-              <Phone className="w-5 h-5" />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowRightSidebar(true);
-              }}
-              className="hover:opacity-80 p-1.5 rounded-full transition-colors hidden lg:block"
-              title="Contact details"
-            >
-              <Info className="w-5 h-5" />
-            </button>
-            <button 
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowHeaderMenu(!showHeaderMenu);
-              }} 
-              className="hover:opacity-80 p-1.5 rounded-full transition-colors"
-              title="More options"
-            >
-              <MoreVertical className="w-5 h-5" />
-            </button>
-
-            {/* 3-Dots Dropdown Menu */}
-            {showHeaderMenu && (
-              <>
-                <div 
-                  className="fixed inset-0 z-40" 
-                  onClick={() => setShowHeaderMenu(false)} 
+              <div 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/profile/${contact.id}`);
+                }} 
+                className="relative shrink-0 cursor-pointer group"
+                title="View Profile"
+              >
+                <img
+                  src={contact.avatar}
+                  alt={contact.name}
+                  className={`w-10 h-10 rounded-full object-cover transition-transform group-hover:scale-105 ${isDark ? 'bg-[#202c33]' : 'bg-gray-200'}`}
                 />
-                <div className={`absolute right-0 top-10 z-50 rounded-2xl shadow-2xl py-2 w-56 text-sm font-sans select-none animate-scale-in border transition-all ${
-                  isDark 
-                    ? 'bg-[#233138] border-[#2a3942] text-[#e9edef]' 
-                    : 'bg-white border-gray-200 text-gray-800 shadow-xl'
+                {contact.isOnline && (
+                  <span className={`absolute bottom-0 right-0 w-3 h-3 bg-[#00a8ff] rounded-full border-2 ${
+                    isDark ? 'border-[#0b141a]' : 'border-white'
+                  }`}></span>
+                )}
+              </div>
+
+              <div 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/profile/${contact.id}`);
+                }} 
+                className="min-w-0 ml-1 cursor-pointer"
+                title="View Profile"
+              >
+                <h2 className={`font-semibold text-base flex items-center gap-1.5 truncate ${
+                  isDark ? 'text-[#e9edef]' : 'text-gray-900'
                 }`}>
-                  
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowHeaderMenu(false);
-                      setShowNicknameModal(true);
-                    }}
-                    className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
-                      isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                    }`}
-                  >
-                    <Tag className="w-4.5 h-4.5 text-[#00a8ff]" />
-                    <span className="text-[#00a8ff] font-semibold">{customNicknames[contact.id] ? 'Edit Custom Name' : 'Set Custom Name'}</span>
-                  </button>
+                  <span className="truncate">{getContactDisplayName(contact)}</span>
+                  {checkIsAdmin(contact) && <VerifiedBadge className="w-4 h-4 shrink-0" />}
+                  {customNicknames[contact.id] && (
+                    <span title={`Custom nickname for ${contact.name}`}>
+                      <Tag className="w-3.5 h-3.5 text-[#00a8ff] shrink-0" />
+                    </span>
+                  )}
+                  {contact.isLocked && <Lock className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+                </h2>
+                <p className={`text-xs truncate ${
+                  contact.isTyping ? 'text-[#00a8ff] font-semibold animate-pulse' : (isDark ? 'text-[#8596a0]' : 'text-gray-500')
+                }`}>
+                  {contact.isTyping 
+                    ? 'typing...' 
+                    : (contact.id === user.id || contact.isSelf 
+                      ? 'Message yourself • Personal Notes' 
+                      : (contact.isOnline ? 'Online' : contact.lastSeen || 'last seen recently'))}
+                </p>
+              </div>
+            </div>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowHeaderMenu(false);
-                      setShowInChatSearch(true);
-                    }}
-                    className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
-                      isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                    }`}
-                  >
-                    <Search className="w-4.5 h-4.5 opacity-80" />
-                    <span>Search messages</span>
-                  </button>
+            <div className={`flex items-center gap-2.5 relative ${isDark ? 'text-[#e9edef]' : 'text-gray-700'}`}>
+              <button 
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (contact.id === user.id) {
+                    showToast('You cannot call yourself in Message Yourself.');
+                    return;
+                  }
+                  if (!isFriend(contact.id)) {
+                    showToast('Become friends to start a call.');
+                    return;
+                  }
+                  startCall(contact.id, 'video');
+                }} 
+                className="hover:opacity-80 p-1.5 rounded-full transition-colors text-[#00a8ff]"
+                title="Video call"
+              >
+                <Video className="w-5 h-5" />
+              </button>
+              <button 
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (contact.id === user.id) {
+                    showToast('You cannot call yourself in Message Yourself.');
+                    return;
+                  }
+                  if (!isFriend(contact.id)) {
+                    showToast('Become friends to start a call.');
+                    return;
+                  }
+                  startCall(contact.id, 'voice');
+                }} 
+                className="hover:opacity-80 p-1.5 rounded-full transition-colors text-[#00a8ff]"
+                title="Voice call"
+              >
+                <Phone className="w-5 h-5" />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowRightSidebar(true);
+                }}
+                className="hover:opacity-80 p-1.5 rounded-full transition-colors hidden lg:block"
+                title="Contact details"
+              >
+                <Info className="w-5 h-5" />
+              </button>
+              <button 
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowHeaderMenu(!showHeaderMenu);
+                }} 
+                className="hover:opacity-80 p-1.5 rounded-full transition-colors"
+                title="More options"
+              >
+                <MoreVertical className="w-5 h-5" />
+              </button>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowHeaderMenu(false);
-                      setShowRightSidebar(true);
-                    }}
-                    className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
-                      isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                    }`}
-                  >
-                    <Info className="w-4.5 h-4.5 opacity-80" />
-                    <span>Contact Info</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowHeaderMenu(false);
-                      setIsSelectMode(true);
-                      setSelectedMsgIds([]);
-                    }}
-                    className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
-                      isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                    }`}
-                  >
-                    <CheckSquare className="w-4.5 h-4.5 opacity-80" />
-                    <span>Select messages</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowHeaderMenu(false);
-                      togglePinContact(contact.id);
-                      showToast(contact.isPinned ? "Unpinned chat" : "Pinned chat");
-                    }}
-                    className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
-                      isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                    }`}
-                  >
-                    <Pin className="w-4.5 h-4.5 opacity-80" />
-                    <span>{contact.isPinned ? "Unpin chat" : "Pin chat"}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowHeaderMenu(false);
-                      toggleArchiveContact(contact.id);
-                      showToast(contact.isArchived ? "Unarchived chat" : "Archived chat");
-                    }}
-                    className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
-                      isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                    }`}
-                  >
-                    <Archive className="w-4.5 h-4.5 opacity-80 text-[#00a8ff]" />
-                    <span>{contact.isArchived ? "Unarchive chat" : "Archive chat"}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowHeaderMenu(false);
-                      clearChatHistory(contact.id);
-                      showToast("Cleared chat history");
-                    }}
-                    className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
-                      isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                    }`}
-                  >
-                    <MinusCircle className="w-4.5 h-4.5 opacity-80" />
-                    <span>Clear messages</span>
-                  </button>
-
-                  {isFriend(contact.id) && (
+              {/* 3-Dots Dropdown Menu */}
+              {showHeaderMenu && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setShowHeaderMenu(false)} 
+                  />
+                  <div className={`absolute right-0 top-10 z-50 rounded-2xl shadow-2xl py-2 w-56 text-sm font-sans select-none animate-scale-in border transition-all ${
+                    isDark 
+                      ? 'bg-[#233138] border-[#2a3942] text-[#e9edef]' 
+                      : 'bg-white border-gray-200 text-gray-800 shadow-xl'
+                  }`}>
+                    
                     <button
                       type="button"
                       onClick={() => {
                         setShowHeaderMenu(false);
-                        setShowUnfriendConfirmModal(true);
+                        setShowNicknameModal(true);
                       }}
-                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors text-rose-500 font-semibold ${
+                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
                         isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
                       }`}
                     >
-                      <Ban className="w-4.5 h-4.5" />
-                      <span>Unfriend Contact</span>
+                      <Tag className="w-4.5 h-4.5 text-[#00a8ff]" />
+                      <span className="text-[#00a8ff] font-semibold">{customNicknames[contact.id] ? 'Edit Custom Name' : 'Set Custom Name'}</span>
                     </button>
-                  )}
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowHeaderMenu(false);
-                      if (blockedContactIds.includes(contact.id)) {
-                        unblockContact(contact.id);
-                        showToast(`Unblocked ${contact.name}`);
-                      } else {
-                        blockContact(contact.id);
-                        showToast(`${contact.name} blocked`);
-                        setActiveContactId(null);
-                      }
-                    }}
-                    className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
-                      blockedContactIds.includes(contact.id) ? 'text-emerald-500 font-semibold' : 'text-amber-500'
-                    } ${isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'}`}
-                  >
-                    <Ban className="w-4.5 h-4.5 opacity-80" />
-                    <span>{blockedContactIds.includes(contact.id) ? `Unblock ${contact.name}` : `Block contact`}</span>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowHeaderMenu(false);
+                        setShowInChatSearch(true);
+                      }}
+                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
+                        isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                      }`}
+                    >
+                      <Search className="w-4.5 h-4.5 opacity-80" />
+                      <span>Search messages</span>
+                    </button>
 
-                </div>
-              </>
-            )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowHeaderMenu(false);
+                        setShowRightSidebar(true);
+                      }}
+                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
+                        isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                      }`}
+                    >
+                      <Info className="w-4.5 h-4.5 opacity-80" />
+                      <span>Contact Info</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowHeaderMenu(false);
+                        setSelectedMsgIds([]);
+                      }}
+                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
+                        isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                      }`}
+                    >
+                      <CheckSquare className="w-4.5 h-4.5 opacity-80" />
+                      <span>Select messages</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowHeaderMenu(false);
+                        togglePinContact(contact.id);
+                        showToast(contact.isPinned ? "Unpinned chat" : "Pinned chat");
+                      }}
+                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
+                        isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                      }`}
+                    >
+                      <Pin className="w-4.5 h-4.5 opacity-80" />
+                      <span>{contact.isPinned ? "Unpin chat" : "Pin chat"}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowHeaderMenu(false);
+                        toggleArchiveContact(contact.id);
+                        showToast(contact.isArchived ? "Unarchived chat" : "Archived chat");
+                      }}
+                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
+                        isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                      }`}
+                    >
+                      <Archive className="w-4.5 h-4.5 opacity-80 text-[#00a8ff]" />
+                      <span>{contact.isArchived ? "Unarchive chat" : "Archive chat"}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowHeaderMenu(false);
+                        clearChatHistory(contact.id);
+                        showToast("Cleared chat history");
+                      }}
+                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
+                        isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                      }`}
+                    >
+                      <MinusCircle className="w-4.5 h-4.5 opacity-80" />
+                      <span>Clear messages</span>
+                    </button>
+
+                    {isFriend(contact.id) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowHeaderMenu(false);
+                          setShowUnfriendConfirmModal(true);
+                        }}
+                        className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors text-rose-500 font-semibold ${
+                          isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                        }`}
+                      >
+                        <Ban className="w-4.5 h-4.5" />
+                        <span>Unfriend Contact</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowHeaderMenu(false);
+                        if (blockedContactIds.includes(contact.id)) {
+                          unblockContact(contact.id);
+                          showToast(`Unblocked ${contact.name}`);
+                        } else {
+                          blockContact(contact.id);
+                          showToast(`${contact.name} blocked`);
+                          setActiveContactId(null);
+                        }
+                      }}
+                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
+                        blockedContactIds.includes(contact.id) ? 'text-emerald-500 font-semibold' : 'text-amber-500'
+                      } ${isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'}`}
+                    >
+                      <Ban className="w-4.5 h-4.5 opacity-80" />
+                      <span>{blockedContactIds.includes(contact.id) ? `Unblock ${contact.name}` : `Block contact`}</span>
+                    </button>
+
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Pinned Message Banner */}
         {pinnedMessage && (
-          <div className={`px-4 py-2 flex items-center justify-between text-xs border-b shrink-0 animate-fade-in ${
-            isDark ? 'bg-[#182229] border-[#202c33] text-[#e9edef]' : 'bg-amber-50 border-amber-200 text-amber-900'
-          }`}>
-            <div className="flex items-center gap-2 truncate">
-              <Pin className="w-3.5 h-3.5 text-[#00a8ff] shrink-0" />
-              <span className="font-semibold text-[11px] text-[#00a8ff]">Pinned Message:</span>
-              <span className="truncate text-xs opacity-90">{pinnedMessage.text}</span>
-            </div>
-            <button
-              onClick={() => togglePinMessage(contact.id, pinnedMessage.id)}
-              className="p-1 hover:bg-black/10 rounded text-gray-400"
-              title="Unpin"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
+          <PinnedMessageBanner
+            pinnedMessage={pinnedMessage}
+            isDark={isDark}
+            onScrollToMessage={scrollToMessage}
+            onUnpin={(msgId) => {
+              togglePinMessage(contact.id, msgId);
+              showToast("Message unpinned");
+            }}
+          />
         )}
 
         {/* Search in Chat Overlay */}
@@ -1254,75 +1337,7 @@ export const ChatWindow: React.FC = () => {
           </div>
         )}
 
-        {/* Select Messages Top Bar */}
-        {isSelectMode && (
-          <div className={`px-4 py-2.5 flex items-center justify-between border-b animate-fade-in ${
-            isDark ? 'bg-[#1f2c34] text-white border-[#2a3942]' : 'bg-[#0284c7] text-white border-[#0369a1]'
-          }`}>
-            <div className="flex items-center gap-3 text-sm font-semibold">
-              <button 
-                type="button"
-                onClick={() => {
-                  setIsSelectMode(false);
-                  setSelectedMsgIds([]);
-                }}
-                className="p-1 hover:bg-white/10 rounded-full"
-              >
-                <X className="w-5 h-5" />
-              </button>
-              <span>{selectedMsgIds.length} selected</span>
-            </div>
 
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  if (selectedMsgIds.length === 0) return;
-                  const firstMsg = curMessages.find(m => selectedMsgIds.includes(m.id));
-                  if (firstMsg) {
-                    setForwardingMsg(firstMsg);
-                    setForwardContactIds([]);
-                    setForwardSearch('');
-                  }
-                  setIsSelectMode(false);
-                  setSelectedMsgIds([]);
-                }}
-                className="p-1.5 hover:bg-white/10 rounded-full text-white"
-                title="Forward selected"
-              >
-                <Forward className="w-5 h-5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (selectedMsgIds.length === 0) return;
-                  const selMsgs = curMessages.filter(m => selectedMsgIds.includes(m.id)).map(m => m.text).join('\n');
-                  navigator.clipboard.writeText(selMsgs);
-                  showToast(`Copied ${selectedMsgIds.length} messages`);
-                  setIsSelectMode(false);
-                  setSelectedMsgIds([]);
-                }}
-                className="p-1.5 hover:bg-white/10 rounded-full"
-                title="Copy selected"
-              >
-                <Copy className="w-5 h-5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  selectedMsgIds.forEach(id => deleteMessage(contact.id, id));
-                  showToast(`Deleted ${selectedMsgIds.length} messages`);
-                  setIsSelectMode(false);
-                  setSelectedMsgIds([]);
-                }}
-                className="p-1.5 hover:bg-white/10 rounded-full text-rose-300"
-                title="Delete selected"
-              >
-                <Trash2 className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* Messages View Area */}
         <div 
@@ -1380,40 +1395,52 @@ export const ChatWindow: React.FC = () => {
                       <DateSeparator dateLabel={dateLabel} isDark={isDark} />
                     )}
                     <div
-                      className={`flex flex-col group ${isMe ? 'items-end' : 'items-start'} relative`}
+                      id={`msg_${msg.id}`}
+                      className={`flex flex-col group ${isMe ? 'items-end' : 'items-start'} relative my-1`}
                     >
-                  <div
-                    onTouchStart={() => handleMsgTouchStart(msg)}
-                    onTouchEnd={handleMsgTouchEndOrMove}
-                    onTouchMove={handleMsgTouchEndOrMove}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      if (!isSelectMode) {
-                        setDeleteModalMsg(msg);
-                        setDeleteConfirmType(null);
-                      }
-                    }}
-                    onClick={() => {
-                      if (isSelectMode) {
-                        if (isSelected) {
-                          setSelectedMsgIds(selectedMsgIds.filter(id => id !== msg.id));
-                        } else {
-                          setSelectedMsgIds([...selectedMsgIds, msg.id]);
-                        }
-                      }
-                    }}
-                    className={`max-w-[85%] sm:max-w-[75%] px-4 py-2.5 text-sm relative shadow-sm transition-all select-none ${
-                      isMe ? 'rounded-[20px] rounded-br-[3px]' : 'rounded-[20px] rounded-bl-[3px]'
-                    } ${
-                      isSelectMode ? 'cursor-pointer' : ''
-                    } ${
-                      isSelected ? 'ring-2 ring-pink-300 scale-[1.01]' : ''
-                    } ${
-                      isMe
-                        ? 'bg-[#ea4c89] text-white shadow-pink-500/10'
-                        : (isDark ? 'bg-[#202c33] text-[#e9edef]' : 'bg-white text-gray-900 border border-gray-100')
-                    }`}
-                  >
+                      {activeReactionMsgId === msg.id && (
+                        <EmojiReactionBar
+                          isDark={isDark}
+                          currentReaction={msg.reactions?.[authUser?.uid || user.id]}
+                          onSelectEmoji={(emoji) => handleSelectReaction(msg.id, emoji)}
+                          onClose={() => setActiveReactionMsgId(null)}
+                        />
+                      )}
+
+                      <div
+                        onTouchStart={() => handleMsgTouchStart(msg)}
+                        onTouchEnd={handleMsgTouchEndOrMove}
+                        onTouchMove={handleMsgTouchEndOrMove}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          if (!isSelectMode) {
+                            setSelectedMsgIds([msg.id]);
+                            setActiveReactionMsgId(msg.id);
+                          }
+                        }}
+                        onClick={() => {
+                          if (isSelectMode) {
+                            if (isSelected) {
+                              setSelectedMsgIds(selectedMsgIds.filter(id => id !== msg.id));
+                            } else {
+                              setSelectedMsgIds([...selectedMsgIds, msg.id]);
+                            }
+                          }
+                        }}
+                        className={`max-w-[85%] sm:max-w-[75%] px-4 py-2.5 text-sm relative shadow-sm transition-all select-none ${
+                          isMe ? 'rounded-[20px] rounded-br-[3px]' : 'rounded-[20px] rounded-bl-[3px]'
+                        } ${
+                          isSelectMode ? 'cursor-pointer' : ''
+                        } ${
+                          isSelected ? 'ring-2 ring-pink-500 bg-pink-500/20 scale-[1.01]' : ''
+                        } ${
+                          highlightedMsgId === msg.id ? 'ring-2 ring-amber-400 animate-pulse' : ''
+                        } ${
+                          isMe
+                            ? 'bg-[#ea4c89] text-white shadow-pink-500/10'
+                            : (isDark ? 'bg-[#202c33] text-[#e9edef]' : 'bg-white text-gray-900 border border-gray-100')
+                        }`}
+                      >
                     {/* Speech Bubble Tail - Outgoing */}
                     {isMe && (
                       <svg
@@ -1886,6 +1913,28 @@ export const ChatWindow: React.FC = () => {
                         >
                           <Trash2 className="w-3 h-3" />
                         </button>
+                      </div>
+                    )}
+
+                    {/* Reactions badge */}
+                    {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+                      <div 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveReactionMsgId(activeReactionMsgId === msg.id ? null : msg.id);
+                        }}
+                        className={`absolute -bottom-2.5 ${isMe ? 'right-2' : 'left-2'} flex items-center gap-0.5 ${
+                          isDark ? 'bg-[#202c33] border-[#2a3942] text-white' : 'bg-white border-gray-200 text-gray-800'
+                        } border rounded-full px-1.5 py-0.5 text-xs shadow-md z-10 cursor-pointer hover:scale-105 transition-transform`}
+                      >
+                        {Array.from(new Set(Object.values(msg.reactions))).slice(0, 3).map((emoji, idx) => (
+                          <span key={idx}>{emoji}</span>
+                        ))}
+                        {Object.keys(msg.reactions).length > 1 && (
+                          <span className="text-[10px] opacity-80 font-semibold ml-0.5">
+                            {Object.keys(msg.reactions).length}
+                          </span>
+                        )}
                       </div>
                     )}
 

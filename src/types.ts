@@ -51,6 +51,7 @@ export interface MediaAttachment {
   name: string;
   size?: string;
   duration?: string;
+  thumbnailUrl?: string;
   isViewOnce?: boolean;
   opened?: boolean;
   openedAt?: any;

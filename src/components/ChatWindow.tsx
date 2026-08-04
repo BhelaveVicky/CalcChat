@@ -6,7 +6,7 @@ import {
   Lock, CheckCheck, Check, Paperclip, Camera, Phone, Mic, MicOff, MoreVertical, X,
   Search, CheckSquare, Heart, Ban, MinusCircle, Copy, Pin, Archive, Star,
   CornerUpLeft, Play, Pause, Volume2, Edit3, Forward, Share2, Info, ChevronRight, File, PhoneCall, Tag,
-  RotateCw, RefreshCw, Music, MapPin, User, ZoomIn, ZoomOut, Download
+  RotateCw, RefreshCw, Music, MapPin, User, ZoomIn, ZoomOut, Download, Clock, UserCheck, UserPlus
 } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 import { MediaAttachment, Message, Contact } from '../types';
@@ -14,6 +14,8 @@ import { NicknameModal } from './NicknameModal';
 import { compressImage } from '../lib/mediaCompressor';
 import { formatChatDate, formatMessageTime } from '../lib/dateUtils';
 import { DateSeparator } from './DateSeparator';
+import { VideoMessagePlayer } from './VideoMessagePlayer';
+import { extractVideoMetadata } from '../lib/videoUtils';
 
 const EMOJI_LIST: string[] = [
   '😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','😘','😗','😚','😙',
@@ -69,10 +71,14 @@ export const ChatWindow: React.FC = () => {
     activeContactId, setActiveContactId, setActiveTab, contacts, messages, 
     sendMessage, editMessage, user, deleteMessage, deleteForEveryone, toggleStarMessage,
     togglePinMessage, forwardMessage, setTypingStatus, settings, togglePinContact,
-    toggleArchiveContact, clearChatHistory, blockContact, startCall,
+    toggleArchiveContact, clearChatHistory, blockContact, unblockContact,
+    blockedContactIds, blockedByContactIds, startCall,
     customNicknames, getContactDisplayName, isFriend, unfriendContact,
-    markViewOnceOpened
+    markViewOnceOpened, sendFriendRequest, acceptFriendRequest,
+    pendingFriendRequests, sentFriendRequests
   } = useVault();
+
+  const [showUnfriendConfirmModal, setShowUnfriendConfirmModal] = useState(false);
 
   const isDark = settings.theme !== 'material-light' && settings.theme !== 'light';
   
@@ -192,6 +198,8 @@ export const ChatWindow: React.FC = () => {
     url: string;
     name: string;
     sizeStr: string;
+    durationStr?: string;
+    thumbnailUrl?: string;
     isViewOnce?: boolean;
   }
   const [pendingMediaList, setPendingMediaList] = useState<PendingMediaItem[]>([]);
@@ -757,6 +765,18 @@ export const ChatWindow: React.FC = () => {
         reader.readAsDataURL(file);
       });
 
+      let thumbnailUrl = '';
+      let durationStr = '';
+      if (isVid && dataUrl) {
+        try {
+          const meta = await extractVideoMetadata(dataUrl);
+          thumbnailUrl = meta.thumbnailUrl;
+          durationStr = meta.durationStr;
+        } catch (err) {
+          console.warn('Error extracting video metadata for selected file:', err);
+        }
+      }
+
       if (dataUrl) {
         newItems.push({
           id: 'p_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substring(2, 7),
@@ -765,6 +785,8 @@ export const ChatWindow: React.FC = () => {
           url: dataUrl,
           name: file.name,
           sizeStr: formattedSize,
+          thumbnailUrl,
+          durationStr,
         });
       }
     }
@@ -803,6 +825,8 @@ export const ChatWindow: React.FC = () => {
           name: item.name,
           url: finalDataUrl,
           size: item.sizeStr,
+          duration: item.durationStr,
+          thumbnailUrl: item.thumbnailUrl,
           isViewOnce: Boolean(item.isViewOnce),
         };
 
@@ -1141,10 +1165,9 @@ export const ChatWindow: React.FC = () => {
                   {isFriend(contact.id) && (
                     <button
                       type="button"
-                      onClick={async () => {
+                      onClick={() => {
                         setShowHeaderMenu(false);
-                        await unfriendContact(contact.id);
-                        showToast(`Unfriended ${contact.name}`);
+                        setShowUnfriendConfirmModal(true);
                       }}
                       className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors text-rose-500 font-semibold ${
                         isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
@@ -1159,16 +1182,21 @@ export const ChatWindow: React.FC = () => {
                     type="button"
                     onClick={() => {
                       setShowHeaderMenu(false);
-                      blockContact(contact.id);
-                      showToast(`${contact.name} blocked`);
-                      setActiveContactId(null);
+                      if (blockedContactIds.includes(contact.id)) {
+                        unblockContact(contact.id);
+                        showToast(`Unblocked ${contact.name}`);
+                      } else {
+                        blockContact(contact.id);
+                        showToast(`${contact.name} blocked`);
+                        setActiveContactId(null);
+                      }
                     }}
-                    className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors text-amber-500 ${
-                      isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                    }`}
+                    className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
+                      blockedContactIds.includes(contact.id) ? 'text-emerald-500 font-semibold' : 'text-amber-500'
+                    } ${isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'}`}
                   >
                     <Ban className="w-4.5 h-4.5 opacity-80" />
-                    <span>Block contact</span>
+                    <span>{blockedContactIds.includes(contact.id) ? `Unblock ${contact.name}` : `Block contact`}</span>
                   </button>
 
                 </div>
@@ -1513,10 +1541,13 @@ export const ChatWindow: React.FC = () => {
                                 )}
 
                                 {msg.media.type === 'video' && (
-                                  <video
+                                  <VideoMessagePlayer
                                     src={msg.media.url}
-                                    controls
-                                    className="max-h-64 w-full bg-black rounded-lg"
+                                    thumbnailUrl={msg.media.thumbnailUrl}
+                                    duration={msg.media.duration}
+                                    name={msg.media.name}
+                                    isMe={isMe}
+                                    onOpenLightbox={(url) => setPreviewMedia(url)}
                                   />
                                 )}
                               </>
@@ -1950,7 +1981,43 @@ export const ChatWindow: React.FC = () => {
           }`}>
             <div className="flex items-center gap-2">
               <Lock className="w-4 h-4 shrink-0 text-amber-400" />
-              <span>You must become confirmed friends before you can send messages or make calls.</span>
+              <span>You must be friends to chat.</span>
+            </div>
+
+            <div className="shrink-0">
+              {sentFriendRequests.some(r => r.receiverId === contact.id && r.status === 'pending') ? (
+                <span className="px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-400 font-bold text-xs border border-amber-500/20 flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5" /> Request Sent
+                </span>
+              ) : (() => {
+                const incoming = pendingFriendRequests.find(r => r.senderId === contact.id && r.status === 'pending');
+                if (incoming) {
+                  return (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await acceptFriendRequest(incoming.id, contact.id);
+                        showToast('🎉 You are now friends!');
+                      }}
+                      className="px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-[#0b141a] font-bold text-xs flex items-center gap-1 shadow cursor-pointer"
+                    >
+                      <UserCheck className="w-3.5 h-3.5" /> Accept Request
+                    </button>
+                  );
+                }
+                return (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await sendFriendRequest(contact.id);
+                      showToast('Friend request sent.');
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl bg-[#00a8ff] hover:bg-[#0088cc] text-[#0b141a] font-bold text-xs flex items-center gap-1 shadow cursor-pointer active:scale-95 transition-all"
+                  >
+                    <UserPlus className="w-3.5 h-3.5 stroke-[2.5]" /> Add Friend
+                  </button>
+                );
+              })()}
             </div>
           </div>
         ) : (
@@ -2036,86 +2103,110 @@ export const ChatWindow: React.FC = () => {
               </div>
             )}
 
-            {/* Bottom Input Bar */}
-            <form onSubmit={handleSend} className={`p-2 flex items-center gap-2 shrink-0 transition-colors ${
-              isDark ? 'bg-[#0b141a]' : 'bg-gray-100 border-t border-gray-200'
-            }`}>
-              <div className={`flex-1 rounded-full flex items-center px-3 py-1.5 gap-2 border ${
-                isDark ? 'bg-[#202c33] border-transparent' : 'bg-white border-gray-200'
+            {/* Bottom Input Bar or Blocked Notice */}
+            {(blockedContactIds.includes(contact.id) || blockedByContactIds.includes(contact.id)) ? (
+              <div className={`p-4 text-center flex flex-col items-center justify-center gap-2 border-t shrink-0 ${
+                isDark ? 'bg-[#111b21] border-[#1f2c34] text-[#8696a0]' : 'bg-gray-100 border-gray-200 text-gray-600'
               }`}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowEmojiPicker(!showEmojiPicker);
-                    setShowAttachModal(false);
-                  }}
-                  className={`p-1.5 transition-colors ${
-                    showEmojiPicker 
-                      ? 'text-[#00a8ff]' 
-                      : (isDark ? 'text-[#8596a0] hover:text-[#e9edef]' : 'text-gray-500 hover:text-gray-800')
-                  }`}
-                  title="Emojis"
-                >
-                  <Smile className="w-6 h-6" />
-                </button>
-
-                <input
-                  type="text"
-                  placeholder="Message"
-                  value={inputText}
-                  onChange={handleInputChange}
-                  className={`flex-1 bg-transparent focus:outline-none text-base py-1 ${
-                    isDark ? 'text-[#e9edef] placeholder-[#8596a0]' : 'text-gray-900 placeholder-gray-400'
-                  }`}
-                />
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAttachModal(!showAttachModal);
-                    setShowEmojiPicker(false);
-                  }}
-                  className={`p-1.5 transition-colors -rotate-45 ${
-                    showAttachModal 
-                      ? 'text-[#00a8ff]' 
-                      : (isDark ? 'text-[#8596a0] hover:text-[#e9edef]' : 'text-gray-500 hover:text-gray-800')
-                  }`}
-                  title="Attach"
-                >
-                  <Paperclip className="w-5 h-5" />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('gallery')}
-                  className={`p-1.5 transition-colors hidden sm:block ${
-                    isDark ? 'text-[#8596a0] hover:text-[#e9edef]' : 'text-gray-500 hover:text-gray-800'
-                  }`}
-                  title="Camera"
-                >
-                  <Camera className="w-5 h-5" />
-                </button>
+                <p className="text-xs font-medium">
+                  {blockedContactIds.includes(contact.id)
+                    ? "You blocked this contact. Tap below to unblock."
+                    : "You cannot send messages to this contact."}
+                </p>
+                {blockedContactIds.includes(contact.id) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      unblockContact(contact.id);
+                      showToast(`Unblocked ${contact.name}`);
+                    }}
+                    className="px-4 py-1.5 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500/20 text-xs font-semibold transition-colors cursor-pointer"
+                  >
+                    Unblock Contact
+                  </button>
+                )}
               </div>
+            ) : (
+              <form onSubmit={handleSend} className={`p-2 flex items-center gap-2 shrink-0 transition-colors ${
+                isDark ? 'bg-[#0b141a]' : 'bg-gray-100 border-t border-gray-200'
+              }`}>
+                <div className={`flex-1 rounded-full flex items-center px-3 py-1.5 gap-2 border ${
+                  isDark ? 'bg-[#202c33] border-transparent' : 'bg-white border-gray-200'
+                }`}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowEmojiPicker(!showEmojiPicker);
+                      setShowAttachModal(false);
+                    }}
+                    className={`p-1.5 transition-colors ${
+                      showEmojiPicker 
+                        ? 'text-[#00a8ff]' 
+                        : (isDark ? 'text-[#8596a0] hover:text-[#e9edef]' : 'text-gray-500 hover:text-gray-800')
+                    }`}
+                    title="Emojis"
+                  >
+                    <Smile className="w-6 h-6" />
+                  </button>
 
-              {inputText.trim() ? (
-                <button
-                  type="submit"
-                  className="bg-[#00a8ff] hover:bg-[#0088cc] active:scale-95 text-[#0b141a] w-11 h-11 rounded-full font-bold transition-all shadow-md flex items-center justify-center shrink-0 cursor-pointer"
-                  title="Send"
-                >
-                  <Send className="w-5 h-5 ml-0.5" />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleStartRecording}
-                  className="bg-[#00a8ff] hover:bg-[#0088cc] active:scale-95 text-[#0b141a] w-11 h-11 rounded-full font-bold transition-all shadow-md flex items-center justify-center shrink-0 cursor-pointer"
-                  title="Hold to Record Voice Message"
-                >
-                  <Mic className="w-5 h-5" />
-                </button>
-              )}
-            </form>
+                  <input
+                    type="text"
+                    placeholder="Message"
+                    value={inputText}
+                    onChange={handleInputChange}
+                    className={`flex-1 bg-transparent focus:outline-none text-base py-1 ${
+                      isDark ? 'text-[#e9edef] placeholder-[#8596a0]' : 'text-gray-900 placeholder-gray-400'
+                    }`}
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAttachModal(!showAttachModal);
+                      setShowEmojiPicker(false);
+                    }}
+                    className={`p-1.5 transition-colors -rotate-45 ${
+                      showAttachModal 
+                        ? 'text-[#00a8ff]' 
+                        : (isDark ? 'text-[#8596a0] hover:text-[#e9edef]' : 'text-gray-500 hover:text-gray-800')
+                    }`}
+                    title="Attach"
+                  >
+                    <Paperclip className="w-5 h-5" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('gallery')}
+                    className={`p-1.5 transition-colors hidden sm:block ${
+                      isDark ? 'text-[#8596a0] hover:text-[#e9edef]' : 'text-gray-500 hover:text-gray-800'
+                    }`}
+                    title="Camera"
+                  >
+                    <Camera className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {inputText.trim() ? (
+                  <button
+                    type="submit"
+                    className="bg-[#00a8ff] hover:bg-[#0088cc] active:scale-95 text-[#0b141a] w-11 h-11 rounded-full font-bold transition-all shadow-md flex items-center justify-center shrink-0 cursor-pointer"
+                    title="Send"
+                  >
+                    <Send className="w-5 h-5 ml-0.5" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleStartRecording}
+                    className="bg-[#00a8ff] hover:bg-[#0088cc] active:scale-95 text-[#0b141a] w-11 h-11 rounded-full font-bold transition-all shadow-md flex items-center justify-center shrink-0 cursor-pointer"
+                    title="Hold to Record Voice Message"
+                  >
+                    <Mic className="w-5 h-5" />
+                  </button>
+                )}
+              </form>
+            )}
           </div>
         )}
 
@@ -2522,6 +2613,49 @@ export const ChatWindow: React.FC = () => {
         </div>
       )}
 
+      {/* Unfriend Confirmation Modal */}
+      {showUnfriendConfirmModal && (
+        <div 
+          className="fixed inset-0 bg-black/75 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setShowUnfriendConfirmModal(false)}
+        >
+          <div 
+            className={`w-full max-w-sm rounded-3xl p-6 shadow-2xl border transition-all animate-scale-up ${
+              isDark ? 'bg-[#111b21] text-white border-[#202c33]' : 'bg-white text-slate-900 border-slate-200'
+            }`}
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 className="font-extrabold text-lg mb-2">Remove this friend?</h3>
+            <p className={`text-xs mb-6 leading-relaxed ${isDark ? 'text-[#8696a0]' : 'text-slate-500'}`}>
+              Are you sure you want to remove <span className="font-bold text-current">{contact.name}</span> from your friends list? Chatting, calling, and media sharing will be disabled until you become friends again.
+            </p>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setShowUnfriendConfirmModal(false)}
+                className={`flex-1 py-2.5 rounded-xl font-bold text-xs border transition-colors cursor-pointer ${
+                  isDark ? 'bg-[#202c33] hover:bg-[#2a3942] border-[#2a3942] text-white' : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-800'
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setShowUnfriendConfirmModal(false);
+                  await unfriendContact(contact.id);
+                  showToast(`Unfriended ${contact.name}`);
+                }}
+                className="flex-1 py-2.5 rounded-xl font-bold text-xs bg-rose-600 hover:bg-rose-500 text-white shadow-lg transition-all active:scale-95 cursor-pointer"
+              >
+                Unfriend
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Microphone Permission Blocked Help Modal */}
       {showMicBlockedModal && (
         <div 
@@ -2677,10 +2811,11 @@ export const ChatWindow: React.FC = () => {
               }
               if (item.type === 'video') {
                 return (
-                  <video
+                  <VideoMessagePlayer
                     src={item.url}
-                    controls
-                    className="max-h-[60vh] max-w-full rounded-lg bg-black"
+                    thumbnailUrl={item.thumbnailUrl}
+                    duration={item.durationStr}
+                    name={item.name}
                   />
                 );
               }
@@ -2768,8 +2903,17 @@ export const ChatWindow: React.FC = () => {
                     {item.type === 'image' ? (
                       <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
                     ) : item.type === 'video' ? (
-                      <div className="w-full h-full bg-black flex items-center justify-center">
-                        <Video className="w-6 h-6 text-rose-400" />
+                      <div className="w-full h-full bg-slate-900 relative overflow-hidden flex items-center justify-center">
+                        {item.thumbnailUrl ? (
+                          <img src={item.thumbnailUrl} alt={item.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <Video className="w-6 h-6 text-[#00a8ff]" />
+                        )}
+                        {item.durationStr && (
+                          <span className="absolute bottom-0.5 right-0.5 bg-black/80 px-1 py-0.2 rounded text-[9px] font-mono font-bold text-white">
+                            {item.durationStr}
+                          </span>
+                        )}
                       </div>
                     ) : item.type === 'audio' ? (
                       <div className="w-full h-full bg-amber-950/80 flex items-center justify-center">

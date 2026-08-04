@@ -307,7 +307,7 @@ export const FriendRequestsModal: React.FC<FriendRequestsModalProps> = ({
                           className="px-3.5 py-1.5 rounded-xl bg-[#00a8ff] hover:bg-[#0088cc] text-[#0b141a] font-bold text-xs flex items-center gap-1 transition-all active:scale-95 shadow cursor-pointer"
                         >
                           <UserPlus className="w-3.5 h-3.5 stroke-[2.5]" />
-                          <span>Follow</span>
+                          <span>Add Friend</span>
                         </button>
                       )}
                     </div>

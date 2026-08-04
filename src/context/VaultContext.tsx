@@ -5,9 +5,9 @@ import {
   User as FirebaseUser 
 } from 'firebase/auth';
 import { 
-  collection, doc, getDoc, setDoc, updateDoc, deleteDoc, 
+  collection, collectionGroup, doc, getDoc, setDoc, updateDoc, deleteDoc, 
   onSnapshot, query, where, orderBy, serverTimestamp, 
-  addDoc, getDocs, writeBatch, arrayUnion, runTransaction
+  addDoc, getDocs, writeBatch, arrayUnion, arrayRemove, runTransaction
 } from 'firebase/firestore';
 import { 
   CallInfo, CallLog, CallType, CallDirection, CallStatus, Contact, MediaAttachment, Message, 
@@ -51,6 +51,7 @@ interface VaultContextType {
   activeTab: 'chats' | 'gallery' | 'profile' | 'settings' | 'calls';
   unlockedLocks: Record<string, boolean>;
   blockedContactIds: string[];
+  blockedByContactIds: string[];
   customNicknames: Record<string, string>;
   authUser: FirebaseUser | null;
   authReady: boolean;
@@ -145,6 +146,7 @@ const fallbackVaultContext: VaultContextType = {
   activeTab: 'chats',
   unlockedLocks: {},
   blockedContactIds: [],
+  blockedByContactIds: [],
   customNicknames: {},
   authUser: null,
   authReady: false,
@@ -372,6 +374,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [callPermissionError, setCallPermissionError] = useState<string | null>(null);
   const [statusUpdates, setStatusUpdates] = useState<StatusUpdate[]>([]);
   const [blockedContactIds, setBlockedContactIds] = useState<string[]>([]);
+  const [blockedByContactIds, setBlockedByContactIds] = useState<string[]>([]);
   const [customNicknames, setCustomNicknames] = useState<Record<string, string>>({});
 
   const unreadTotal = contacts.reduce((total, contact) => total + (contact.unreadCount || 0), 0);
@@ -557,6 +560,51 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     return () => unsubscribe();
   }, []);
+
+  // Real-time listener for Blocked Contacts (contacts I blocked)
+  useEffect(() => {
+    if (!authUser || needsUsername) {
+      setBlockedContactIds([]);
+      return;
+    }
+
+    const blockedQuery = collection(db, 'users', authUser.uid, 'blockedContacts');
+    const unsub = onSnapshot(blockedQuery, (snapshot) => {
+      const ids = snapshot.docs.map(d => d.id);
+      setBlockedContactIds(ids);
+    }, (err) => handleFirestoreError('Blocked contacts snapshot error:', err, () => setBlockedContactIds([])));
+
+    return () => unsub();
+  }, [authUser, needsUsername]);
+
+  // Real-time listener for Users who blocked ME
+  useEffect(() => {
+    if (!authUser || needsUsername) {
+      setBlockedByContactIds([]);
+      return;
+    }
+
+    try {
+      const blockedByQuery = query(
+        collectionGroup(db, 'blockedContacts'),
+        where('blockedUid', '==', authUser.uid)
+      );
+      const unsub = onSnapshot(blockedByQuery, (snapshot) => {
+        const blockerIds: string[] = [];
+        snapshot.docs.forEach(d => {
+          const blockerUid = d.ref.parent.parent?.id;
+          if (blockerUid && blockerUid !== authUser.uid) {
+            blockerIds.push(blockerUid);
+          }
+        });
+        setBlockedByContactIds(blockerIds);
+      }, (err) => handleFirestoreError('Blocked by contacts snapshot error:', err, () => setBlockedByContactIds([])));
+
+      return () => unsub();
+    } catch (e) {
+      console.warn('CollectionGroup query error:', e);
+    }
+  }, [authUser, needsUsername]);
 
   // Real-time listener for Custom Nicknames
   useEffect(() => {
@@ -1104,6 +1152,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const data = docSnap.data();
       const uid = docSnap.id || data.uid;
 
+      if (blockedContactIds.includes(uid) || blockedByContactIds.includes(uid)) {
+        return;
+      }
+
       const uName = (data.username || '').toLowerCase();
       const dName = (data.displayName || '').toLowerCase();
       const customNick = (customNicknames[uid] || '').toLowerCase();
@@ -1265,10 +1317,73 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Unfriend Contact
   const unfriendContact = async (contactId: string) => {
-    if (!authUser) return;
+    if (!authUser || !contactId) return;
 
-    const friendshipId = [authUser.uid, contactId].sort().join('_');
-    await deleteDoc(doc(db, 'friends', friendshipId)).catch(() => {});
+    try {
+      // 1. Delete friendship document from 'friends' collection
+      const friendshipId = [authUser.uid, contactId].sort().join('_');
+      await deleteDoc(doc(db, 'friends', friendshipId)).catch(() => {});
+
+      // 2. Remove or update friendRequests between authUser.uid and contactId
+      const reqQuery1 = query(
+        collection(db, 'friendRequests'),
+        where('senderId', '==', authUser.uid),
+        where('receiverId', '==', contactId)
+      );
+      const reqQuery2 = query(
+        collection(db, 'friendRequests'),
+        where('senderId', '==', contactId),
+        where('receiverId', '==', authUser.uid)
+      );
+
+      const [snap1, snap2] = await Promise.all([
+        getDocs(reqQuery1).catch(() => null),
+        getDocs(reqQuery2).catch(() => null)
+      ]);
+
+      const deletePromises: Promise<any>[] = [];
+      if (snap1) {
+        snap1.docs.forEach(d => deletePromises.push(deleteDoc(doc(db, 'friendRequests', d.id)).catch(() => {})));
+      }
+      if (snap2) {
+        snap2.docs.forEach(d => deletePromises.push(deleteDoc(doc(db, 'friendRequests', d.id)).catch(() => {})));
+      }
+      await Promise.all(deletePromises);
+
+      // 3. Remove contactId from my user document arrays (friends, following, followers)
+      const myDocRef = doc(db, 'users', authUser.uid);
+      await updateDoc(myDocRef, {
+        friends: arrayRemove(contactId),
+        following: arrayRemove(contactId),
+        followers: arrayRemove(contactId),
+      }).catch(() => {});
+
+      // 4. Remove my UID from contact's user document arrays (friends, following, followers)
+      const contactDocRef = doc(db, 'users', contactId);
+      await updateDoc(contactDocRef, {
+        friends: arrayRemove(authUser.uid),
+        following: arrayRemove(authUser.uid),
+        followers: arrayRemove(authUser.uid),
+      }).catch(() => {});
+
+      // 5. Update local states immediately
+      setUser(prev => ({
+        ...prev,
+        friends: (prev.friends || []).filter(id => id !== contactId),
+        following: (prev.following || []).filter(id => id !== contactId),
+        followers: (prev.followers || []).filter(id => id !== contactId),
+      }));
+
+      setFriendUids(prev => prev.filter(id => id !== contactId));
+      setFriendContacts(prev => prev.filter(c => c.id !== contactId));
+
+      // 6. Close chat window if open with this contact
+      if (activeContactId === contactId) {
+        setActiveContactId(null);
+      }
+    } catch (err) {
+      console.error('Error during unfriendContact:', err);
+    }
   };
 
   // Post Status Update
@@ -1297,6 +1412,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const isGroupChat = contacts.some(c => c.id === receiverId && c.isGroup) || groupContacts.some(g => g.id === receiverId) || receiverId.startsWith('group_');
 
     if (!authUser) throw new Error('Not authenticated.');
+    if (blockedContactIds.includes(receiverId) || blockedByContactIds.includes(receiverId)) {
+      throw new Error('You cannot send messages to this contact because they are blocked.');
+    }
     if (!isGroupChat && !isFriend(receiverId)) {
       throw new Error('You must become friends before you can chat.');
     }
@@ -1547,7 +1665,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const data = docSnap.data();
         const callId = docSnap.id;
 
-        if (blockedContactIds.includes(data.callerId)) {
+        if (blockedContactIds.includes(data.callerId) || blockedByContactIds.includes(data.callerId)) {
           updateDoc(doc(db, 'calls', callId), { status: 'rejected' }).catch(() => {});
           return;
         }
@@ -1627,6 +1745,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     if (authUser && contactId === authUser.uid) {
       throw new Error('You cannot start a call with yourself.');
+    }
+
+    if (blockedContactIds.includes(contactId) || blockedByContactIds.includes(contactId)) {
+      throw new Error('Cannot call blocked contact.');
     }
 
     if (!isFriend(contactId)) {
@@ -2322,11 +2444,27 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const unlockChatLock = (contactId: string) => {
     setUnlockedLocks(prev => ({ ...prev, [contactId]: true }));
   };
-  const blockContact = (contactId: string) => {
+  const blockContact = async (contactId: string) => {
+    if (!contactId) return;
     setBlockedContactIds(prev => prev.includes(contactId) ? prev : [...prev, contactId]);
+    if (activeContactId === contactId) {
+      setActiveContactId(null);
+    }
+    if (authUser) {
+      const ref = doc(db, 'users', authUser.uid, 'blockedContacts', contactId);
+      await setDoc(ref, {
+        blockedUid: contactId,
+        blockedAt: serverTimestamp(),
+      }, { merge: true }).catch(err => console.error('Error blocking contact in Firestore:', err));
+    }
   };
-  const unblockContact = (contactId: string) => {
+  const unblockContact = async (contactId: string) => {
+    if (!contactId) return;
     setBlockedContactIds(prev => prev.filter(id => id !== contactId));
+    if (authUser) {
+      const ref = doc(db, 'users', authUser.uid, 'blockedContacts', contactId);
+      await deleteDoc(ref).catch(err => console.error('Error unblocking contact in Firestore:', err));
+    }
   };
   const toggleStarMessage = async (contactId: string, msgId: string) => {
     if (!authUser) return;
@@ -2391,6 +2529,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       activeTab,
       unlockedLocks,
       blockedContactIds,
+      blockedByContactIds,
       customNicknames,
       authUser,
       authReady,

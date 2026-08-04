@@ -38,6 +38,8 @@ export const ChatList: React.FC = () => {
     friendUids,
     sendFriendRequest,
     acceptFriendRequest,
+    blockedContactIds,
+    blockedByContactIds,
   } = useVault();
 
   const isDark = settings.theme !== 'material-light' && settings.theme !== 'light';
@@ -96,6 +98,7 @@ export const ChatList: React.FC = () => {
     const results = allRegisteredUsers
       .map((u) => {
         const uid = u.uid || u.id;
+        if (blockedContactIds.includes(uid) || blockedByContactIds.includes(uid)) return null;
         const username = (u.username || '').toString();
         const displayName = (u.displayName || u.name || '').toString();
         const about = (u.about || u.status || 'Available on CalcChat').toString();
@@ -159,7 +162,7 @@ export const ChatList: React.FC = () => {
 
     setSearchResults(results);
     setIsSearching(false);
-  }, [search, allRegisteredUsers, customNicknames, friendUids, pendingFriendRequests, sentFriendRequests, user.id]);
+  }, [search, allRegisteredUsers, customNicknames, friendUids, pendingFriendRequests, sentFriendRequests, user.id, blockedContactIds, blockedByContactIds]);
 
   const handlePressStart = (contactId: string) => {
     isLongPressRef.current = false;
@@ -184,6 +187,9 @@ export const ChatList: React.FC = () => {
   const archivedContactsCount = contacts.filter(c => c.isArchived).length;
 
   const filteredContacts = contacts.filter(c => {
+    if (blockedContactIds.includes(c.id) || blockedByContactIds.includes(c.id)) {
+      return false;
+    }
     const nickname = customNicknames[c.id] || '';
     const displayName = getContactDisplayName(c);
     const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -503,7 +509,7 @@ export const ChatList: React.FC = () => {
                           }}
                           className="px-4 py-2 rounded-xl bg-[#00a8ff] hover:bg-[#0091ea] text-[#0b141a] font-bold text-xs flex items-center gap-1.5 shadow-lg transition-all active:scale-95 cursor-pointer"
                         >
-                          <UserPlus className="w-3.5 h-3.5" /> Follow
+                          <UserPlus className="w-3.5 h-3.5" /> Add Friend
                         </button>
                       )}
 

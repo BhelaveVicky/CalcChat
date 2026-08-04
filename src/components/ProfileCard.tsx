@@ -21,6 +21,9 @@ export interface ProfileData {
   following?: string[];
   isOnline?: boolean;
   email?: string;
+  isGroup?: boolean;
+  groupMembers?: string[];
+  members?: string[];
 }
 
 interface ProfileCardProps {
@@ -53,6 +56,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   const targetUid = user.uid || user.id || '';
 
   const [showPrivateNotice, setShowPrivateNotice] = useState(false);
+  const [showUnfriendConfirm, setShowUnfriendConfirm] = useState(false);
   const [showMediaModal, setShowMediaModal] = useState(false);
   const [activeMediaTab, setActiveMediaTab] = useState<'photos' | 'videos' | 'links'>('photos');
   const [selectedPreviewItem, setSelectedPreviewItem] = useState<any | null>(null);
@@ -84,13 +88,22 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
 
   const isSelf = currentUserUid ? (targetUid === currentUserUid) : false;
   const isAdmin = checkIsAdmin(user);
+  const isGroup = Boolean(user.isGroup || targetUid.startsWith('group_') || user.username === 'group');
   const avatarUrl = user.photoURL || user.avatar;
   const displayName = user.name || 'CalChat User';
-  const usernameStr = user.username ? `@${user.username.replace(/^@/, '')}` : '@username';
-  const bioText = user.bio || user.status || user.about || '"An emptiholic heart with quiet dreams" 🌙 💖 🥀';
+  const usernameStr = isGroup ? '@group' : (user.username ? `@${user.username.replace(/^@/, '')}` : '@username');
+  
+  const rawBio = user.bio || user.status || user.about || '';
+  const bioText = isGroup
+    ? (rawBio.includes('members:') || rawBio.includes('member:') ? 'Official Group Chat' : (rawBio || 'Official Group Chat'))
+    : (rawBio || '"An emptiholic heart with quiet dreams" 🌙 💖 🥀');
 
-  const followersCount = isAdmin ? '2K' : (Array.isArray(user.followers) ? user.followers.length : 0);
-  const followingCount = Array.isArray(user.following) ? user.following.length : 0;
+  const groupMembersCount = Array.isArray(user.followers) && user.followers.length > 0 
+    ? user.followers.length 
+    : (user.groupMembers?.length || user.members?.length || 0);
+
+  const followersCount = isGroup ? groupMembersCount : (isAdmin ? '2K' : (Array.isArray(user.followers) ? user.followers.length : 0));
+  const followingCount = isGroup ? 0 : (Array.isArray(user.following) ? user.following.length : 0);
 
   const handleFollowersClick = () => {
     if (isAdmin) {
@@ -102,43 +115,13 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
     }
   };
 
-  // Extract real media from messages list
+  // Extract real media from messages list only (no fake default placeholders)
   const realMedia = messagesList
     .filter(m => m.media && m.media.url && !m.deletedForEveryone)
     .map(m => m.media!);
 
-  // Default sample media if no chat attachments exist yet (matching the WhatsApp second image screenshot)
-  const defaultSampleMedia = [
-    {
-      id: 'sample-1',
-      type: 'video' as const,
-      url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=400&auto=format&fit=crop&q=80',
-      name: 'Vid_2026_01.mp4',
-      duration: '0:03'
-    },
-    {
-      id: 'sample-2',
-      type: 'video' as const,
-      url: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=400&auto=format&fit=crop&q=80',
-      name: 'Vid_2026_02.mp4',
-      duration: '0:11'
-    },
-    {
-      id: 'sample-3',
-      type: 'image' as const,
-      url: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=400&auto=format&fit=crop&q=80',
-      name: 'Scenery.jpg'
-    },
-    {
-      id: 'sample-4',
-      type: 'file' as const,
-      url: 'https://images.unsplash.com/photo-1518173946687-a4c8a383392e?w=400&auto=format&fit=crop&q=80',
-      name: 'Document.pdf'
-    }
-  ];
-
-  const effectiveMediaItems = realMedia.length > 0 ? realMedia : defaultSampleMedia;
-  const totalMediaCount = realMedia.length > 0 ? realMedia.length : 9;
+  const effectiveMediaItems = realMedia;
+  const totalMediaCount = realMedia.length;
 
   // Filter items for full media modal
   const filteredMedia = effectiveMediaItems.filter(item => {
@@ -270,31 +253,75 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
             </button>
           ) : (
             <>
-              {/* Follow / Unfollow Button */}
+              {/* Add Friend / Unfriend Button */}
               {onFollowToggle && (
-                <button
-                  type="button"
-                  onClick={onFollowToggle}
-                  className={`flex-1 py-2.5 px-4 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm ${
-                    isFollowing
-                      ? (isDark 
-                          ? 'bg-[#1f2c34] hover:bg-rose-950/40 hover:border-rose-500/50 text-white border border-[#2a3942]' 
-                          : 'bg-gray-100 hover:bg-rose-50 text-gray-900 border border-gray-300')
-                      : 'bg-[#00a8ff] hover:bg-[#0088cc] text-[#0b141a] border border-[#00a8ff]'
-                  }`}
-                >
-                  {isFollowing ? (
-                    <>
-                      <UserCheck className="w-4 h-4 text-[#00a8ff]" />
-                      <span>Following</span>
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus className="w-4 h-4" />
-                      <span>Follow</span>
-                    </>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isFollowing) {
+                        setShowUnfriendConfirm(true);
+                      } else {
+                        onFollowToggle();
+                      }
+                    }}
+                    className={`flex-1 py-2.5 px-4 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm ${
+                      isFollowing
+                        ? (isDark 
+                            ? 'bg-[#1f2c34] hover:bg-rose-950/40 hover:border-rose-500/50 text-white border border-[#2a3942]' 
+                            : 'bg-gray-100 hover:bg-rose-50 text-gray-900 border border-gray-300')
+                        : 'bg-[#00a8ff] hover:bg-[#0088cc] text-[#0b141a] border border-[#00a8ff]'
+                    }`}
+                  >
+                    {isFollowing ? (
+                      <>
+                        <UserCheck className="w-4 h-4 text-rose-400" />
+                        <span>Unfriend</span>
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus className="w-4 h-4" />
+                        <span>Add Friend</span>
+                      </>
+                    )}
+                  </button>
+
+                  {/* Unfriend Confirmation Modal */}
+                  {showUnfriendConfirm && (
+                    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+                      <div className={`w-full max-w-sm rounded-3xl p-6 shadow-2xl border ${
+                        isDark ? 'bg-[#111b21] border-[#202c33] text-white' : 'bg-white border-gray-200 text-gray-900'
+                      }`}>
+                        <h3 className="font-extrabold text-lg mb-2">Remove this friend?</h3>
+                        <p className={`text-xs mb-6 leading-relaxed ${isDark ? 'text-[#8696a0]' : 'text-gray-500'}`}>
+                          Are you sure you want to remove <span className="font-bold text-current">{displayName}</span> from your friends list? Chat features will be disabled until you become friends again.
+                        </p>
+
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setShowUnfriendConfirm(false)}
+                            className={`flex-1 py-2.5 rounded-xl font-bold text-xs border transition-colors cursor-pointer ${
+                              isDark ? 'bg-[#202c33] hover:bg-[#2a3942] border-[#2a3942] text-white' : 'bg-gray-100 hover:bg-gray-200 border-gray-300 text-gray-800'
+                            }`}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowUnfriendConfirm(false);
+                              onFollowToggle();
+                            }}
+                            className="flex-1 py-2.5 rounded-xl font-bold text-xs bg-rose-600 hover:bg-rose-500 text-white shadow-lg transition-all active:scale-95 cursor-pointer"
+                          >
+                            Unfriend
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   )}
-                </button>
+                </>
               )}
 
               {/* Message Button */}
@@ -344,40 +371,48 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
           </button>
 
           {/* Thumbnails Row */}
-          <div className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-none">
-            {effectiveMediaItems.map((item, idx) => (
-              <div
-                key={item.id || idx}
-                onClick={() => {
-                  setSelectedPreviewItem(item);
-                  setShowMediaModal(true);
-                }}
-                className={`relative shrink-0 w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden cursor-pointer group border shadow-xs ${
-                  isDark ? 'border-[#202c33] bg-[#1f2c34]' : 'border-gray-200 bg-gray-200'
-                }`}
-              >
-                {item.type === 'video' ? (
-                  <>
-                    <img src={item.url} alt="Video thumbnail" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                    <div className="absolute inset-0 bg-black/25 flex items-center justify-center">
-                      <Play className="w-5 h-5 text-white fill-white drop-shadow-md" />
+          {effectiveMediaItems.length > 0 ? (
+            <div className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-none">
+              {effectiveMediaItems.map((item, idx) => (
+                <div
+                  key={item.id || idx}
+                  onClick={() => {
+                    setSelectedPreviewItem(item);
+                    setShowMediaModal(true);
+                  }}
+                  className={`relative shrink-0 w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden cursor-pointer group border shadow-xs ${
+                    isDark ? 'border-[#202c33] bg-[#1f2c34]' : 'border-gray-200 bg-gray-200'
+                  }`}
+                >
+                  {item.type === 'video' ? (
+                    <>
+                      <img src={item.url} alt="Video thumbnail" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                      <div className="absolute inset-0 bg-black/25 flex items-center justify-center">
+                        <Play className="w-5 h-5 text-white fill-white drop-shadow-md" />
+                      </div>
+                      <div className="absolute bottom-1 left-1 bg-black/60 backdrop-blur-xs text-[10px] text-white px-1.5 py-0.5 rounded-md font-mono flex items-center gap-1 font-bold">
+                        <Video className="w-3 h-3 text-white" />
+                        <span>{item.duration || '0:03'}</span>
+                      </div>
+                    </>
+                  ) : item.type === 'image' ? (
+                    <img src={item.url} alt="Media photo" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-[#00a8ff]/10 text-[#00a8ff] p-2 text-center">
+                      <Download className="w-6 h-6 mb-1" />
+                      <span className="text-[10px] truncate max-w-full font-bold">{item.name || 'Document'}</span>
                     </div>
-                    <div className="absolute bottom-1 left-1 bg-black/60 backdrop-blur-xs text-[10px] text-white px-1.5 py-0.5 rounded-md font-mono flex items-center gap-1 font-bold">
-                      <Video className="w-3 h-3 text-white" />
-                      <span>{item.duration || '0:03'}</span>
-                    </div>
-                  </>
-                ) : item.type === 'image' ? (
-                  <img src={item.url} alt="Media photo" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center bg-[#00a8ff]/10 text-[#00a8ff] p-2 text-center">
-                    <Download className="w-6 h-6 mb-1" />
-                    <span className="text-[10px] truncate max-w-full font-bold">{item.name || 'Document'}</span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="py-2 text-left">
+              <p className={`text-xs font-medium ${isDark ? 'text-[#8696a0]' : 'text-gray-500'}`}>
+                No photos, videos or docs shared yet
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Notifications & Call Control Switches Section */}

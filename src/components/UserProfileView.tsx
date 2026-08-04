@@ -21,7 +21,7 @@ export const UserProfileView: React.FC = () => {
     user, authUser, updateProfile, signOutGoogle, lockVault, 
     contacts, blockedContactIds, blockContact, unblockContact,
     settings: vaultSettings, updateSettings: updateVaultSettings,
-    clearAllChatHistory
+    clearAllChatHistory, allRegisteredUsers
   } = useVault();
   const { settings, updateSettings: updateGlobalSettings } = useSettings();
   const isDark = vaultSettings.theme !== 'material-light' && vaultSettings.theme !== 'light';
@@ -1161,35 +1161,45 @@ export const UserProfileView: React.FC = () => {
             {/* Blocked Users List */}
             {blockedContactIds.length > 0 ? (
               <div className="space-y-3">
-                {contacts
-                  .filter(c => blockedContactIds.includes(c.id))
-                  .map(c => (
+                {blockedContactIds.map(blockedId => {
+                  const u = contacts.find(c => c.id === blockedId) || 
+                            allRegisteredUsers.find((r: any) => (r.uid || r.id) === blockedId);
+                  const name = u?.name || u?.displayName || u?.username || 'Blocked Contact';
+                  const username = u?.username ? `@${u.username}` : '';
+                  const avatar = u?.avatar || u?.photoURL;
+                  const about = u?.about || u?.status || 'Available on CalcChat';
+                  return (
                     <div 
-                      key={c.id}
+                      key={blockedId}
                       className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all ${
                         isDark ? 'bg-[#111b21] border-[#1f2c34]' : 'bg-gray-50 border-gray-100'
                       }`}
                     >
                       <div className="flex items-center gap-3.5 min-w-0">
-                        {c.avatar ? (
+                        {avatar ? (
                           <img 
-                            src={c.avatar} 
-                            alt={c.name} 
+                            src={avatar} 
+                            alt={name} 
                             className="w-12 h-12 rounded-full object-cover shrink-0 border border-gray-500/20"
                           />
                         ) : (
                           <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg shrink-0 ${
                             isDark ? 'bg-[#1f2c34] text-[#e9edef]' : 'bg-gray-200 text-gray-700'
                           }`}>
-                            {c.name ? c.name.charAt(0).toUpperCase() : '?'}
+                            {name ? name.charAt(0).toUpperCase() : '?'}
                           </div>
                         )}
                         <div className="min-w-0">
                           <p className={`font-semibold text-base truncate ${isDark ? 'text-[#e9edef]' : 'text-gray-900'}`}>
-                            {c.name}
+                            {name}
                           </p>
+                          {username && (
+                            <p className={`text-xs truncate ${isDark ? 'text-[#8696a0]' : 'text-gray-500'}`}>
+                              {username}
+                            </p>
+                          )}
                           <p className={`text-xs truncate ${isDark ? 'text-[#8696a0]' : 'text-gray-500'}`}>
-                            {c.status || 'Blocked contact'}
+                            {about}
                           </p>
                         </div>
                       </div>
@@ -1197,15 +1207,16 @@ export const UserProfileView: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => {
-                          unblockContact(c.id);
-                          showSnack(`Unblocked ${c.name}`);
+                          unblockContact(blockedId);
+                          showSnack(`Unblocked ${name}`);
                         }}
-                        className="ml-3 px-3.5 py-1.5 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500/20 text-xs font-semibold shrink-0 transition-colors"
+                        className="ml-3 px-3.5 py-1.5 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500/20 text-xs font-semibold shrink-0 transition-colors cursor-pointer"
                       >
                         Unblock
                       </button>
                     </div>
-                  ))}
+                  );
+                })}
               </div>
             ) : (
               /* Empty state */

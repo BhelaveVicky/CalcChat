@@ -19,7 +19,7 @@ export interface UserProfile {
 
 export type CallType = 'voice' | 'video';
 export type CallDirection = 'incoming' | 'outgoing';
-export type CallStatus = 'connected' | 'missed' | 'rejected' | 'cancelled' | 'busy' | 'ended';
+export type CallStatus = 'connected' | 'missed' | 'rejected' | 'cancelled' | 'busy' | 'ended' | 'ringing' | 'connecting';
 
 export interface CallInfo {
   id: string;
@@ -40,8 +40,11 @@ export interface CallLog {
   direction: CallDirection;
   status: CallStatus;
   timestamp: string;
+  createdAt?: any;
   duration?: string;
   isMissed?: boolean;
+  callerId?: string;
+  receiverId?: string;
 }
 
 export interface MediaAttachment {

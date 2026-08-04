@@ -1986,32 +1986,115 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => unsub();
   }, [authUser, needsUsername, blockedContactIds]);
 
-  // Extract call logs from chat history automatically
+  // Real-time listener for Call History from Firestore calls collection and messages
   useEffect(() => {
-    const logsMap = new Map<string, CallLog>();
-    Object.entries(messages).forEach(([contactId, msgList]) => {
-      if (Array.isArray(msgList)) {
-        msgList.forEach(m => {
-        if ((m.type === 'voice_call' || m.type === 'video_call') && m.callInfo) {
-          const info = m.callInfo;
-          const isOutgoing = m.senderId === authUser?.uid;
-          logsMap.set(m.id, {
-            id: m.id,
-            contactId,
-            type: info.type,
-            direction: isOutgoing ? 'outgoing' : 'incoming',
-            status: info.status,
-            timestamp: m.timestamp,
-            duration: info.duration || '00:00',
-            isMissed: info.status === 'missed' || info.status === 'rejected' || info.status === 'busy',
+    if (!authUser || needsUsername) {
+      setCallLogs([]);
+      return;
+    }
+
+    const parseCallDoc = (docSnap: any): CallLog => {
+      const data = docSnap.data();
+      const isOutgoing = data.callerId === authUser.uid;
+      const contactId = isOutgoing ? data.receiverId : data.callerId;
+      const isMissed = data.status === 'missed' || data.status === 'rejected' || data.status === 'busy' || data.status === 'cancelled';
+
+      let dur = data.duration || '00:00';
+      if (!data.duration && data.durationSeconds) {
+        const mins = Math.floor(data.durationSeconds / 60);
+        const secs = data.durationSeconds % 60;
+        dur = `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
+      }
+
+      return {
+        id: docSnap.id,
+        contactId,
+        type: data.type || 'voice',
+        direction: isOutgoing ? 'outgoing' : 'incoming',
+        status: data.status || 'ended',
+        createdAt: data.createdAt,
+        timestamp: data.createdAt?.toDate ? data.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now',
+        duration: dur,
+        isMissed,
+        callerId: data.callerId,
+        receiverId: data.receiverId,
+      };
+    };
+
+    let callerDocs: CallLog[] = [];
+    let receiverDocs: CallLog[] = [];
+
+    const updateCombinedCallLogs = () => {
+      const logsMap = new Map<string, CallLog>();
+
+      // 1. Add calls extracted from chat messages
+      Object.entries(messages).forEach(([cId, msgList]) => {
+        if (Array.isArray(msgList)) {
+          msgList.forEach(m => {
+            if ((m.type === 'voice_call' || m.type === 'video_call') && m.callInfo) {
+              const info = m.callInfo;
+              const isOutgoing = m.senderId === authUser.uid;
+              const isMissed = info.status === 'missed' || info.status === 'rejected' || info.status === 'busy' || info.status === 'cancelled';
+              logsMap.set(m.id, {
+                id: m.id,
+                contactId: isOutgoing ? (m.receiverId || cId) : (m.senderId || cId),
+                type: info.type,
+                direction: isOutgoing ? 'outgoing' : 'incoming',
+                status: info.status,
+                createdAt: m.createdAt,
+                timestamp: m.timestamp,
+                duration: info.duration || '00:00',
+                isMissed,
+                callerId: info.callerId,
+                receiverId: info.receiverId,
+              });
+            }
           });
         }
       });
-      }
-    });
-    const sorted = Array.from(logsMap.values()).reverse();
-    setCallLogs(sorted);
-  }, [messages, authUser?.uid]);
+
+      // 2. Add/override with direct Firestore calls collection docs
+      [...callerDocs, ...receiverDocs].forEach(cLog => {
+        if (cLog.status !== 'ringing' && cLog.status !== 'connecting') {
+          logsMap.set(cLog.id, cLog);
+        }
+      });
+
+      // Sort by creation time descending
+      const sorted = Array.from(logsMap.values()).sort((a, b) => {
+        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0);
+        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0);
+        return timeB - timeA;
+      });
+
+      setCallLogs(sorted);
+    };
+
+    const callerQuery = query(
+      collection(db, 'calls'),
+      where('callerId', '==', authUser.uid)
+    );
+
+    const receiverQuery = query(
+      collection(db, 'calls'),
+      where('receiverId', '==', authUser.uid)
+    );
+
+    const unsubCaller = onSnapshot(callerQuery, (snap) => {
+      callerDocs = snap.docs.map(parseCallDoc);
+      updateCombinedCallLogs();
+    }, (err) => handleFirestoreError('Caller calls snapshot error:', err, () => {}));
+
+    const unsubReceiver = onSnapshot(receiverQuery, (snap) => {
+      receiverDocs = snap.docs.map(parseCallDoc);
+      updateCombinedCallLogs();
+    }, (err) => handleFirestoreError('Receiver calls snapshot error:', err, () => {}));
+
+    return () => {
+      unsubCaller();
+      unsubReceiver();
+    };
+  }, [authUser, needsUsername, messages]);
 
   // Calling logic with WebRTC and Firestore signaling
   const startCall = async (contactId: string, type: CallType) => {

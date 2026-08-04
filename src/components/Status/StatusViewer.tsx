@@ -68,21 +68,25 @@ export const StatusViewer: React.FC<StatusViewerProps> = ({
   const isOwner = currentStatus?.userId === currentUserId;
   const isLiked = currentStatus?.likes?.includes(currentUserId);
 
-  // Mark status as seen when slide changes
+  // Mark status as seen when slide changes & reset slide progress
   useEffect(() => {
+    setProgress(0);
+    setIsPaused(false);
     if (currentStatus && !isOwner) {
       onMarkSeen(currentStatus.id);
     }
-  }, [currentStatus?.id, isOwner]);
+  }, [currentStatus?.id]);
 
-  // Handle slide progress timer
+  // Handle slide progress timer & video pause state
   useEffect(() => {
     if (!currentStatus || isPaused || showDetailsModal) {
       if (timerRef.current) clearInterval(timerRef.current);
+      if (videoRef.current) videoRef.current.pause();
       return;
+    } else if (currentStatus.mediaType === 'video' && videoRef.current) {
+      videoRef.current.play().catch(() => {});
     }
 
-    setProgress(0);
     const intervalMs = 50;
 
     // If status is a video, timer advances based on video element playback
@@ -98,7 +102,7 @@ export const StatusViewer: React.FC<StatusViewerProps> = ({
     } else {
       // Image or text status: 5 seconds timer
       const totalSteps = DEFAULT_IMAGE_DURATION_MS / intervalMs;
-      let stepCount = 0;
+      let stepCount = Math.round((progress / 100) * totalSteps);
 
       timerRef.current = setInterval(() => {
         stepCount++;
@@ -348,6 +352,7 @@ export const StatusViewer: React.FC<StatusViewerProps> = ({
                 status={currentStatus}
                 onSendReply={(text) => onSendReply(currentStatus, text)}
                 onSendReaction={(emoji) => onSendReaction(currentStatus, emoji)}
+                onPauseChange={(paused) => setIsPaused(paused)}
                 isDark={isDark}
               />
             </div>

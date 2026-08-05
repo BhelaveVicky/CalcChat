@@ -131,6 +131,13 @@ export const ChatWindow: React.FC = () => {
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Swipe to Reply States
+  const [swipingMsgId, setSwipingMsgId] = useState<string | null>(null);
+  const [swipeOffset, setSwipeOffset] = useState<number>(0);
+  const swipeTouchStartRef = useRef<{ x: number; y: number; msgId: string } | null>(null);
+  const isSwipingHorizontalRef = useRef<boolean>(false);
+  const hasTriggeredHapticRef = useRef<boolean>(false);
+
   // Auto clear typing timeout when switching chats or unmounting
   useEffect(() => {
     return () => {
@@ -398,6 +405,62 @@ export const ChatWindow: React.FC = () => {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
+  };
+
+  const handleTouchStartMessage = (e: React.TouchEvent, msg: Message) => {
+    if (msg.deletedForEveryone) return;
+    const touch = e.touches[0];
+    swipeTouchStartRef.current = { x: touch.clientX, y: touch.clientY, msgId: msg.id };
+    isSwipingHorizontalRef.current = false;
+    hasTriggeredHapticRef.current = false;
+    handleMsgTouchStart(msg);
+  };
+
+  const handleTouchMoveMessage = (e: React.TouchEvent, msg: Message) => {
+    if (!swipeTouchStartRef.current || swipeTouchStartRef.current.msgId !== msg.id) return;
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - swipeTouchStartRef.current.x;
+    const deltaY = touch.clientY - swipeTouchStartRef.current.y;
+
+    if (!isSwipingHorizontalRef.current) {
+      if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 6) {
+        // Vertical scrolling detected - cancel swipe gesture to allow smooth document scroll
+        swipeTouchStartRef.current = null;
+        handleMsgTouchEndOrMove();
+        return;
+      }
+      if (deltaX > 8 && deltaX > Math.abs(deltaY)) {
+        isSwipingHorizontalRef.current = true;
+        handleMsgTouchEndOrMove(); // Cancel long press timer
+      }
+    }
+
+    if (isSwipingHorizontalRef.current && deltaX > 0) {
+      const clampedOffset = Math.min(deltaX * 0.7, 75);
+      setSwipingMsgId(msg.id);
+      setSwipeOffset(clampedOffset);
+
+      if (clampedOffset >= 48 && !hasTriggeredHapticRef.current) {
+        hasTriggeredHapticRef.current = true;
+        if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+          try { window.navigator.vibrate(30); } catch (err) {}
+        }
+      }
+    }
+  };
+
+  const handleTouchEndMessage = (msg: Message) => {
+    handleMsgTouchEndOrMove();
+    if (swipingMsgId === msg.id && isSwipingHorizontalRef.current) {
+      if (swipeOffset >= 45 || hasTriggeredHapticRef.current) {
+        handleReplySelection(msg);
+      }
+    }
+    setSwipingMsgId(null);
+    setSwipeOffset(0);
+    swipeTouchStartRef.current = null;
+    isSwipingHorizontalRef.current = false;
+    hasTriggeredHapticRef.current = false;
   };
 
   // Close modals on Escape key press
@@ -1408,40 +1471,60 @@ export const ChatWindow: React.FC = () => {
                         />
                       )}
 
-                      <div
-                        onTouchStart={() => handleMsgTouchStart(msg)}
-                        onTouchEnd={handleMsgTouchEndOrMove}
-                        onTouchMove={handleMsgTouchEndOrMove}
-                        onContextMenu={(e) => {
-                          e.preventDefault();
-                          if (!isSelectMode) {
-                            setSelectedMsgIds([msg.id]);
-                            setActiveReactionMsgId(msg.id);
-                          }
-                        }}
-                        onClick={() => {
-                          if (isSelectMode) {
-                            if (isSelected) {
-                              setSelectedMsgIds(selectedMsgIds.filter(id => id !== msg.id));
-                            } else {
-                              setSelectedMsgIds([...selectedMsgIds, msg.id]);
+                      {/* Swipeable Message Bubble Wrapper */}
+                      <div className="relative max-w-[85%] sm:max-w-[75%]">
+                        {/* Swipe to Reply Icon Indicator */}
+                        {swipingMsgId === msg.id && swipeOffset > 3 && (
+                          <div 
+                            className="absolute -left-9 top-1/2 -translate-y-1/2 flex items-center justify-center w-8 h-8 rounded-full bg-[#ea4c89] text-white shadow-md pointer-events-none z-10"
+                            style={{
+                              opacity: Math.min(swipeOffset / 30, 1),
+                              transform: `translateY(-50%) scale(${Math.min(0.5 + (swipeOffset / 45) * 0.5, 1.1)})`
+                            }}
+                          >
+                            <CornerUpLeft className="w-4 h-4 stroke-[2.5]" />
+                          </div>
+                        )}
+
+                        <div
+                          onTouchStart={(e) => handleTouchStartMessage(e, msg)}
+                          onTouchMove={(e) => handleTouchMoveMessage(e, msg)}
+                          onTouchEnd={() => handleTouchEndMessage(msg)}
+                          onTouchCancel={() => handleTouchEndMessage(msg)}
+                          style={{
+                            transform: swipingMsgId === msg.id ? `translateX(${swipeOffset}px)` : 'translateX(0px)',
+                            transition: swipingMsgId === msg.id ? 'none' : 'transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+                          }}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            if (!isSelectMode) {
+                              setSelectedMsgIds([msg.id]);
+                              setActiveReactionMsgId(msg.id);
                             }
-                          }
-                        }}
-                        className={`max-w-[85%] sm:max-w-[75%] px-4 py-2.5 text-sm relative shadow-sm transition-all select-none ${
-                          isMe ? 'rounded-[20px] rounded-br-[3px]' : 'rounded-[20px] rounded-bl-[3px]'
-                        } ${
-                          isSelectMode ? 'cursor-pointer' : ''
-                        } ${
-                          isSelected ? 'ring-2 ring-pink-500 bg-pink-500/20 scale-[1.01]' : ''
-                        } ${
-                          highlightedMsgId === msg.id ? 'ring-2 ring-amber-400 animate-pulse' : ''
-                        } ${
-                          isMe
-                            ? 'bg-[#ea4c89] text-white shadow-pink-500/10'
-                            : (isDark ? 'bg-[#202c33] text-[#e9edef]' : 'bg-white text-gray-900 border border-gray-100')
-                        }`}
-                      >
+                          }}
+                          onClick={() => {
+                            if (isSelectMode) {
+                              if (isSelected) {
+                                setSelectedMsgIds(selectedMsgIds.filter(id => id !== msg.id));
+                              } else {
+                                setSelectedMsgIds([...selectedMsgIds, msg.id]);
+                              }
+                            }
+                          }}
+                          className={`w-full px-4 py-2.5 text-sm relative shadow-sm transition-all select-none ${
+                            isMe ? 'rounded-[20px] rounded-br-[3px]' : 'rounded-[20px] rounded-bl-[3px]'
+                          } ${
+                            isSelectMode ? 'cursor-pointer' : ''
+                          } ${
+                            isSelected ? 'ring-2 ring-pink-500 bg-pink-500/20 scale-[1.01]' : ''
+                          } ${
+                            highlightedMsgId === msg.id ? 'ring-2 ring-pink-500 bg-pink-500/20 animate-pulse' : ''
+                          } ${
+                            isMe
+                              ? 'bg-[#ea4c89] text-white shadow-pink-500/10'
+                              : (isDark ? 'bg-[#202c33] text-[#e9edef]' : 'bg-white text-gray-900 border border-gray-100')
+                          }`}
+                        >
                     {/* Speech Bubble Tail - Outgoing */}
                     {isMe && (
                       <svg
@@ -1533,9 +1616,17 @@ export const ChatWindow: React.FC = () => {
 
                         {/* Quoted Reply Context */}
                         {msg.replyTo && (
-                          <div className={`p-2 rounded-lg border-l-4 mb-2 text-xs border-[#00a8ff] ${
-                            isDark ? 'bg-black/20' : 'bg-black/5'
-                          }`}>
+                          <div 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (msg.replyTo?.id) {
+                                scrollToMessage(msg.replyTo.id);
+                              }
+                            }}
+                            className={`p-2 rounded-lg border-l-4 mb-2 text-xs border-[#00a8ff] cursor-pointer hover:opacity-90 transition-opacity ${
+                              isDark ? 'bg-black/20' : 'bg-black/5'
+                            }`}
+                          >
                             <p className="font-semibold text-[#00a8ff]">{msg.replyTo.senderName}</p>
                             <p className="truncate opacity-80 flex items-center gap-1">
                               {msg.replyTo.text === 'This message was deleted' || msg.replyTo.text.includes('deleted') ? (
@@ -1995,6 +2086,7 @@ export const ChatWindow: React.FC = () => {
 
                   </div>
                 </div>
+              </div>
               </React.Fragment>
             );
           });

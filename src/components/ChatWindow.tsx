@@ -20,6 +20,7 @@ import { MessageSelectionToolbar } from './MessageSelectionToolbar';
 import { EmojiReactionBar } from './EmojiReactionBar';
 import { PinnedMessageBanner } from './PinnedMessageBanner';
 import { WhatsAppProfileViewer } from './WhatsAppProfileViewer';
+import { SetChatWallpaperModal } from './SetChatWallpaperModal';
 
 const EMOJI_LIST: string[] = [
   '😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','😘','😗','😚','😙',
@@ -81,13 +82,24 @@ export const ChatWindow: React.FC = () => {
     markViewOnceOpened, sendFriendRequest, acceptFriendRequest,
     pendingFriendRequests, sentFriendRequests,
     addReactionMessage, removeReactionMessage, deleteMultipleMessages, authUser,
-    updateGroupDetails, deleteGroup
+    updateGroupDetails, deleteGroup, adminWallpapers
   } = useVault();
 
   const [showUnfriendConfirmModal, setShowUnfriendConfirmModal] = useState(false);
   const [showEditGroupNameModal, setShowEditGroupNameModal] = useState(false);
   const [newGroupNameInput, setNewGroupNameInput] = useState('');
   const [showDeleteGroupConfirmModal, setShowDeleteGroupConfirmModal] = useState(false);
+  const [showWallpaperModal, setShowWallpaperModal] = useState(false);
+
+  // Per-chat custom wallpaper dictionary
+  const [perChatWallpapers, setPerChatWallpapers] = useState<Record<string, string>>(() => {
+    try {
+      const saved = localStorage.getItem('calcchat_per_chat_wallpapers');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
 
   const groupAvatarInputRef = useRef<HTMLInputElement>(null);
   const groupWallpaperInputRef = useRef<HTMLInputElement>(null);
@@ -96,8 +108,13 @@ export const ChatWindow: React.FC = () => {
   
   const contact = contacts.find(c => c.id === activeContactId);
   
-  // Wallpaper styling - priority to group specific wallpaper if set
-  const chatWallpaper = (contact?.isGroup && contact?.wallpaper) ? contact.wallpaper : settings?.chatWallpaper;
+  // Wallpaper styling - priority: 1) per-chat custom wallpaper, 2) group wallpaper, 3) global app wallpaper
+  const chatWallpaper = (contact?.id && perChatWallpapers[contact.id])
+    ? perChatWallpapers[contact.id]
+    : (contact?.isGroup && contact?.wallpaper)
+    ? contact.wallpaper
+    : (settings?.chatWallpaper || 'default');
+
   const isCustomImage = Boolean(
     chatWallpaper && 
     chatWallpaper !== 'default' && 
@@ -1313,6 +1330,20 @@ export const ChatWindow: React.FC = () => {
                     >
                       <Tag className="w-4.5 h-4.5 text-[#00a8ff]" />
                       <span className="text-[#00a8ff] font-semibold">{customNicknames[contact.id] ? 'Edit Custom Name' : 'Set Custom Name'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowHeaderMenu(false);
+                        setShowWallpaperModal(true);
+                      }}
+                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
+                        isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                      }`}
+                    >
+                      <Image className="w-4.5 h-4.5 text-[#00a8ff]" />
+                      <span className="font-semibold text-[#00a8ff]">Set Wallpaper</span>
                     </button>
 
                     <button
@@ -3793,6 +3824,54 @@ export const ChatWindow: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Set Per-Chat Wallpaper Modal */}
+      {showWallpaperModal && contact && (
+        <SetChatWallpaperModal
+          isOpen={showWallpaperModal}
+          onClose={() => setShowWallpaperModal(false)}
+          contactName={getContactDisplayName(contact)}
+          contactAvatar={contact.avatar}
+          isDark={isDark}
+          currentWallpaper={chatWallpaper}
+          adminWallpapers={adminWallpapers}
+          onApplyWallpaper={async (newWp) => {
+            const updated = { ...perChatWallpapers, [contact.id]: newWp };
+            setPerChatWallpapers(updated);
+            try {
+              localStorage.setItem('calcchat_per_chat_wallpapers', JSON.stringify(updated));
+            } catch (e) {
+              console.warn('Failed to save chat wallpaper:', e);
+            }
+            if (contact.isGroup) {
+              try {
+                await updateGroupDetails(contact.id, { wallpaper: newWp });
+              } catch (e) {
+                console.warn('Group wallpaper sync warning:', e);
+              }
+            }
+            showToast(`Wallpaper set for ${getContactDisplayName(contact)}!`);
+          }}
+          onResetWallpaper={async () => {
+            const updated = { ...perChatWallpapers };
+            delete updated[contact.id];
+            setPerChatWallpapers(updated);
+            try {
+              localStorage.setItem('calcchat_per_chat_wallpapers', JSON.stringify(updated));
+            } catch (e) {
+              console.warn('Failed to reset chat wallpaper:', e);
+            }
+            if (contact.isGroup) {
+              try {
+                await updateGroupDetails(contact.id, { wallpaper: '' });
+              } catch (e) {
+                console.warn('Group reset wallpaper warning:', e);
+              }
+            }
+            showToast(`Wallpaper reset for ${getContactDisplayName(contact)}`);
+          }}
+        />
       )}
 
     </div>

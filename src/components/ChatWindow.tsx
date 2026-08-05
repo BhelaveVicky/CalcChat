@@ -1553,6 +1553,22 @@ export const ChatWindow: React.FC = () => {
                       </div>
                     ) : (
                       <>
+                        {/* Forwarded Header Indicator */}
+                        {msg.isForwarded && (
+                          <div className={`flex items-center gap-1.5 text-[13px] italic mb-1 select-none ${
+                            isMe ? 'text-white/85' : (isDark ? 'text-[#8696a0]' : 'text-[#667781]')
+                          }`}>
+                            <svg 
+                              viewBox="0 0 20 16" 
+                              className="w-4 h-4 shrink-0 fill-current opacity-90"
+                            >
+                              <path d="M3 13.5C3 9 6.2 6.5 11.5 6.5V3L17.5 8L11.5 13V9.5C8 9.5 5 10.5 3 13.5Z" />
+                              <path d="M13 3L19 8L13 13V10.5L16 8L13 5.5V3Z" />
+                            </svg>
+                            <span className="font-normal tracking-tight">Forwarded</span>
+                          </div>
+                        )}
+
                         {/* Group Member Sender Name */}
                         {contact?.isGroup && !isMe && (
                           <div className="text-[11px] font-bold text-[#ea4c89] mb-1 truncate">

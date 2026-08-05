@@ -107,7 +107,7 @@ interface VaultContextType {
   signOutGoogle: () => Promise<void>;
   setActiveContactId: (id: string | null) => void;
   setActiveTab: (tab: 'chats' | 'gallery' | 'profile' | 'settings' | 'calls') => void;
-  sendMessage: (receiverId: string, text: string, media?: MediaAttachment, replyTo?: Message['replyTo']) => Promise<void>;
+  sendMessage: (receiverId: string, text: string, media?: MediaAttachment, replyTo?: Message['replyTo'], statusReply?: StatusReplyData, statusReaction?: StatusReactionData, isForwarded?: boolean) => Promise<void>;
   editMessage: (contactId: string, msgId: string, newText: string) => Promise<void>;
   deleteMessage: (contactId: string, msgId: string) => Promise<void>;
   deleteForEveryone: (contactId: string, msgId: string) => Promise<void>;
@@ -965,6 +965,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               isStarred: Boolean(data.isStarred),
               isPinned: Boolean(data.isPinned),
               isEdited: Boolean(data.isEdited),
+              isForwarded: Boolean(data.isForwarded),
               replyTo: data.replyTo,
               deletedForEveryone: Boolean(data.deletedForEveryone),
               deletedFor: deletedForArr,
@@ -1912,7 +1913,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     media?: MediaAttachment,
     replyTo?: Message['replyTo'],
     statusReply?: StatusReplyData,
-    statusReaction?: StatusReactionData
+    statusReaction?: StatusReactionData,
+    isForwarded?: boolean
   ) => {
     const isGroupChat = contacts.some(c => c.id === receiverId && c.isGroup) || groupContacts.some(g => g.id === receiverId) || receiverId.startsWith('group_');
 
@@ -1969,6 +1971,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         replyTo: replyTo || null,
         statusReply: statusReply || null,
         statusReaction: statusReaction || null,
+        isForwarded: Boolean(isForwarded),
         seen: isSelfChat ? true : false,
         isRead: isSelfChat ? true : false,
         createdAt: serverTimestamp(),
@@ -1989,6 +1992,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           replyTo: replyTo || null,
           statusReply: statusReply || null,
           statusReaction: statusReaction || null,
+          isForwarded: Boolean(isForwarded),
           seen: isSelfChat ? true : false,
           isRead: isSelfChat ? true : false,
           createdAt: serverTimestamp(),
@@ -3328,7 +3332,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!authUser || !msg || !targetContactIds || targetContactIds.length === 0) return;
     for (const targetId of targetContactIds) {
       try {
-        await sendMessage(targetId, msg.text || '', msg.media || undefined, undefined);
+        await sendMessage(targetId, msg.text || '', msg.media || undefined, undefined, undefined, undefined, true);
       } catch (err) {
         console.warn(`Error forwarding message to ${targetId}:`, err);
       }

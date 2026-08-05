@@ -96,6 +96,7 @@ export interface Message {
   isStarred?: boolean;
   isPinned?: boolean;
   isEdited?: boolean;
+  isForwarded?: boolean;
   isViewOnce?: boolean;
   opened?: boolean;
   deletedForEveryone?: boolean;

@@ -80,15 +80,24 @@ export const ChatWindow: React.FC = () => {
     customNicknames, getContactDisplayName, isFriend, unfriendContact,
     markViewOnceOpened, sendFriendRequest, acceptFriendRequest,
     pendingFriendRequests, sentFriendRequests,
-    addReactionMessage, removeReactionMessage, deleteMultipleMessages, authUser
+    addReactionMessage, removeReactionMessage, deleteMultipleMessages, authUser,
+    updateGroupDetails, deleteGroup
   } = useVault();
 
   const [showUnfriendConfirmModal, setShowUnfriendConfirmModal] = useState(false);
+  const [showEditGroupNameModal, setShowEditGroupNameModal] = useState(false);
+  const [newGroupNameInput, setNewGroupNameInput] = useState('');
+  const [showDeleteGroupConfirmModal, setShowDeleteGroupConfirmModal] = useState(false);
+
+  const groupAvatarInputRef = useRef<HTMLInputElement>(null);
+  const groupWallpaperInputRef = useRef<HTMLInputElement>(null);
 
   const isDark = settings.theme !== 'material-light' && settings.theme !== 'light';
   
-  // Wallpaper styling
-  const chatWallpaper = settings?.chatWallpaper;
+  const contact = contacts.find(c => c.id === activeContactId);
+  
+  // Wallpaper styling - priority to group specific wallpaper if set
+  const chatWallpaper = (contact?.isGroup && contact?.wallpaper) ? contact.wallpaper : settings?.chatWallpaper;
   const isCustomImage = Boolean(
     chatWallpaper && 
     chatWallpaper !== 'default' && 
@@ -497,7 +506,6 @@ export const ChatWindow: React.FC = () => {
   };
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const contact = contacts.find(c => c.id === activeContactId);
   const curMessages = (activeContactId && messages[activeContactId]) || [];
   const pinnedMessage = curMessages.find(m => m.isPinned);
 
@@ -508,6 +516,90 @@ export const ChatWindow: React.FC = () => {
   useEffect(() => {
     scrollToBottom();
   }, [curMessages.length, activeContactId]);
+
+  // Group Creator check and group management handlers
+  const isGroupCreator = Boolean(
+    contact?.isGroup && (
+      !contact.createdBy || 
+      contact.createdBy === authUser?.uid || 
+      contact.createdBy === user.id
+    )
+  );
+
+  const handleGroupAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !contact || !contact.isGroup) return;
+
+    try {
+      showToast('Uploading group photo...');
+      const dataUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => resolve('');
+        reader.readAsDataURL(file);
+      });
+
+      if (!dataUrl) return;
+      const compressed = await compressImage(dataUrl, 500, 180000);
+      await updateGroupDetails(contact.id, { avatar: compressed || dataUrl });
+      showToast('Group photo updated successfully!');
+    } catch (err: any) {
+      console.error('Group photo upload error:', err);
+      showToast(err?.message || 'Failed to update group photo');
+    } finally {
+      e.target.value = '';
+    }
+  };
+
+  const handleGroupWallpaperUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !contact || !contact.isGroup) return;
+
+    try {
+      showToast('Uploading group wallpaper...');
+      const dataUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => resolve('');
+        reader.readAsDataURL(file);
+      });
+
+      if (!dataUrl) return;
+      const compressed = await compressImage(dataUrl, 800, 250000);
+      await updateGroupDetails(contact.id, { wallpaper: compressed || dataUrl });
+      showToast('Group wallpaper updated for everyone!');
+    } catch (err: any) {
+      console.error('Group wallpaper upload error:', err);
+      showToast(err?.message || 'Failed to update group wallpaper');
+    } finally {
+      e.target.value = '';
+    }
+  };
+
+  const handleSaveGroupName = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!contact || !contact.isGroup || !newGroupNameInput.trim()) return;
+    try {
+      await updateGroupDetails(contact.id, { name: newGroupNameInput.trim() });
+      showToast('Group name updated successfully!');
+      setShowEditGroupNameModal(false);
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to update group name');
+    }
+  };
+
+  const handleConfirmDeleteGroup = async () => {
+    if (!contact || !contact.isGroup) return;
+    try {
+      const gName = contact.name;
+      await deleteGroup(contact.id);
+      showToast(`Group "${gName}" deleted for everyone`);
+      setShowDeleteGroupConfirmModal(false);
+      setShowRightSidebar(false);
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to delete group');
+    }
+  };
 
   // Voice recording timer
   useEffect(() => {
@@ -2437,7 +2529,7 @@ export const ChatWindow: React.FC = () => {
             }`}
           >
             <div className="flex items-center justify-between mb-6">
-              <h3 className="font-bold text-base">Contact Info</h3>
+              <h3 className="font-bold text-base">{contact?.isGroup ? 'Group Info' : 'Contact Info'}</h3>
               <button 
                 onClick={() => setShowRightSidebar(false)} 
                 className="p-1.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-colors"
@@ -2447,35 +2539,137 @@ export const ChatWindow: React.FC = () => {
             </div>
 
             <div className="flex flex-col items-center text-center pb-6 border-b border-gray-500/20 mb-6">
-              <img
-                src={contact.avatar}
-                alt={contact.name}
-                className="w-24 h-24 rounded-full object-cover shadow-xl mb-3 border-2 border-[#00a8ff]"
-              />
+              <div className="relative group">
+                <img
+                  src={contact.avatar}
+                  alt={contact.name}
+                  className="w-24 h-24 rounded-full object-cover shadow-xl mb-3 border-2 border-[#00a8ff]"
+                />
+                {contact.isGroup && isGroupCreator && (
+                  <button
+                    type="button"
+                    onClick={() => groupAvatarInputRef.current?.click()}
+                    className="absolute bottom-3 right-0 p-2 bg-[#00a8ff] text-white rounded-full shadow-lg hover:scale-105 transition-all cursor-pointer"
+                    title="Change Group Photo"
+                  >
+                    <Camera className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
               <h4 className="font-bold text-lg flex items-center justify-center gap-1.5">
                 {getContactDisplayName(contact)}
-                {customNicknames[contact.id] && <Tag className="w-4 h-4 text-[#00a8ff]" />}
+                {contact.isGroup && isGroupCreator && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewGroupNameInput(contact.name);
+                      setShowEditGroupNameModal(true);
+                    }}
+                    className="p-1 text-[#00a8ff] hover:bg-[#00a8ff]/10 rounded-lg transition-colors cursor-pointer"
+                    title="Edit Group Name"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </button>
+                )}
+                {!contact.isGroup && customNicknames[contact.id] && <Tag className="w-4 h-4 text-[#00a8ff]" />}
               </h4>
-              {customNicknames[contact.id] && (
-                <p className="text-xs text-[#00a8ff] font-medium mt-0.5">Original Name: {contact.name}</p>
-              )}
-              <p className="text-xs text-[#8596a0] mt-0.5">{contact.email || 'Encrypted User'}</p>
-              <p className="text-xs text-[#00a8ff] mt-2 font-medium">{contact.isOnline ? 'Online' : contact.lastSeen || 'Offline'}</p>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setShowRightSidebar(false);
-                  setShowNicknameModal(true);
-                }}
-                className="mt-3 px-4 py-2 rounded-xl bg-[#00a8ff]/10 hover:bg-[#00a8ff]/20 text-[#00a8ff] font-semibold text-xs border border-[#00a8ff]/30 transition-all flex items-center gap-2 cursor-pointer active:scale-95"
-              >
-                <Tag className="w-3.5 h-3.5" />
-                <span>{customNicknames[contact.id] ? 'Edit Custom Name' : 'Set Custom Name'}</span>
-              </button>
+              {contact.isGroup ? (
+                <div className="mt-2 w-full flex flex-col items-center gap-1">
+                  {isGroupCreator ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold px-3 py-1 rounded-full bg-[#00a8ff]/15 text-[#00a8ff]">
+                      <ShieldCheck className="w-3.5 h-3.5" /> Group Creator (Admin)
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-3 py-1 rounded-full bg-amber-500/15 text-amber-400">
+                      <Lock className="w-3.5 h-3.5" /> Only Creator Can Edit Settings
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <>
+                  {customNicknames[contact.id] && (
+                    <p className="text-xs text-[#00a8ff] font-medium mt-0.5">Original Name: {contact.name}</p>
+                  )}
+                  <p className="text-xs text-[#8596a0] mt-0.5">{contact.email || 'Encrypted User'}</p>
+                  <p className="text-xs text-[#00a8ff] mt-2 font-medium">{contact.isOnline ? 'Online' : contact.lastSeen || 'Offline'}</p>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowRightSidebar(false);
+                      setShowNicknameModal(true);
+                    }}
+                    className="mt-3 px-4 py-2 rounded-xl bg-[#00a8ff]/10 hover:bg-[#00a8ff]/20 text-[#00a8ff] font-semibold text-xs border border-[#00a8ff]/30 transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+                  >
+                    <Tag className="w-3.5 h-3.5" />
+                    <span>{customNicknames[contact.id] ? 'Edit Custom Name' : 'Set Custom Name'}</span>
+                  </button>
+                </>
+              )}
+
+              {/* Creator Management Buttons */}
+              {contact.isGroup && isGroupCreator && (
+                <div className="mt-4 w-full flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={() => groupAvatarInputRef.current?.click()}
+                    className="w-full py-2 px-3 rounded-xl bg-[#00a8ff]/10 hover:bg-[#00a8ff]/20 text-[#00a8ff] font-semibold text-xs border border-[#00a8ff]/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Camera className="w-4 h-4" />
+                    <span>Change Group Photo</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => groupWallpaperInputRef.current?.click()}
+                    className="w-full py-2 px-3 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 font-semibold text-xs border border-purple-500/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Image className="w-4 h-4" />
+                    <span>Change Group Wallpaper</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewGroupNameInput(contact.name);
+                      setShowEditGroupNameModal(true);
+                    }}
+                    className="w-full py-2 px-3 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 font-semibold text-xs border border-cyan-500/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                    <span>Change Group Name</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteGroupConfirmModal(true)}
+                    className="w-full py-2 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-semibold text-xs border border-rose-500/30 transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete Group for Everyone</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="space-y-4 text-xs">
+              {contact.isGroup && (
+                <div>
+                  <p className="text-[#8596a0] font-semibold mb-2 uppercase tracking-wider text-[10px]">
+                    Group Members ({(contact.groupMembers || contact.members || []).length})
+                  </p>
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                    {(contact.groupMembers || contact.members || []).map((m, idx) => (
+                      <div key={idx} className={`p-2 rounded-xl text-xs flex items-center gap-2 border ${
+                        isDark ? 'bg-[#182229] border-[#202c33]' : 'bg-gray-50 border-gray-200'
+                      }`}>
+                        <User className="w-3.5 h-3.5 text-[#00a8ff]" />
+                        <span className="font-medium truncate">{m}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div>
                 <p className="text-[#8596a0] font-semibold mb-1 uppercase tracking-wider text-[10px]">About / Status</p>
                 <p className="font-medium text-sm">{contact.status || 'Available'}</p>
@@ -3478,6 +3672,98 @@ export const ChatWindow: React.FC = () => {
             >
               Close View Once
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden inputs for Group Avatar and Group Wallpaper */}
+      <input
+        type="file"
+        ref={groupAvatarInputRef}
+        onChange={handleGroupAvatarUpload}
+        accept="image/*"
+        className="hidden"
+      />
+      <input
+        type="file"
+        ref={groupWallpaperInputRef}
+        onChange={handleGroupWallpaperUpload}
+        accept="image/*"
+        className="hidden"
+      />
+
+      {/* Edit Group Name Modal */}
+      {showEditGroupNameModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <form 
+            onSubmit={handleSaveGroupName} 
+            className={`w-full max-w-sm rounded-2xl p-5 shadow-2xl border ${
+              isDark ? 'bg-[#1f2c34] border-[#2a3942] text-white' : 'bg-white border-gray-200 text-gray-900'
+            }`}
+          >
+            <h3 className="font-bold text-base mb-3 flex items-center gap-2">
+              <Edit3 className="w-5 h-5 text-[#00a8ff]" />
+              <span>Change Group Name</span>
+            </h3>
+            <input
+              type="text"
+              value={newGroupNameInput}
+              onChange={(e) => setNewGroupNameInput(e.target.value)}
+              placeholder="Enter new group name..."
+              className={`w-full p-3 rounded-xl text-sm font-medium border focus:outline-hidden focus:ring-2 focus:ring-[#00a8ff] mb-4 ${
+                isDark ? 'bg-[#111b21] border-[#2a3942] text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
+              }`}
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowEditGroupNameModal(false)}
+                className="px-4 py-2 rounded-xl font-medium text-xs opacity-70 hover:opacity-100 transition-opacity cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!newGroupNameInput.trim()}
+                className="px-4 py-2 rounded-xl bg-[#00a8ff] hover:bg-[#0088cc] text-[#0b141a] font-bold text-xs disabled:opacity-50 transition-all cursor-pointer shadow-md"
+              >
+                Save Name
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Delete Group Confirmation Modal */}
+      {showDeleteGroupConfirmModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className={`w-full max-w-sm rounded-2xl p-5 shadow-2xl border ${
+            isDark ? 'bg-[#1f2c34] border-[#2a3942] text-white' : 'bg-white border-gray-200 text-gray-900'
+          }`}>
+            <div className="flex items-center gap-3 text-rose-500 mb-3">
+              <Trash2 className="w-6 h-6" />
+              <h3 className="font-bold text-base">Delete Group for Everyone?</h3>
+            </div>
+            <p className="text-xs opacity-80 mb-5 leading-relaxed">
+              Are you sure you want to delete <span className="font-bold">{contact?.name}</span>? This will permanently delete the group and remove it for all added members.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowDeleteGroupConfirmModal(false)}
+                className="px-4 py-2 rounded-xl font-medium text-xs opacity-70 hover:opacity-100 transition-opacity cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteGroup}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition-all cursor-pointer shadow-md"
+              >
+                Delete Group
+              </button>
+            </div>
           </div>
         </div>
       )}

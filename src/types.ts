@@ -148,6 +148,9 @@ export interface Contact {
   isGroup?: boolean;
   groupMembers?: string[];
   members?: string[];
+  createdBy?: string;
+  admins?: string[];
+  wallpaper?: string;
   unreadCount: number;
   isTyping?: boolean;
   isSelf?: boolean;

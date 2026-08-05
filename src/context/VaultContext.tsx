@@ -140,6 +140,8 @@ interface VaultContextType {
   updateProfile: (newProfile: Partial<UserProfile>) => Promise<void>;
   addContact: (name: string, status: string, isAi: boolean) => void;
   createGroup: (groupName: string, memberNames: string[]) => string;
+  updateGroupDetails: (groupId: string, updates: { name?: string; avatar?: string; wallpaper?: string }) => Promise<void>;
+  deleteGroup: (groupId: string) => Promise<void>;
   clearChatHistory: (contactId: string) => void;
   clearAllChatHistory: () => void;
   togglePinContact: (contactId: string) => void;
@@ -237,6 +239,8 @@ const fallbackVaultContext: VaultContextType = {
   updateProfile: async () => {},
   addContact: () => {},
   createGroup: () => '',
+  updateGroupDetails: async () => {},
+  deleteGroup: async () => {},
   clearChatHistory: () => {},
   clearAllChatHistory: () => {},
   togglePinContact: () => {},
@@ -866,33 +870,71 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return;
     }
 
-    const groupsQuery = query(
+    const qMembers = query(
+      collection(db, 'groups'),
+      where('members', 'array-contains', authUser.uid)
+    );
+
+    const qMemberUids = query(
       collection(db, 'groups'),
       where('memberUids', 'array-contains', authUser.uid)
     );
 
-    const unsub = onSnapshot(groupsQuery, (snapshot) => {
-      const fetchedGroups: Contact[] = snapshot.docs.map(d => {
-        const data = d.data();
-        const memberNames: string[] = data.memberNames || [];
+    let docsMembersMap = new Map<string, any>();
+    let docsMemberUidsMap = new Map<string, any>();
+
+    const updateGroupContactsFromMaps = () => {
+      const mergedMap = new Map<string, any>();
+      docsMembersMap.forEach((v, k) => mergedMap.set(k, v));
+      docsMemberUidsMap.forEach((v, k) => mergedMap.set(k, v));
+
+      const fetchedGroups: Contact[] = Array.from(mergedMap.entries()).map(([gId, data]) => {
+        const memberNames: string[] = Array.isArray(data.memberNames) ? data.memberNames : [];
+        const memberUids: string[] = Array.isArray(data.members) ? data.members : (Array.isArray(data.memberUids) ? data.memberUids : []);
+        const gName = data.groupName || data.name || 'Group Chat';
+        const gAvatar = data.groupPhoto || data.avatar || 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=150&auto=format&fit=crop&q=80';
+        const createdBy = data.createdBy || '';
+        const admins = Array.isArray(data.admins) ? data.admins : (createdBy ? [createdBy] : []);
+
         return {
-          id: d.id,
-          name: data.name || 'Group Chat',
+          id: data.groupId || data.id || gId,
+          name: gName,
           username: 'group',
-          avatar: data.avatar || 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=150&auto=format&fit=crop&q=80',
-          status: data.status || `${memberNames.length || 1} members`,
+          avatar: gAvatar,
+          status: data.status || `${memberNames.length || memberUids.length || 1} members`,
           isOnline: true,
           lastSeen: 'Group',
           unreadCount: 0,
           isGroup: true,
           groupMembers: memberNames,
-          members: data.memberUids || [],
+          members: memberUids,
+          createdBy: createdBy,
+          admins: admins,
+          lastMessage: data.lastMessage || '',
+          lastMessageTime: data.lastMessageTime || null,
+          wallpaper: data.wallpaper || data.chatWallpaper,
         };
       });
-      setGroupContacts(fetchedGroups);
-    }, (err) => handleFirestoreError('Groups snapshot error:', err, () => setGroupContacts([])));
 
-    return () => unsub();
+      setGroupContacts(fetchedGroups);
+    };
+
+    const unsub1 = onSnapshot(qMembers, (snapshot) => {
+      docsMembersMap = new Map();
+      snapshot.docs.forEach(d => docsMembersMap.set(d.id, d.data()));
+      updateGroupContactsFromMaps();
+    }, (err) => handleFirestoreError('Groups snapshot error (members):', err, () => {}));
+
+    const unsub2 = onSnapshot(qMemberUids, (snapshot) => {
+      docsMemberUidsMap = new Map();
+      snapshot.docs.forEach(d => docsMemberUidsMap.set(d.id, d.data()));
+      updateGroupContactsFromMaps();
+    }, (err) => handleFirestoreError('Groups snapshot error (memberUids):', err, () => {}));
+
+    return () => {
+      unsub1();
+      unsub2();
+    };
   }, [authUser, needsUsername]);
 
   // Real-time listener for Messages with Confirmed Friends, Self Chat & Groups
@@ -2018,6 +2060,13 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       lastMessageSenderId: authUser.uid,
       updatedAt: serverTimestamp(),
     }, { merge: true });
+
+    if (isGroupChat) {
+      await updateDoc(doc(db, 'groups', receiverId), {
+        lastMessage: lastMsgSummary,
+        lastMessageTime: serverTimestamp(),
+      }).catch(err => console.warn('Failed to update group lastMessage:', err));
+    }
   };
 
   // Edit Message (Max 2 minute limit)
@@ -3130,19 +3179,42 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const groupId = 'group_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
 
-    const memberUids: string[] = [authUser?.uid].filter(Boolean) as string[];
-    const memberNames: string[] = [user.name || authUser?.displayName || 'You'].filter(Boolean);
+    const myUid = authUser?.uid || user.id;
+    const myName = user.name || authUser?.displayName || 'You';
+
+    const memberUidsSet = new Set<string>();
+    if (myUid) memberUidsSet.add(myUid);
+
+    const memberNamesSet = new Set<string>();
+    if (myName) memberNamesSet.add(myName);
+
+    // Build lookup array combining contacts & allRegisteredUsers & friendContacts
+    const combinedList: Array<{ id: string; name?: string; username?: string; email?: string }> = [
+      ...contacts.map(c => ({ id: c.id, name: c.name, username: c.username, email: c.email })),
+      ...friendContacts.map(c => ({ id: c.id, name: c.name, username: c.username, email: c.email })),
+      ...allRegisteredUsers.map(u => ({ id: u.uid || u.id, name: u.displayName || u.name, username: u.username, email: u.email }))
+    ];
 
     memberNamesOrIds.forEach(item => {
       if (!item) return;
-      const foundContact = contacts.find(c => c.id === item || c.name === item || c.username === item);
-      if (foundContact) {
-        if (!memberUids.includes(foundContact.id)) memberUids.push(foundContact.id);
-        if (!memberNames.includes(foundContact.name)) memberNames.push(foundContact.name);
+      const matched = combinedList.find(u => 
+        u.id === item || 
+        (u.name && u.name.toLowerCase() === item.toLowerCase()) || 
+        (u.username && u.username.toLowerCase() === item.toLowerCase()) ||
+        (u.email && u.email.toLowerCase() === item.toLowerCase())
+      );
+
+      if (matched) {
+        if (matched.id) memberUidsSet.add(matched.id);
+        if (matched.name) memberNamesSet.add(matched.name);
       } else {
-        if (!memberNames.includes(item)) memberNames.push(item);
+        memberUidsSet.add(item);
+        memberNamesSet.add(item);
       }
     });
+
+    const memberUids = Array.from(memberUidsSet);
+    const memberNames = Array.from(memberNamesSet);
 
     const avatar = 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=150&auto=format&fit=crop&q=80';
     const statusStr = `${memberNames.length} members: ${memberNames.slice(0, 3).join(', ')}${memberNames.length > 3 ? '...' : ''}`;
@@ -3158,27 +3230,102 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       isGroup: true,
       groupMembers: memberNames,
       members: memberUids,
+      createdBy: myUid,
+      admins: [myUid],
     };
 
     // Optimistically update groupContacts
     setGroupContacts(prev => [newGroupContact, ...prev.filter(g => g.id !== groupId)]);
 
-    // Save group to Firestore
+    // Save group to Firestore with exact required schema fields
     if (authUser) {
       setDoc(doc(db, 'groups', groupId), {
+        groupId: groupId,
+        groupName: groupName.trim(),
+        groupPhoto: avatar,
+        createdBy: myUid,
+        createdAt: serverTimestamp(),
+        members: memberUids,
+        admins: [myUid],
+        lastMessage: '',
+        lastMessageTime: serverTimestamp(),
+        // Additional backward-compatibility fields
         id: groupId,
         name: groupName.trim(),
-        avatar,
-        createdBy: authUser.uid,
-        createdAt: serverTimestamp(),
-        memberUids,
-        memberNames,
+        avatar: avatar,
+        memberUids: memberUids,
+        memberNames: memberNames,
         isGroup: true,
         status: statusStr,
       }).catch(err => console.error('Error saving group to Firestore:', err));
     }
 
     return groupId;
+  };
+
+  const updateGroupDetails = async (groupId: string, updates: { name?: string; avatar?: string; wallpaper?: string }) => {
+    if (!groupId) return;
+    const group = groupContacts.find(g => g.id === groupId);
+    const myUid = authUser?.uid || user.id;
+
+    if (group && group.createdBy && group.createdBy !== myUid) {
+      throw new Error('Only the group creator can update group details (name, photo, wallpaper).');
+    }
+
+    const firestoreUpdates: Record<string, any> = {};
+    if (updates.name !== undefined) {
+      firestoreUpdates.name = updates.name.trim();
+      firestoreUpdates.groupName = updates.name.trim();
+    }
+    if (updates.avatar !== undefined) {
+      firestoreUpdates.avatar = updates.avatar;
+      firestoreUpdates.groupPhoto = updates.avatar;
+    }
+    if (updates.wallpaper !== undefined) {
+      firestoreUpdates.wallpaper = updates.wallpaper;
+    }
+
+    if (Object.keys(firestoreUpdates).length === 0) return;
+
+    // Optimistically update groupContacts
+    setGroupContacts(prev => prev.map(g => {
+      if (g.id !== groupId) return g;
+      return {
+        ...g,
+        ...(updates.name ? { name: updates.name.trim() } : {}),
+        ...(updates.avatar ? { avatar: updates.avatar } : {}),
+        ...(updates.wallpaper ? { wallpaper: updates.wallpaper } : {}),
+      };
+    }));
+
+    if (authUser && db) {
+      await updateDoc(doc(db, 'groups', groupId), firestoreUpdates).catch(err => {
+        console.error('Failed to update group in Firestore:', err);
+      });
+    }
+  };
+
+  const deleteGroup = async (groupId: string) => {
+    if (!groupId) return;
+    const group = groupContacts.find(g => g.id === groupId);
+    const myUid = authUser?.uid || user.id;
+
+    if (group && group.createdBy && group.createdBy !== myUid) {
+      throw new Error('Only the group creator can delete this group.');
+    }
+
+    // Optimistically remove group
+    setGroupContacts(prev => prev.filter(g => g.id !== groupId));
+    if (activeContactId === groupId) {
+      setActiveContactId(null);
+    }
+
+    if (authUser && db) {
+      await deleteDoc(doc(db, 'groups', groupId)).catch(err => {
+        console.error('Failed to delete group from Firestore:', err);
+      });
+      await deleteDoc(doc(db, 'chats', groupId)).catch(() => {});
+    }
   };
 
   const clearChatHistory = async (contactId: string) => {
@@ -3441,6 +3588,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       updateProfile,
       addContact,
       createGroup,
+      updateGroupDetails,
+      deleteGroup,
       clearChatHistory,
       clearAllChatHistory,
       togglePinContact,

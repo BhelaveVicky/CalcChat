@@ -81,6 +81,37 @@ export const ChatList: React.FC = () => {
   const [fullImageContact, setFullImageContact] = useState<Contact | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
+  const selectableMembers = React.useMemo(() => {
+    const map = new Map<string, { id: string; name: string; avatar: string; username?: string }>();
+    
+    // Add non-group, non-self contacts
+    contacts.forEach(c => {
+      if (!c.isGroup && !c.isSelf && c.id !== user.id) {
+        map.set(c.id, {
+          id: c.id,
+          name: getContactDisplayName(c),
+          avatar: c.avatar,
+          username: c.username,
+        });
+      }
+    });
+
+    // Add registered users (except current user)
+    allRegisteredUsers.forEach(u => {
+      const uid = u.uid || u.id;
+      if (uid && uid !== user.id && !map.has(uid)) {
+        map.set(uid, {
+          id: uid,
+          name: u.displayName || u.name || u.username || 'User',
+          avatar: u.photoURL || u.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+          username: u.username,
+        });
+      }
+    });
+
+    return Array.from(map.values());
+  }, [contacts, allRegisteredUsers, user.id, getContactDisplayName]);
+
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isLongPressRef = useRef<boolean>(false);
 
@@ -306,16 +337,13 @@ export const ChatList: React.FC = () => {
     e.preventDefault();
     if (!groupNameInput.trim()) return;
 
-    const selectedContactNames = contacts
-      .filter(c => selectedMemberIds.includes(c.id))
-      .map(c => c.name);
-
     const customMembers = customMemberInput
       .split(',')
       .map(s => s.trim())
       .filter(Boolean);
 
-    const allMembers = Array.from(new Set([...selectedContactNames, ...customMembers]));
+    // Pass member UIDs (selectedMemberIds) and custom entries so createGroup resolves all user UIDs for group propagation
+    const allMembers = Array.from(new Set([...selectedMemberIds, ...customMembers]));
 
     const newGroupId = createGroup(groupNameInput.trim(), allMembers);
     showToast(`Group "${groupNameInput.trim()}" created!`);
@@ -1139,22 +1167,22 @@ export const ChatList: React.FC = () => {
               <div>
                 <label className="text-[#8596a0] text-xs font-semibold block mb-2">Select Members from Contacts</label>
                 <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1 border border-[#2a3942] bg-[#0b141a] rounded-xl p-2">
-                  {contacts.length === 0 ? (
-                    <p className="text-xs text-gray-500 py-2 text-center">No existing contacts</p>
+                  {selectableMembers.length === 0 ? (
+                    <p className="text-xs text-gray-500 py-2 text-center">No available members</p>
                   ) : (
-                    contacts.map(c => {
-                      const isSelected = selectedMemberIds.includes(c.id);
+                    selectableMembers.map(m => {
+                      const isSelected = selectedMemberIds.includes(m.id);
                       return (
                         <div
-                          key={c.id}
-                          onClick={() => toggleSelectMember(c.id)}
+                          key={m.id}
+                          onClick={() => toggleSelectMember(m.id)}
                           className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
                             isSelected ? 'bg-[#ff2e93]/20 text-white' : 'hover:bg-[#182229] text-gray-300'
                           }`}
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <img src={c.avatar} alt={c.name} className="w-7 h-7 rounded-full object-cover shrink-0" />
-                            <span className="text-xs font-medium truncate">{c.name}</span>
+                            <img src={m.avatar} alt={m.name} className="w-7 h-7 rounded-full object-cover shrink-0" />
+                            <span className="text-xs font-medium truncate">{m.name}</span>
                           </div>
                           {isSelected ? (
                             <UserCheck className="w-4 h-4 text-[#ff2e93] shrink-0" />

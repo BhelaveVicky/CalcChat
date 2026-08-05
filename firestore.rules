@@ -33,6 +33,12 @@ service cloud.firestore {
       }
     }
 
+    // Real-Time Presence Collection
+    match /presence/{userId} {
+      allow read, list: if isSignedIn();
+      allow create, update, write, delete: if isOwner(userId);
+    }
+
     // Usernames Registry
     match /usernames/{usernameLower} {
       allow read: if isSignedIn();

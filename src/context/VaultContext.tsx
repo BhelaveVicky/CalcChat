@@ -21,7 +21,7 @@ import { compressImage } from '../lib/mediaCompressor';
 import { saveMediaBlob, getMediaBlob } from '../lib/mediaStorage';
 import { extractVideoMetadata } from '../lib/videoUtils';
 import { playMessageArrivalSound } from '../lib/soundUtils';
-import { formatStatusTime } from '../lib/dateUtils';
+import { formatStatusTime, parseMessageDate, formatLastSeen } from '../lib/dateUtils';
 
 export interface ActiveCallState {
   id: string;
@@ -127,6 +127,7 @@ interface VaultContextType {
   setCustomNickname: (contactId: string, nickname: string) => Promise<void>;
   clearCustomNickname: (contactId: string) => Promise<void>;
   getContactDisplayName: (contactOrId: Contact | string | null | undefined) => string;
+  isUserOnline: (userId: string | null | undefined) => boolean;
   startCall: (contactId: string, type: CallType) => Promise<void>;
   acceptCall: () => void;
   rejectCall: () => void;
@@ -229,6 +230,7 @@ const fallbackVaultContext: VaultContextType = {
   setCustomNickname: async () => {},
   clearCustomNickname: async () => {},
   getContactDisplayName: () => 'User',
+  isUserOnline: () => false,
   startCall: async () => {},
   acceptCall: () => {},
   rejectCall: () => {},
@@ -327,8 +329,123 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
   const [messages, setMessages] = useState<Record<string, Message[]>>({});
   const [typingStatusMap, setTypingStatusMap] = useState<Record<string, boolean>>({});
+  const [presenceMap, setPresenceMap] = useState<Record<string, { isOnline: boolean; lastSeen: any; isTyping: boolean; typingTo: string | null }>>({});
+  const [presenceTick, setPresenceTick] = useState(0);
   const [chatMetadata, setChatMetadata] = useState<Record<string, { lastMessage?: string; lastMessageTime?: any; lastMessageSenderId?: string }>>({});
   const [adminWallpapers, setAdminWallpapers] = useState<AdminWallpaper[]>([]);
+
+  // Ticker to instantly refresh staleness checks every 3 seconds
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setPresenceTick(t => t + 1);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Real-time listener for Firestore Presence Collection
+  useEffect(() => {
+    if (!authUser || needsUsername || !db) {
+      setPresenceMap({});
+      return;
+    }
+
+    try {
+      const presenceQuery = collection(db, 'presence');
+      const unsub = onSnapshot(presenceQuery, (snapshot) => {
+        const pMap: Record<string, any> = {};
+        snapshot.docs.forEach(docSnap => {
+          const data = docSnap.data();
+          pMap[docSnap.id] = {
+            isOnline: Boolean(data.isOnline ?? data.online),
+            lastSeen: data.lastSeen || data.lastActiveAt || null,
+            isTyping: Boolean(data.isTyping),
+            typingTo: data.typingTo || null,
+          };
+        });
+        setPresenceMap(pMap);
+      }, (err) => handleFirestoreError('Presence snapshot error:', err, () => {}));
+
+      return () => unsub();
+    } catch (e) {
+      console.warn('Presence listener error:', e);
+    }
+  }, [authUser, needsUsername, db]);
+
+  // Real-time Presence Lifecycle Manager for Current User (Online/Offline/Last Seen/Heartbeat)
+  useEffect(() => {
+    if (!authUser || needsUsername || !db) return;
+
+    const setPresenceStateSync = (online: boolean, typing: boolean = false, targetUid: string | null = null) => {
+      try {
+        const userRef = doc(db, 'users', authUser.uid);
+        const presenceRef = doc(db, 'presence', authUser.uid);
+
+        const payload = {
+          uid: authUser.uid,
+          isOnline: online,
+          online: online,
+          lastSeen: serverTimestamp(),
+          lastActiveAt: serverTimestamp(),
+          isTyping: typing,
+          typingTo: targetUid,
+          updatedAt: serverTimestamp(),
+        };
+
+        setDoc(presenceRef, payload, { merge: true }).catch(() => {});
+        updateDoc(userRef, {
+          online: online,
+          isOnline: online,
+          lastSeen: serverTimestamp(),
+          lastActiveAt: serverTimestamp(),
+          isTyping: typing,
+          typingTo: targetUid,
+        }).catch(() => {});
+      } catch (err) {
+        // ignore write issues
+      }
+    };
+
+    // Mark online on initial activation
+    setPresenceStateSync(true, false, null);
+
+    // Fast heartbeat every 8 seconds to maintain active presence state
+    const heartbeat = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible' && navigator.onLine) {
+        setPresenceStateSync(true, false, null);
+      }
+    }, 8000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        setPresenceStateSync(false, false, null);
+      } else if (document.visibilityState === 'visible') {
+        setPresenceStateSync(true, false, null);
+      }
+    };
+
+    const handleOnline = () => setPresenceStateSync(true, false, null);
+    const handleOffline = () => setPresenceStateSync(false, false, null);
+    const handleBeforeUnload = () => setPresenceStateSync(false, false, null);
+    const handlePageHide = () => setPresenceStateSync(false, false, null);
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handlePageHide);
+    window.addEventListener('freeze', handlePageHide);
+
+    return () => {
+      clearInterval(heartbeat);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handlePageHide);
+      window.removeEventListener('freeze', handlePageHide);
+      setPresenceStateSync(false, false, null);
+    };
+  }, [authUser, needsUsername, db]);
 
   // Real-time listener for Admin Wallpapers with LocalStorage fallback
   useEffect(() => {
@@ -503,12 +620,35 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         m => m.senderId === c.id && authUser && m.receiverId === authUser.uid && (!m.seen && !m.isRead)
       ).length;
 
+      const p = presenceMap[c.id];
+      let isOnline = false;
+      let lastSeen = p?.lastSeen || c.lastSeen;
+
+      if (!c.isGroup) {
+        if (authUser && (c.id === authUser.uid || c.isSelf)) {
+          isOnline = true;
+        } else if (p && p.isOnline) {
+          const lastActiveDate = parseMessageDate(p.lastSeen);
+          if (lastActiveDate) {
+            const diff = Date.now() - lastActiveDate.getTime();
+            isOnline = diff >= 0 && diff < 20000;
+          }
+        }
+      }
+
+      // Typing is visible ONLY if contact is typing to ME and is online
+      const isTyping = isOnline && p 
+        ? (Boolean(p.isTyping) && p.typingTo === authUser?.uid)
+        : Boolean(typingStatusMap[c.id]);
+
       return {
         ...c,
+        isOnline,
+        lastSeen,
         isFavorite: favoriteContactIds.includes(c.id),
         isMuted: mutedContactIds.includes(c.id),
         unreadCount,
-        isTyping: Boolean(typingStatusMap[c.id]),
+        isTyping,
         lastMessage: finalLastMessage,
         lastMessageTime: meta?.lastMessageTime || (lastMsg?.createdAt || null),
         lastMessageSenderId: finalLastSenderId,
@@ -532,7 +672,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         };
       });
     });
-  }, [friendContacts, groupContacts, favoriteContactIds, mutedContactIds, messages, chatMetadata, typingStatusMap, authUser]);
+  }, [friendContacts, groupContacts, favoriteContactIds, mutedContactIds, messages, chatMetadata, typingStatusMap, presenceMap, presenceTick, authUser]);
 
   const getChatIdForContact = (contactId: string): string => {
     if (!contactId) return '';
@@ -967,7 +1107,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               username: data.username,
               avatar: data.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
               status: data.status || 'Available on Secret Vault',
-              isOnline: Boolean(data.online),
+              isOnline: false,
               lastSeen: data.lastSeen || 'Offline',
               unreadCount: 0,
             });
@@ -1206,14 +1346,30 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [authUser, needsUsername, friendUids]);
 
   const setTypingStatus = async (contactId: string, isTyping: boolean) => {
-    if (!authUser || !contactId) return;
-    const chatId = [authUser.uid, contactId].sort().join('_');
+    if (!authUser || !contactId || !db) return;
+    const isGroup = groupContacts.some(g => g.id === contactId) || contactId.startsWith('group_');
+    const chatId = isGroup ? contactId : [authUser.uid, contactId].sort().join('_');
     const typingRef = doc(db, 'users', authUser.uid, 'typing', chatId);
+    const presenceRef = doc(db, 'presence', authUser.uid);
+    const userRef = doc(db, 'users', authUser.uid);
+
     try {
       await setDoc(typingRef, {
         isTyping: Boolean(isTyping),
         updatedAt: serverTimestamp()
-      }, { merge: true });
+      }, { merge: true }).catch(() => {});
+
+      await setDoc(presenceRef, {
+        uid: authUser.uid,
+        isTyping: Boolean(isTyping),
+        typingTo: isTyping ? contactId : null,
+        updatedAt: serverTimestamp()
+      }, { merge: true }).catch(() => {});
+
+      await updateDoc(userRef, {
+        isTyping: Boolean(isTyping),
+        typingTo: isTyping ? contactId : null,
+      }).catch(() => {});
     } catch (e) {
       console.warn('Failed to update typing status:', e);
     }
@@ -2321,6 +2477,21 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return customNicknames[contactOrId.id];
     }
     return contactOrId.name;
+  };
+
+  // Helper check real-time online status
+  const isUserOnline = (userId: string | null | undefined): boolean => {
+    if (!userId) return false;
+    if (authUser && (userId === authUser.uid || userId === user.id)) return true;
+
+    const p = presenceMap[userId];
+    if (!p || !p.isOnline) return false;
+
+    const lastActiveDate = parseMessageDate(p.lastSeen);
+    if (!lastActiveDate) return false;
+
+    const diff = Date.now() - lastActiveDate.getTime();
+    return diff >= 0 && diff < 20000;
   };
 
   // Cleanup Call Resources
@@ -3760,6 +3931,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setCustomNickname,
       clearCustomNickname,
       getContactDisplayName,
+      isUserOnline,
       startCall,
       acceptCall,
       rejectCall,

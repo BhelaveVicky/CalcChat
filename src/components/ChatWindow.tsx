@@ -12,7 +12,7 @@ import { useVault } from '../context/VaultContext';
 import { MediaAttachment, Message, Contact } from '../types';
 import { NicknameModal } from './NicknameModal';
 import { compressImage } from '../lib/mediaCompressor';
-import { formatChatDate, formatMessageTime } from '../lib/dateUtils';
+import { formatChatDate, formatMessageTime, formatLastSeen } from '../lib/dateUtils';
 import { DateSeparator } from './DateSeparator';
 import { VideoMessagePlayer } from './VideoMessagePlayer';
 import { extractVideoMetadata } from '../lib/videoUtils';
@@ -192,7 +192,7 @@ export const ChatWindow: React.FC = () => {
       setTypingStatus(activeContactId, true);
       typingTimeoutRef.current = setTimeout(() => {
         setTypingStatus(activeContactId, false);
-      }, 1000);
+      }, 2500);
     } else {
       setTypingStatus(activeContactId, false);
     }
@@ -1209,8 +1209,8 @@ export const ChatWindow: React.FC = () => {
                   alt={contact.name}
                   className={`w-10 h-10 rounded-full object-cover transition-transform group-hover:scale-105 ${isDark ? 'bg-[#202c33]' : 'bg-gray-200'}`}
                 />
-                {contact.isOnline && (
-                  <span className={`absolute bottom-0 right-0 w-3 h-3 bg-[#00a8ff] rounded-full border-2 ${
+                {!contact.isGroup && contact.isOnline && (
+                  <span className={`absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 ${
                     isDark ? 'border-[#0b141a]' : 'border-white'
                   }`}></span>
                 )}
@@ -1231,15 +1231,40 @@ export const ChatWindow: React.FC = () => {
                   {checkIsAdmin(contact) && <VerifiedBadge className="w-4 h-4 shrink-0" />}
                   {contact.isLocked && <Lock className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
                 </h2>
-                <p className={`text-xs truncate ${
-                  contact.isTyping ? 'text-[#00a8ff] font-semibold animate-pulse' : (isDark ? 'text-[#8596a0]' : 'text-gray-500')
-                }`}>
-                  {contact.isTyping 
-                    ? 'typing...' 
-                    : (contact.id === user.id || contact.isSelf 
-                      ? 'Message yourself • Personal Notes' 
-                      : (contact.isOnline ? 'Online' : contact.lastSeen || 'last seen recently'))}
-                </p>
+                {(() => {
+                  if (contact.id === user.id || contact.isSelf) {
+                    return (
+                      <p className={`text-xs truncate ${isDark ? 'text-[#8596a0]' : 'text-gray-500'}`}>
+                        Message yourself • Personal Notes
+                      </p>
+                    );
+                  }
+
+                  // 1. Typing Indicator (Pink)
+                  if (contact.isTyping) {
+                    return (
+                      <p className="text-xs truncate text-pink-500 font-semibold animate-pulse">
+                        {getContactDisplayName(contact)} is typing...
+                      </p>
+                    );
+                  }
+
+                  // 2. Online Status (Green)
+                  if (contact.isOnline) {
+                    return (
+                      <p className="text-xs truncate text-emerald-500 font-medium">
+                        Online
+                      </p>
+                    );
+                  }
+
+                  // 3. Last Seen Status (Gray)
+                  return (
+                    <p className={`text-xs truncate ${isDark ? 'text-[#8596a0]' : 'text-gray-500'}`}>
+                      {formatLastSeen(contact.lastSeen)}
+                    </p>
+                  );
+                })()}
               </div>
             </div>
 
@@ -1703,8 +1728,9 @@ export const ChatWindow: React.FC = () => {
 
                         {/* Group Member Sender Name */}
                         {contact?.isGroup && !isMe && (
-                          <div className="text-[11px] font-bold text-[#ea4c89] mb-1 truncate">
-                            {msg.senderName || 'Group Member'}
+                          <div className="text-[11px] font-bold text-[#ea4c89] mb-1 truncate flex items-center gap-1">
+                            <span className="truncate">{msg.senderName || 'Group Member'}</span>
+                            {checkIsAdmin(msg.senderId || msg.senderName) && <VerifiedBadge className="w-3.5 h-3.5 shrink-0 text-[#00a8ff]" />}
                           </div>
                         )}
 
@@ -2600,6 +2626,7 @@ export const ChatWindow: React.FC = () => {
 
               <h4 className="font-bold text-lg flex items-center justify-center gap-1.5">
                 {getContactDisplayName(contact)}
+                {checkIsAdmin(contact) && <VerifiedBadge className="w-5 h-5 shrink-0 text-[#00a8ff]" />}
                 {contact.isGroup && isGroupCreator && (
                   <button
                     type="button"
@@ -2633,7 +2660,7 @@ export const ChatWindow: React.FC = () => {
                     <p className="text-xs text-[#00a8ff] font-medium mt-0.5">Original Name: {contact.name}</p>
                   )}
                   <p className="text-xs text-[#8596a0] mt-0.5">{contact.email || 'Encrypted User'}</p>
-                  <p className="text-xs text-[#00a8ff] mt-2 font-medium">{contact.isOnline ? 'Online' : contact.lastSeen || 'Offline'}</p>
+                  <p className="text-xs text-[#00a8ff] mt-2 font-medium">{contact.isOnline ? 'Online' : formatLastSeen(contact.lastSeen)}</p>
 
                   <button
                     type="button"
@@ -2809,7 +2836,10 @@ export const ChatWindow: React.FC = () => {
                       <div className="flex items-center gap-3 min-w-0">
                         <img src={c.avatar} className="w-8 h-8 rounded-full object-cover shrink-0" />
                         <div className="min-w-0 flex-1">
-                          <span className="text-xs font-semibold block truncate">{getContactDisplayName(c)}</span>
+                          <div className="flex items-center gap-1 min-w-0">
+                            <span className="text-xs font-semibold block truncate">{getContactDisplayName(c)}</span>
+                            {checkIsAdmin(c) && <VerifiedBadge className="w-3.5 h-3.5 shrink-0 text-[#00a8ff]" />}
+                          </div>
                         </div>
                       </div>
                       {isSelected && <Check className="w-4 h-4 text-[#00a8ff] shrink-0" />}

@@ -176,3 +176,49 @@ export function getMessageDateKey(rawTimestamp: any): string {
   if (!date) return 'today';
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
+
+// Format Last Seen strictly according to WhatsApp specifications:
+// - Last seen today at 7:30 PM
+// - Last seen yesterday at 10:15 AM
+// - Last seen on DD/MM/YYYY for older dates
+export function formatLastSeen(rawTimestamp: any): string {
+  if (!rawTimestamp) return 'Last seen recently';
+
+  const date = parseMessageDate(rawTimestamp);
+  if (!date) {
+    if (typeof rawTimestamp === 'string' && rawTimestamp.trim().length > 0) {
+      if (rawTimestamp.toLowerCase().includes('last seen') || rawTimestamp.toLowerCase().includes('online')) {
+        return rawTimestamp;
+      }
+      return `Last seen ${rawTimestamp}`;
+    }
+    return 'Last seen recently';
+  }
+
+  const now = new Date();
+  const startOfNow = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  const diffTime = startOfNow.getTime() - startOfDate.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+  const timeStr = date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+
+  if (diffDays === 0) {
+    return `Last seen today at ${timeStr}`;
+  }
+
+  if (diffDays === 1) {
+    return `Last seen yesterday at ${timeStr}`;
+  }
+
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+
+  return `Last seen on ${day}/${month}/${year}`;
+}

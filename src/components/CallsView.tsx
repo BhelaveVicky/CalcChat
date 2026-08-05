@@ -7,6 +7,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useVault } from '../context/VaultContext';
 import { formatCallDateTime } from '../lib/dateUtils';
+import { checkIsAdmin, VerifiedBadge } from '../lib/adminUtils';
 import { CallLog } from '../types';
 
 type FilterTab = 'all' | 'missed' | 'received_voice' | 'received_video';
@@ -421,12 +422,15 @@ export const CallsView: React.FC = () => {
 
                   {/* Call Details */}
                   <div className="flex-1 min-w-0 flex flex-col justify-center">
-                    <h4 className={`text-sm font-semibold truncate ${
+                    <h4 className={`text-sm font-semibold truncate flex items-center gap-1 ${
                       isRed 
                         ? 'text-rose-500' 
                         : (isDark ? 'text-[#e9edef]' : 'text-gray-900')
                     }`}>
-                      {name}
+                      <span className="truncate">{name}</span>
+                      {checkIsAdmin(contact || registeredUser || log.contactId) && (
+                        <VerifiedBadge className="w-3.5 h-3.5 shrink-0 text-[#00a8ff]" />
+                      )}
                     </h4>
 
                     <div className="flex items-center gap-1.5 mt-0.5">

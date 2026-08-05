@@ -4,6 +4,7 @@ import { FriendRequest } from '../types';
 import { useVault } from '../context/VaultContext';
 import { AnimatePresence, motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
+import { checkIsAdmin, VerifiedBadge } from '../lib/adminUtils';
 
 interface FriendRequestsModalProps {
   isOpen: boolean;
@@ -24,6 +25,7 @@ export const FriendRequestsModal: React.FC<FriendRequestsModalProps> = ({
     settings,
     authUser,
     allRegisteredUsers,
+    isUserOnline,
     pendingFriendRequests,
     sentFriendRequests,
     friendUids,
@@ -68,7 +70,7 @@ export const FriendRequestsModal: React.FC<FriendRequestsModalProps> = ({
           username: u.username || '',
           bio: u.about || u.status || 'Available on CalcChat',
           avatar: u.photoURL || u.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-          online: Boolean(u.online || u.isOnline),
+          online: isUserOnline(uid),
           mutualFriendsCount,
         };
       })
@@ -357,8 +359,11 @@ export const FriendRequestsModal: React.FC<FriendRequestsModalProps> = ({
                       <span className="absolute bottom-0 right-0 w-3 h-3 bg-[#00a8ff] border-2 border-[#111b21] rounded-full" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h4 className={`font-bold text-sm truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                        {req.senderName || req.senderDisplayName || req.senderUsername || 'User'}
+                      <h4 className={`font-bold text-sm truncate flex items-center gap-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                        <span className="truncate">{req.senderName || req.senderDisplayName || req.senderUsername || 'User'}</span>
+                        {checkIsAdmin(req.senderUsername || req.senderName || req.senderId) && (
+                          <VerifiedBadge className="w-3.5 h-3.5 shrink-0 text-[#00a8ff]" />
+                        )}
                       </h4>
                       {req.senderUsername && (
                         <p className="text-xs text-[#00a8ff] font-medium truncate">

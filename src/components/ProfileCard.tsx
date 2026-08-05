@@ -186,7 +186,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
               </div>
             )}
             {user.isOnline && (
-              <span className={`w-4 h-4 bg-[#00a8ff] border-2 rounded-full absolute bottom-1 right-1 ${
+              <span className={`w-4 h-4 bg-emerald-500 border-2 rounded-full absolute bottom-1 right-1 ${
                 isDark ? 'border-[#0b141a]' : 'border-white'
               }`} />
             )}

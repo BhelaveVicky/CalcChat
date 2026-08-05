@@ -80,7 +80,15 @@ interface VaultContextType {
     friendStatus: FriendStatus;
     requestId?: string;
   }>>;
-  postStatusUpdate: (text?: string, mediaUrl?: string, mediaType?: 'image' | 'video', caption?: string, bgColor?: string) => Promise<void>;
+  postStatusUpdate: (
+    text?: string,
+    mediaUrl?: string,
+    mediaType?: 'image' | 'video',
+    caption?: string,
+    bgColor?: string,
+    privacyMode?: 'contacts' | 'only',
+    allowedUserIds?: string[]
+  ) => Promise<void>;
   deleteStatusUpdate: (statusId: string) => Promise<void>;
   likeStatusUpdate: (statusId: string) => Promise<void>;
   markStatusAsSeen: (statusId: string) => Promise<void>;
@@ -1076,6 +1084,20 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       snapshot.docs.forEach(d => {
         const data = d.data();
         if (allowedUids.has(data.userId)) {
+          // Status Privacy Filter ('only share with...')
+          const privacyMode = data.privacyMode || 'contacts';
+          const allowedUserIds = Array.isArray(data.allowedUserIds) ? data.allowedUserIds : [];
+
+          // If status is restricted to specific contacts, non-owner users must be in allowedUserIds list
+          if (privacyMode === 'only' && data.userId !== authUser.uid) {
+            const isPermitted = allowedUserIds.includes(authUser.uid) ||
+                                (user.username && allowedUserIds.includes(user.username)) ||
+                                (user.id && allowedUserIds.includes(user.id));
+            if (!isPermitted) {
+              return; // User is not in the allowed list for this status!
+            }
+          }
+
           // Calculate creation time
           let createdMs = nowMs;
           if (data.createdAt?.toMillis) {
@@ -1098,6 +1120,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               mediaType: data.mediaType,
               caption: data.caption,
               bgColor: data.bgColor,
+              privacyMode: data.privacyMode || 'contacts',
+              allowedUserIds: data.allowedUserIds || [],
               createdAt: data.createdAt,
               expiresAt: data.expiresAt,
               likesCount: data.likesCount || (data.likes ? data.likes.length : 0),
@@ -1482,7 +1506,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     mediaUrl?: string,
     mediaType?: 'image' | 'video',
     caption?: string,
-    bgColor?: string
+    bgColor?: string,
+    privacyMode: 'contacts' | 'only' = 'contacts',
+    allowedUserIds: string[] = []
   ) => {
     let currentAuthUser = authUser;
     if (!currentAuthUser && firebaseAuth) {
@@ -1522,6 +1548,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         mediaType: mediaType || 'image',
         caption: caption || '',
         bgColor: bgColor || '#ff2e93',
+        privacyMode: privacyMode || 'contacts',
+        allowedUserIds: Array.isArray(allowedUserIds) ? allowedUserIds : [],
         createdAt: serverTimestamp(),
         expiresAt: expiresAt.toISOString(),
         likesCount: 0,

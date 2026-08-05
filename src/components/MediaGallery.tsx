@@ -55,12 +55,35 @@ export const MediaGallery: React.FC = () => {
 
   const isDark = vaultSettings.theme !== 'material-light' && vaultSettings.theme !== 'light';
 
-  // State for Privacy Settings
-  const [privacySetting, setPrivacySetting] = useState<'contacts' | 'only'>('contacts');
+  // State for Privacy Settings (persisted in localStorage)
+  const [privacySetting, setPrivacySetting] = useState<'contacts' | 'only'>(() => {
+    try {
+      const saved = localStorage.getItem('status_privacy_setting');
+      return (saved === 'only' || saved === 'contacts') ? saved : 'contacts';
+    } catch {
+      return 'contacts';
+    }
+  });
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
-  const [selectedPrivacyContactIds, setSelectedPrivacyContactIds] = useState<string[]>([]);
+  const [selectedPrivacyContactIds, setSelectedPrivacyContactIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('status_privacy_contact_ids');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [privacySearchQuery, setPrivacySearchQuery] = useState('');
   const [privacyToast, setPrivacyToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('status_privacy_setting', privacySetting);
+      localStorage.setItem('status_privacy_contact_ids', JSON.stringify(selectedPrivacyContactIds));
+    } catch (e) {
+      console.warn('Error saving privacy setting:', e);
+    }
+  }, [privacySetting, selectedPrivacyContactIds]);
 
   const availableContacts = contacts.filter(c => !c.isGroup && !c.isSelf);
 
@@ -502,9 +525,24 @@ export const MediaGallery: React.FC = () => {
 
   const handlePublishStatus = async () => {
     try {
+      if (privacySetting === 'only' && selectedPrivacyContactIds.length === 0) {
+        setPrivacyToast('⚠️ Select at least 1 contact in Status Privacy');
+        setShowPrivacyModal(true);
+        setTimeout(() => setPrivacyToast(null), 3000);
+        return;
+      }
+
       if (creatorType === 'text') {
         if (!statusText.trim()) return;
-        await postStatusUpdate(statusText, '', 'image', statusCaption, statusBgColor);
+        await postStatusUpdate(
+          statusText,
+          '',
+          'image',
+          statusCaption,
+          statusBgColor,
+          privacySetting,
+          selectedPrivacyContactIds
+        );
       } else {
         if (!selectedMediaUrl) return;
 
@@ -525,7 +563,9 @@ export const MediaGallery: React.FC = () => {
           finalMediaUrl,
           mediaKind,
           statusCaption,
-          '#ea4c89'
+          '#ea4c89',
+          privacySetting,
+          selectedPrivacyContactIds
         );
       }
 

@@ -195,6 +195,8 @@ export interface StatusUpdate {
   mediaType?: 'image' | 'video';
   caption?: string;
   bgColor?: string;
+  privacyMode?: 'contacts' | 'only';
+  allowedUserIds?: string[];
   createdAt: any;
   expiresAt: any;
   formattedTime?: string;
@@ -211,7 +213,7 @@ export interface StatusSeenRecord {
   userId: string;
   userName: string;
   userAvatar: string;
-  seenAt: any;
+  seenAt?: any;
   seenTime: string;
 }
 
@@ -221,7 +223,7 @@ export interface StatusLikeRecord {
   userId: string;
   userName: string;
   userAvatar: string;
-  likedAt: any;
+  likedAt?: any;
   likeTime: string;
 }
 

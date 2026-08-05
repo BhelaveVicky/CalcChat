@@ -254,6 +254,15 @@ export interface AppNotification {
   createdAt: any;
 }
 
+export interface AdminWallpaper {
+  id: string;
+  name: string;
+  url: string;
+  color?: string;
+  createdAt?: any;
+  addedBy?: string;
+}
+
 export interface VaultSettings {
 
   passcode: string; // e.g. "1234"

@@ -3,11 +3,13 @@ import {
   User, Key, Shield, MessageSquare, Bell, Keyboard, HelpCircle,
   LogOut, Search, X, ChevronRight, Moon, Sun, Globe, History,
   Trash2, Download, Clock, Eye, EyeOff, ShieldAlert, Check,
-  Smartphone, Palette, Lock, RefreshCw, Archive, Star, Camera
+  Smartphone, Palette, Lock, RefreshCw, Archive, Star, Camera,
+  Plus, Crown, ShieldCheck, Image as ImageIcon
 } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 import { useSettings } from '../context/SettingsContext';
 import { compressImage } from '../lib/mediaCompressor';
+import { checkIsAdmin } from '../lib/adminUtils';
 
 /* ─── tiny helpers ───────────────────────────────────────── */
 const Toggle: React.FC<{ on: boolean; onChange: () => void; color?: string }> = ({
@@ -320,10 +322,20 @@ const VaultSecurityView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
 /* ─── Chats Settings SubView ──────────────────────────────── */
 const ChatsSubView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
-  const { settings: vaultSettings, updateSettings: updateVaultSettings, clearAllChatHistory } = useVault();
+  const { 
+    settings: vaultSettings, updateSettings: updateVaultSettings, clearAllChatHistory,
+    user, authUser, adminWallpapers, addAdminWallpaper, deleteAdminWallpaper 
+  } = useVault();
   const [customWallpaperUrl, setCustomWallpaperUrl] = useState('');
+  const [adminWallpaperName, setAdminWallpaperName] = useState('');
+  const [adminWallpaperUrl, setAdminWallpaperUrl] = useState('');
+  const [isAddingAdminWp, setIsAddingAdminWp] = useState(false);
   const [snack, setSnack] = useState('');
+  
   const wallpaperInputRef = React.useRef<HTMLInputElement>(null);
+  const adminWpFileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const isAdmin = checkIsAdmin(user) || checkIsAdmin(authUser?.email);
 
   const showSnack = (msg: string) => {
     setSnack(msg);
@@ -331,6 +343,43 @@ const ChatsSubView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   };
 
   const isDark = vaultSettings.theme !== 'material-light' && vaultSettings.theme !== 'light';
+
+  const defaultPresets = [
+    { id: 'preset_1', name: 'Default', bg: 'default', color: isDark ? '#0b141a' : '#efeae2', isImage: false, isAdminAdded: false },
+    { id: 'preset_2', name: 'Dark Charcoal', bg: '#111b21', color: '#111b21', isImage: false, isAdminAdded: false },
+    { id: 'preset_3', name: 'Deep Slate', bg: '#1e293b', color: '#1e293b', isImage: false, isAdminAdded: false },
+    { id: 'preset_4', name: 'Emerald Dark', bg: '#062c1b', color: '#062c1b', isImage: false, isAdminAdded: false },
+    { id: 'preset_img_1', name: 'Geometric Dark', bg: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80', color: '#1e293b', isImage: true, isAdminAdded: false },
+    { id: 'preset_img_2', name: 'Neon Glow', bg: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=600&auto=format&fit=crop&q=80', color: '#1e293b', isImage: true, isAdminAdded: false },
+    { id: 'preset_img_3', name: 'Deep Space', bg: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=600&auto=format&fit=crop&q=80', color: '#1e293b', isImage: true, isAdminAdded: false },
+    { id: 'preset_img_4', name: 'Minimal Nature', bg: 'https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?w=600&auto=format&fit=crop&q=80', color: '#1e293b', isImage: true, isAdminAdded: false },
+  ];
+
+  const adminPresets = (adminWallpapers || []).map((wp, idx) => ({
+    id: wp.id,
+    name: wp.name || `Admin Wallpaper ${idx + 1}`,
+    bg: wp.url,
+    color: wp.color || '#1e293b',
+    isImage: true,
+    isAdminAdded: true,
+  }));
+
+  const allSwatches = [...defaultPresets, ...adminPresets];
+
+  const handleAddAdminWp = async (url: string, name?: string) => {
+    if (!url.trim()) return;
+    setIsAddingAdminWp(true);
+    try {
+      await addAdminWallpaper(name || adminWallpaperName || 'Admin Wallpaper', url);
+      showSnack('New wallpaper added to global swatches!');
+      setAdminWallpaperName('');
+      setAdminWallpaperUrl('');
+    } catch (e) {
+      showSnack('Failed to add wallpaper');
+    } finally {
+      setIsAddingAdminWp(false);
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col bg-[#0b141a] text-[#e9edef] h-full overflow-y-auto font-sans animate-fade-in">
@@ -383,7 +432,14 @@ const ChatsSubView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         {/* Wallpaper Section */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-[#8696a0]">Chat Wallpaper</h3>
+            <h3 className="text-sm font-semibold text-[#8696a0] flex items-center gap-1.5">
+              <span>Chat Wallpaper</span>
+              {adminPresets.length > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-[#00a8ff]/20 text-[#00a8ff] text-[10px] font-bold">
+                  +{adminPresets.length} Admin
+                </span>
+              )}
+            </h3>
             {vaultSettings?.chatWallpaper && vaultSettings.chatWallpaper !== 'default' && (
               <button
                 type="button"
@@ -420,47 +476,83 @@ const ChatsSubView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             </div>
           )}
 
-          {/* Preset Swatches */}
-          <div className="grid grid-cols-4 gap-2.5 mb-4">
-            {[
-              { name: 'Default', bg: 'default', color: isDark ? '#0b141a' : '#efeae2' },
-              { name: 'Dark Charcoal', bg: '#111b21', color: '#111b21' },
-              { name: 'Deep Slate', bg: '#1e293b', color: '#1e293b' },
-              { name: 'Emerald Dark', bg: '#062c1b', color: '#062c1b' },
-              { name: 'Sky blue', bg: '#e3f2fd', color: '#e3f2fd' },
-              { name: 'Mint Green', bg: '#e8f5e9', color: '#e8f5e9' },
-              { name: 'Lavender', bg: '#f3e5f5', color: '#f3e5f5' },
-              { name: 'Blush blue', bg: '#fce4ec', color: '#fce4ec' },
-            ].map((swatch) => {
+          {/* Swatches Grid (Presets + Admin Wallpapers) */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-4 max-h-[65vh] overflow-y-auto p-1">
+            {allSwatches.map((swatch) => {
               const isSelected = 
                 (swatch.bg === 'default' && (!vaultSettings?.chatWallpaper || vaultSettings?.chatWallpaper === 'default')) ||
                 vaultSettings?.chatWallpaper === swatch.bg;
+
+              const isImage = swatch.isImage || swatch.bg.startsWith('data:') || swatch.bg.startsWith('http') || swatch.bg.startsWith('blob:');
+
               return (
-                <button
-                  key={swatch.name}
-                  type="button"
-                  title={swatch.name}
-                  onClick={() => {
-                    updateVaultSettings({ chatWallpaper: swatch.bg });
-                    showSnack(`Wallpaper set to ${swatch.name}`);
-                  }}
-                  className={`h-12 rounded-xl border-2 transition-all cursor-pointer relative overflow-hidden flex items-center justify-center ${
-                    isSelected 
-                      ? 'border-[#00a8ff] ring-2 ring-[#00a8ff]/30 shadow-md scale-[1.02]' 
-                      : 'border-gray-700/60 hover:opacity-90'
-                  }`}
-                  style={{ backgroundColor: swatch.color }}
-                >
-                  {isSelected && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                      <Check className="w-4 h-4 text-white drop-shadow" />
+                <div key={swatch.id} className="relative group">
+                  <button
+                    type="button"
+                    title={swatch.name}
+                    onClick={() => {
+                      updateVaultSettings({ chatWallpaper: swatch.bg });
+                      showSnack(`Wallpaper set to ${swatch.name}`);
+                    }}
+                    className={`w-full h-20 sm:h-24 rounded-2xl border-2 transition-all cursor-pointer relative overflow-hidden flex flex-col items-center justify-between p-1.5 shadow-sm ${
+                      isSelected 
+                        ? 'border-[#00a8ff] ring-2 ring-[#00a8ff]/30 scale-[1.02] shadow-md z-10' 
+                        : 'border-gray-700/60 hover:border-gray-500 hover:scale-[1.01]'
+                    }`}
+                    style={
+                      isImage 
+                        ? { backgroundImage: `url("${swatch.bg}")`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                        : { backgroundColor: swatch.color }
+                    }
+                  >
+                    {isSelected && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[1px]">
+                        <div className="w-6 h-6 rounded-full bg-[#00a8ff] text-white flex items-center justify-center shadow-lg">
+                          <Check className="w-4 h-4 stroke-[3]" />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="w-full flex items-center justify-between z-10">
+                      {swatch.isAdminAdded ? (
+                        <span className="px-1.5 py-0.5 bg-[#00a8ff] text-[#0b141a] text-[8px] font-black rounded uppercase tracking-wider shadow">
+                          ADMIN
+                        </span>
+                      ) : isImage ? (
+                        <span className="px-1.5 py-0.5 bg-black/60 text-white text-[8px] font-bold rounded shadow backdrop-blur-sm">
+                          HD
+                        </span>
+                      ) : <span />}
                     </div>
+
+                    <span className="w-full text-[9.5px] font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] truncate text-center z-10 bg-black/30 backdrop-blur-[2px] py-0.5 px-1 rounded-md">
+                      {swatch.name}
+                    </span>
+                  </button>
+
+                  {/* Admin Delete Icon */}
+                  {isAdmin && swatch.isAdminAdded && (
+                    <button
+                      type="button"
+                      title="Delete Admin Wallpaper"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (confirm(`Remove "${swatch.name}" from global wallpapers?`)) {
+                          await deleteAdminWallpaper(swatch.id);
+                          showSnack('Admin wallpaper removed');
+                        }
+                      }}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-rose-600 hover:bg-rose-700 text-white rounded-full flex items-center justify-center shadow-md cursor-pointer transition-all z-20"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
                   )}
-                </button>
+                </div>
               );
             })}
           </div>
 
+          {/* Device Upload / Custom URL */}
           <input
             ref={wallpaperInputRef}
             type="file"
@@ -483,14 +575,14 @@ const ChatsSubView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             }}
           />
 
-          <div className="space-y-2.5">
+          <div className="space-y-2.5 mb-5">
             <button
               type="button"
               onClick={() => wallpaperInputRef.current?.click()}
               className="w-full p-3 rounded-2xl border-2 border-dashed border-[#2a3942] hover:border-gray-500 bg-[#111b21] text-[#8696a0] hover:text-[#e9edef] flex items-center justify-center gap-2 text-xs font-semibold cursor-pointer transition-colors"
             >
               <Camera className="w-4 h-4 text-[#00a8ff]" />
-              <span>Upload custom image from device</span>
+              <span>Upload custom image for yourself</span>
             </button>
 
             <div className="flex gap-2">
@@ -517,6 +609,87 @@ const ChatsSubView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               </button>
             </div>
           </div>
+
+          {/* Admin Wallpaper Control Section */}
+          {isAdmin && (
+            <div className="p-4 rounded-2xl bg-[#111b21] border border-[#00a8ff]/30 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-[#00a8ff]" />
+                  <h4 className="font-bold text-xs text-[#00a8ff] uppercase tracking-wider">
+                    Admin Panel: Add Preset Wallpaper
+                  </h4>
+                </div>
+                <span className="px-2 py-0.5 rounded-full bg-[#00a8ff]/10 text-[#00a8ff] text-[10px] font-bold">
+                  GLOBAL
+                </span>
+              </div>
+              <p className="text-[11px] text-[#8696a0]">
+                Wallpapers added here will instantly appear for ALL users in their chat wallpaper selection grid.
+              </p>
+
+              <input
+                ref={adminWpFileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onload = async (ev) => {
+                      if (ev.target?.result) {
+                        const raw = ev.target.result as string;
+                        const compressed = await compressImage(raw, 800, 200000);
+                        await handleAddAdminWp(compressed || raw, file.name.split('.')[0]);
+                      }
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                }}
+              />
+
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  value={adminWallpaperName}
+                  onChange={(e) => setAdminWallpaperName(e.target.value)}
+                  placeholder="Wallpaper Title (e.g. Sunset Glow)"
+                  className="w-full px-3.5 py-2 rounded-xl text-xs border border-[#2a3942] bg-[#0b141a] text-[#e9edef] placeholder-[#8696a0] focus:border-[#00a8ff] outline-none"
+                />
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={isAddingAdminWp}
+                    onClick={() => adminWpFileInputRef.current?.click()}
+                    className="flex-1 py-2 px-3 rounded-xl bg-[#1f2c34] hover:bg-[#2a3942] text-xs font-bold text-[#e9edef] border border-[#2a3942] flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <ImageIcon className="w-3.5 h-3.5 text-[#00a8ff]" />
+                    <span>{isAddingAdminWp ? 'Adding...' : 'Upload Image'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={!adminWallpaperUrl.trim() || isAddingAdminWp}
+                    onClick={() => handleAddAdminWp(adminWallpaperUrl)}
+                    className="px-3.5 py-2 rounded-xl bg-[#00a8ff] hover:bg-[#0088cc] disabled:opacity-40 text-[#0b141a] text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add URL</span>
+                  </button>
+                </div>
+
+                <input
+                  type="url"
+                  value={adminWallpaperUrl}
+                  onChange={(e) => setAdminWallpaperUrl(e.target.value)}
+                  placeholder="Or paste direct image URL for Admin Wallpaper..."
+                  className="w-full px-3.5 py-2 rounded-xl text-xs border border-[#2a3942] bg-[#0b141a] text-[#e9edef] placeholder-[#8696a0] focus:border-[#00a8ff] outline-none"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Clear Chat History Section */}

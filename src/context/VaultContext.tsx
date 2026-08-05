@@ -12,7 +12,8 @@ import {
 import { 
   CallInfo, CallLog, CallType, CallDirection, CallStatus, Contact, MediaAttachment, Message, 
   UserProfile, VaultSettings, FriendRequest, FriendStatus, StatusUpdate,
-  StatusSeenRecord, StatusLikeRecord, StatusReactionRecord, StatusReplyData, StatusReactionData
+  StatusSeenRecord, StatusLikeRecord, StatusReactionRecord, StatusReplyData, StatusReactionData,
+  AdminWallpaper
 } from '../types';
 import { DEFAULT_SETTINGS, DEFAULT_USER } from '../data/initialData';
 import { isFirebaseConfigured, firebaseAuth, googleProvider, db } from '../lib/firebase';
@@ -152,6 +153,9 @@ interface VaultContextType {
   unlockChatLock: (contactId: string) => void;
   blockContact: (contactId: string) => void;
   unblockContact: (contactId: string) => void;
+  adminWallpapers: AdminWallpaper[];
+  addAdminWallpaper: (name: string, url: string, color?: string) => Promise<void>;
+  deleteAdminWallpaper: (wallpaperId: string) => Promise<void>;
 }
 
 const VaultContext = createContext<VaultContextType | undefined>(undefined);
@@ -254,6 +258,9 @@ const fallbackVaultContext: VaultContextType = {
   addReactionMessage: async () => {},
   removeReactionMessage: async () => {},
   deleteMultipleMessages: async () => {},
+  adminWallpapers: [],
+  addAdminWallpaper: async () => {},
+  deleteAdminWallpaper: async () => {},
 };
 
 const ICE_SERVERS: RTCConfiguration = {
@@ -319,6 +326,129 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [messages, setMessages] = useState<Record<string, Message[]>>({});
   const [typingStatusMap, setTypingStatusMap] = useState<Record<string, boolean>>({});
   const [chatMetadata, setChatMetadata] = useState<Record<string, { lastMessage?: string; lastMessageTime?: any; lastMessageSenderId?: string }>>({});
+  const [adminWallpapers, setAdminWallpapers] = useState<AdminWallpaper[]>([]);
+
+  // Real-time listener for Admin Wallpapers with LocalStorage fallback
+  useEffect(() => {
+    let localWps: AdminWallpaper[] = [];
+    try {
+      const saved = localStorage.getItem('calcchat_admin_wallpapers');
+      if (saved) {
+        localWps = JSON.parse(saved);
+        setAdminWallpapers(localWps);
+      }
+    } catch (e) {
+      console.warn('Error loading local admin wallpapers:', e);
+    }
+
+    if (!db) return;
+    try {
+      const wpQuery = collection(db, 'admin_wallpapers');
+      const unsub = onSnapshot(wpQuery, (snapshot) => {
+        const firestoreList: AdminWallpaper[] = [];
+        snapshot.docs.forEach(docSnap => {
+          const data = docSnap.data();
+          if (data.url) {
+            firestoreList.push({
+              id: docSnap.id,
+              name: data.name || 'Admin Wallpaper',
+              url: data.url || '',
+              color: data.color || '#1e293b',
+              createdAt: data.createdAt?.toMillis ? data.createdAt.toMillis() : (data.createdAt || Date.now()),
+              addedBy: data.addedBy || '',
+            });
+          }
+        });
+
+        // Merge firestore items with local items so all users get Firestore updates
+        const map = new Map<string, AdminWallpaper>();
+        firestoreList.forEach(w => map.set(w.url || w.id, w));
+        localWps.forEach(w => {
+          if (!map.has(w.url || w.id)) {
+            map.set(w.url || w.id, w);
+          }
+        });
+
+        const merged = Array.from(map.values());
+        setAdminWallpapers(merged);
+        try {
+          localStorage.setItem('calcchat_admin_wallpapers', JSON.stringify(merged));
+        } catch (e) {}
+      }, (err) => {
+        console.warn('Admin wallpapers snapshot error:', err);
+      });
+
+      return () => unsub();
+    } catch (e) {
+      console.warn('Admin wallpapers listener error:', e);
+    }
+  }, [db]);
+
+  const addAdminWallpaper = async (name: string, url: string, color?: string) => {
+    let finalUrl = url.trim();
+    if (!finalUrl) throw new Error('Wallpaper URL is empty');
+
+    // Compress base64 data URLs aggressively if needed to ensure lightweight storage
+    if (finalUrl.startsWith('data:image/')) {
+      try {
+        finalUrl = await compressImage(finalUrl, 600, 100000);
+      } catch (e) {
+        console.warn('Wallpaper compression warning:', e);
+      }
+    }
+
+    const tempId = 'admin_wp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+    const newWp: AdminWallpaper = {
+      id: tempId,
+      name: name.trim() || 'Admin Wallpaper',
+      url: finalUrl,
+      color: color || '#1e293b',
+      createdAt: Date.now(),
+      addedBy: authUser?.email || user.email || 'Admin',
+    };
+
+    // Optimistically update local state & localStorage immediately
+    setAdminWallpapers(prev => {
+      const updated = [newWp, ...prev.filter(p => p.url !== newWp.url && p.id !== newWp.id)];
+      try {
+        localStorage.setItem('calcchat_admin_wallpapers', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    if (db) {
+      try {
+        const docRef = await addDoc(collection(db, 'admin_wallpapers'), {
+          name: newWp.name,
+          url: newWp.url,
+          color: newWp.color,
+          createdAt: serverTimestamp(),
+          addedBy: newWp.addedBy,
+        });
+        newWp.id = docRef.id;
+      } catch (err) {
+        console.warn('Firestore addDoc warning for admin wallpaper:', err);
+      }
+    }
+  };
+
+  const deleteAdminWallpaper = async (wallpaperId: string) => {
+    setAdminWallpapers(prev => {
+      const updated = prev.filter(w => w.id !== wallpaperId);
+      try {
+        localStorage.setItem('calcchat_admin_wallpapers', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    if (db && wallpaperId && !wallpaperId.startsWith('admin_wp_')) {
+      try {
+        await deleteDoc(doc(db, 'admin_wallpapers', wallpaperId));
+      } catch (err) {
+        console.warn('Error deleting admin wallpaper from Firestore:', err);
+      }
+    }
+  };
 
   // Sync friendContacts and groupContacts into contacts with metadata & real-time sorting keys
   useEffect(() => {
@@ -3600,6 +3730,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       unlockChatLock,
       blockContact,
       unblockContact,
+      adminWallpapers,
+      addAdminWallpaper,
+      deleteAdminWallpaper,
     }}>
       {children}
     </VaultContext.Provider>

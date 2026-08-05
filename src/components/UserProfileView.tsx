@@ -4,7 +4,7 @@ import {
   Camera, Check, Eye, Edit3, RotateCw, ZoomIn, ZoomOut, RefreshCw,
   ChevronLeft, ChevronRight, Circle, Info, Smile, CheckCheck,
   Ban, UserPlus, Plus, ShieldAlert, Trash2, Code2, Heart, Sparkles,
-  Users, Phone, ShieldCheck, Crown, Activity, BadgeCheck
+  Users, Phone, ShieldCheck, Crown, Activity, BadgeCheck, Palette
 } from 'lucide-react';
 import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -22,15 +22,20 @@ export const UserProfileView: React.FC = () => {
     user, authUser, updateProfile, signOutGoogle, lockVault, 
     contacts, blockedContactIds, blockContact, unblockContact,
     settings: vaultSettings, updateSettings: updateVaultSettings,
-    clearAllChatHistory, allRegisteredUsers
+    clearAllChatHistory, allRegisteredUsers,
+    adminWallpapers, addAdminWallpaper, deleteAdminWallpaper
   } = useVault();
   const { settings, updateSettings: updateGlobalSettings } = useSettings();
   const isDark = vaultSettings.theme !== 'material-light' && vaultSettings.theme !== 'light';
   const [search, setSearch] = useState('');
   const [snack, setSnack] = useState('');
   const [customWallpaperUrl, setCustomWallpaperUrl] = useState('');
+  const [adminWpTitle, setAdminWpTitle] = useState('');
+  const [adminWpUrl, setAdminWpUrl] = useState('');
+  const [isAddingAdminWp, setIsAddingAdminWp] = useState(false);
   
   const wallpaperInputRef = useRef<HTMLInputElement>(null);
+  const adminWpInputRef = useRef<HTMLInputElement>(null);
 
   const isAdmin = checkIsAdmin(user) || checkIsAdmin(authUser?.email);
 
@@ -1578,43 +1583,94 @@ export const UserProfileView: React.FC = () => {
                 </div>
               )}
 
-              {/* Preset Color Swatches */}
-              <div className="grid grid-cols-4 gap-2.5 mb-4">
+              {/* Preset Color Swatches + Admin Wallpapers Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-4 max-h-[65vh] overflow-y-auto p-1">
                 {[
-                  { name: 'Default', bg: 'default', color: isDark ? '#0b141a' : '#efeae2' },
-                  { name: 'Dark Charcoal', bg: '#111b21', color: '#111b21' },
-                  { name: 'Deep Slate', bg: '#1e293b', color: '#1e293b' },
-                  { name: 'Emerald Dark', bg: '#062c1b', color: '#062c1b' },
-                  { name: 'Sky Blue', bg: '#e3f2fd', color: '#e3f2fd' },
-                  { name: 'Mint Green', bg: '#e8f5e9', color: '#e8f5e9' },
-                  { name: 'Lavender', bg: '#f3e5f5', color: '#f3e5f5' },
-                  { name: 'Blush Pink', bg: '#fce4ec', color: '#fce4ec' },
-                ].map((swatch) => {
+                  { id: 'preset_1', name: 'Default', bg: 'default', color: isDark ? '#0b141a' : '#efeae2', isImage: false, isAdminAdded: false },
+                  { id: 'preset_2', name: 'Dark Charcoal', bg: '#111b21', color: '#111b21', isImage: false, isAdminAdded: false },
+                  { id: 'preset_3', name: 'Deep Slate', bg: '#1e293b', color: '#1e293b', isImage: false, isAdminAdded: false },
+                  { id: 'preset_4', name: 'Emerald Dark', bg: '#062c1b', color: '#062c1b', isImage: false, isAdminAdded: false },
+                  { id: 'preset_img_1', name: 'Geometric Dark', bg: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80', color: '#1e293b', isImage: true, isAdminAdded: false },
+                  { id: 'preset_img_2', name: 'Neon Glow', bg: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=600&auto=format&fit=crop&q=80', color: '#1e293b', isImage: true, isAdminAdded: false },
+                  { id: 'preset_img_3', name: 'Deep Space', bg: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=600&auto=format&fit=crop&q=80', color: '#1e293b', isImage: true, isAdminAdded: false },
+                  { id: 'preset_img_4', name: 'Minimal Nature', bg: 'https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?w=600&auto=format&fit=crop&q=80', color: '#1e293b', isImage: true, isAdminAdded: false },
+                  ...(adminWallpapers || []).map((wp, idx) => ({
+                    id: wp.id,
+                    name: wp.name || `Admin Wallpaper ${idx + 1}`,
+                    bg: wp.url,
+                    color: wp.color || '#1e293b',
+                    isImage: true,
+                    isAdminAdded: true,
+                  }))
+                ].map((swatch, idx) => {
                   const isSelected = 
                     (swatch.bg === 'default' && (!vaultSettings?.chatWallpaper || vaultSettings?.chatWallpaper === 'default')) ||
                     vaultSettings?.chatWallpaper === swatch.bg;
+
+                  const isImage = swatch.isImage || swatch.bg.startsWith('data:') || swatch.bg.startsWith('http') || swatch.bg.startsWith('blob:');
+
                   return (
-                    <button
-                      key={swatch.name}
-                      type="button"
-                      title={swatch.name}
-                      onClick={() => {
-                        updateVaultSettings({ chatWallpaper: swatch.bg });
-                        showSnack(`Wallpaper set to ${swatch.name}`);
-                      }}
-                      className={`h-14 rounded-xl border-2 transition-all cursor-pointer relative overflow-hidden flex flex-col items-center justify-center ${
-                        isSelected 
-                          ? 'border-[#0095f6] ring-2 ring-[#0095f6]/30 shadow-md scale-[1.02]' 
-                          : 'border-gray-300/40 hover:opacity-90'
-                      }`}
-                      style={{ backgroundColor: swatch.color }}
-                    >
-                      {isSelected && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                          <Check className="w-5 h-5 text-white drop-shadow" />
+                    <div key={swatch.id || swatch.name || idx} className="relative group">
+                      <button
+                        type="button"
+                        title={swatch.name}
+                        onClick={() => {
+                          updateVaultSettings({ chatWallpaper: swatch.bg });
+                          showSnack(`Wallpaper set to ${swatch.name}`);
+                        }}
+                        className={`w-full h-20 sm:h-24 rounded-2xl border-2 transition-all cursor-pointer relative overflow-hidden flex flex-col items-center justify-between p-1.5 shadow-sm ${
+                          isSelected 
+                            ? 'border-[#00a8ff] ring-2 ring-[#00a8ff]/30 scale-[1.02] shadow-md z-10' 
+                            : 'border-gray-700/50 hover:border-gray-500 hover:scale-[1.01]'
+                        }`}
+                        style={
+                          isImage 
+                            ? { backgroundImage: `url("${swatch.bg}")`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                            : { backgroundColor: swatch.color }
+                        }
+                      >
+                        {isSelected && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[1px]">
+                            <div className="w-6 h-6 rounded-full bg-[#00a8ff] text-white flex items-center justify-center shadow-lg">
+                              <Check className="w-4 h-4 stroke-[3]" />
+                            </div>
+                          </div>
+                        )}
+                        
+                        <div className="w-full flex items-center justify-between z-10">
+                          {swatch.isAdminAdded ? (
+                            <span className="px-1.5 py-0.5 bg-[#00a8ff] text-[#0b141a] text-[8px] font-black rounded uppercase tracking-wider shadow">
+                              ADMIN
+                            </span>
+                          ) : isImage ? (
+                            <span className="px-1.5 py-0.5 bg-black/60 text-white text-[8px] font-bold rounded shadow backdrop-blur-sm">
+                              HD
+                            </span>
+                          ) : <span />}
                         </div>
+
+                        <span className="w-full text-[9.5px] font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] truncate text-center z-10 bg-black/30 backdrop-blur-[2px] py-0.5 px-1 rounded-md">
+                          {swatch.name}
+                        </span>
+                      </button>
+
+                      {isAdmin && swatch.isAdminAdded && swatch.id && (
+                        <button
+                          type="button"
+                          title="Delete Admin Wallpaper"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (confirm(`Remove "${swatch.name}" from global wallpapers?`)) {
+                              await deleteAdminWallpaper(swatch.id);
+                              showSnack('Admin wallpaper deleted');
+                            }
+                          }}
+                          className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-rose-600 hover:bg-rose-700 text-white rounded-full flex items-center justify-center shadow-md cursor-pointer transition-all z-20"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
                       )}
-                    </button>
+                    </div>
                   );
                 })}
               </div>
@@ -2166,6 +2222,137 @@ export const UserProfileView: React.FC = () => {
                 </div>
                 <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-xs">PROTECTED</span>
               </div>
+            </div>
+
+            {/* Admin Wallpaper Management Card */}
+            <div className={`p-5 rounded-3xl border ${
+              isDark ? 'bg-[#111b21] border-[#202c33]' : 'bg-gray-50 border-gray-200'
+            }`}>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-bold text-sm text-left flex items-center gap-2">
+                  <Palette className="w-4 h-4 text-[#00a8ff]" /> Admin Preset Wallpapers
+                </h4>
+                <span className="px-2 py-0.5 rounded-full bg-[#00a8ff]/20 text-[#00a8ff] text-[10px] font-bold">
+                  {adminWallpapers.length} Wallpapers
+                </span>
+              </div>
+              <p className="text-xs text-gray-400 text-left mb-3">
+                Upload wallpapers here to add them to all users' chat wallpaper selection swatches.
+              </p>
+
+              <input
+                ref={adminWpInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setIsAddingAdminWp(true);
+                    try {
+                      const compressed = await compressImage(file, 800, 150000);
+                      const title = adminWpTitle.trim() || file.name.split('.')[0] || 'Admin Wallpaper';
+                      await addAdminWallpaper(title, compressed);
+                      showSnack('Admin wallpaper added successfully!');
+                      setAdminWpTitle('');
+                      setAdminWpUrl('');
+                    } catch (err: any) {
+                      console.error('Error uploading admin wallpaper:', err);
+                      showSnack('Failed to add wallpaper: ' + (err?.message || 'Error'));
+                    } finally {
+                      setIsAddingAdminWp(false);
+                      if (e.target) e.target.value = '';
+                    }
+                  }
+                }}
+              />
+
+              <div className="space-y-2 mb-4">
+                <input
+                  type="text"
+                  value={adminWpTitle}
+                  onChange={(e) => setAdminWpTitle(e.target.value)}
+                  placeholder="Wallpaper Title (e.g. Sunset Glow)"
+                  className={`w-full px-3.5 py-2 rounded-xl text-xs border outline-none ${
+                    isDark ? 'bg-[#0b141a] border-[#202c33] text-white focus:border-[#00a8ff]' : 'bg-white border-gray-200 text-gray-900'
+                  }`}
+                />
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={isAddingAdminWp}
+                    onClick={() => adminWpInputRef.current?.click()}
+                    className="flex-1 py-2 px-3 rounded-xl bg-[#00a8ff]/10 hover:bg-[#00a8ff]/20 text-[#00a8ff] border border-[#00a8ff]/30 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>{isAddingAdminWp ? 'Uploading...' : 'Upload Image File'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={!adminWpUrl.trim() || isAddingAdminWp}
+                    onClick={async () => {
+                      if (!adminWpUrl.trim()) return;
+                      setIsAddingAdminWp(true);
+                      try {
+                        await addAdminWallpaper(adminWpTitle || 'Admin Wallpaper', adminWpUrl.trim());
+                        showSnack('Admin wallpaper added from URL!');
+                        setAdminWpTitle('');
+                        setAdminWpUrl('');
+                      } catch (err) {
+                        showSnack('Failed to add wallpaper');
+                      } finally {
+                        setIsAddingAdminWp(false);
+                      }
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-[#00a8ff] hover:bg-[#0088cc] disabled:opacity-40 text-[#0b141a] text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add URL</span>
+                  </button>
+                </div>
+
+                <input
+                  type="url"
+                  value={adminWpUrl}
+                  onChange={(e) => setAdminWpUrl(e.target.value)}
+                  placeholder="Or paste direct image URL..."
+                  className={`w-full px-3.5 py-2 rounded-xl text-xs border outline-none ${
+                    isDark ? 'bg-[#0b141a] border-[#202c33] text-white focus:border-[#00a8ff]' : 'bg-white border-gray-200 text-gray-900'
+                  }`}
+                />
+              </div>
+
+              {/* Admin Wallpapers Grid in Admin Panel */}
+              {adminWallpapers.length > 0 ? (
+                <div className="grid grid-cols-3 gap-2.5 max-h-48 overflow-y-auto pr-1">
+                  {adminWallpapers.map((wp) => (
+                    <div key={wp.id} className="relative group rounded-xl overflow-hidden border border-[#202c33] h-20 bg-cover bg-center shadow-sm" style={{ backgroundImage: `url("${wp.url}")` }}>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-1.5 flex flex-col justify-end">
+                        <p className="text-[10px] font-bold text-white truncate">{wp.name}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (confirm(`Delete "${wp.name}"?`)) {
+                            await deleteAdminWallpaper(wp.id);
+                            showSnack('Wallpaper deleted');
+                          }
+                        }}
+                        className="absolute top-1 right-1 p-1 rounded-full bg-rose-600/90 hover:bg-rose-600 text-white shadow cursor-pointer transition-colors"
+                        title="Delete wallpaper"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[11px] text-gray-500 italic text-center py-2">
+                  No admin wallpapers added yet. Add one above to populate swatches!
+                </p>
+              )}
             </div>
 
             {/* Quick Action Button */}

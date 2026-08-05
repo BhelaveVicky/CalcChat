@@ -6,7 +6,7 @@ import {
   Lock, CheckCheck, Check, Paperclip, Camera, Phone, Mic, MicOff, MoreVertical, X,
   Search, CheckSquare, Heart, Ban, MinusCircle, Copy, Pin, Archive, Star,
   CornerUpLeft, Play, Pause, Volume2, Edit3, Forward, Share2, Info, ChevronRight, File, PhoneCall, Tag,
-  RotateCw, RefreshCw, Music, MapPin, User, ZoomIn, ZoomOut, Download, Clock, UserCheck, UserPlus
+  RotateCw, RefreshCw, Music, MapPin, User, ZoomIn, ZoomOut, Download, Clock, UserCheck, UserPlus, Flag, XCircle
 } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 import { MediaAttachment, Message, Contact } from '../types';
@@ -1183,20 +1183,6 @@ export const ChatWindow: React.FC = () => {
                       type="button"
                       onClick={() => {
                         setShowHeaderMenu(false);
-                        setShowRightSidebar(true);
-                      }}
-                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
-                        isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                      }`}
-                    >
-                      <Info className="w-4.5 h-4.5 opacity-80" />
-                      <span>Contact Info</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowHeaderMenu(false);
                         setSelectedMsgIds([]);
                       }}
                       className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
@@ -1226,21 +1212,6 @@ export const ChatWindow: React.FC = () => {
                       type="button"
                       onClick={() => {
                         setShowHeaderMenu(false);
-                        toggleArchiveContact(contact.id);
-                        showToast(contact.isArchived ? "Unarchived chat" : "Archived chat");
-                      }}
-                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
-                        isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                      }`}
-                    >
-                      <Archive className="w-4.5 h-4.5 opacity-80 text-[#00a8ff]" />
-                      <span>{contact.isArchived ? "Unarchive chat" : "Archive chat"}</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowHeaderMenu(false);
                         clearChatHistory(contact.id);
                         showToast("Cleared chat history");
                       }}
@@ -1250,6 +1221,21 @@ export const ChatWindow: React.FC = () => {
                     >
                       <MinusCircle className="w-4.5 h-4.5 opacity-80" />
                       <span>Clear messages</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowHeaderMenu(false);
+                        setActiveContactId(null);
+                        showToast("Chat closed");
+                      }}
+                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
+                        isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                      }`}
+                    >
+                      <XCircle className="w-4.5 h-4.5 opacity-80" />
+                      <span>Close chat</span>
                     </button>
 
                     {isFriend(contact.id) && (
@@ -1287,6 +1273,20 @@ export const ChatWindow: React.FC = () => {
                     >
                       <Ban className="w-4.5 h-4.5 opacity-80" />
                       <span>{blockedContactIds.includes(contact.id) ? `Unblock ${contact.name}` : `Block contact`}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowHeaderMenu(false);
+                        showToast(`Reported ${contact.name}`);
+                      }}
+                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors text-red-500 font-semibold ${
+                        isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                      }`}
+                    >
+                      <Flag className="w-4.5 h-4.5 text-red-500" />
+                      <span>Report</span>
                     </button>
 
                   </div>

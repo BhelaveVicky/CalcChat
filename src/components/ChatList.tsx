@@ -4,7 +4,7 @@ import {
   Search, Plus, Pin, Lock, EyeOff, Bot, MoreVertical, Trash2, Sparkles, 
   PhoneCall, MessageSquare, ArrowLeft, X, Archive, Bell, BellOff, CheckCheck, Check,
   Heart, ListPlus, MinusCircle, LogOut, ChevronRight, Users, UserPlus, UserCheck,
-  MessageSquarePlus, Tag, Video, User
+  MessageSquarePlus, Tag, Video, User, Ban, UserMinus
 } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 import { Contact, Message } from '../types';
@@ -41,6 +41,9 @@ export const ChatList: React.FC = () => {
     acceptFriendRequest,
     blockedContactIds,
     blockedByContactIds,
+    blockContact,
+    unblockContact,
+    unfriendContact,
   } = useVault();
 
   const isDark = settings.theme !== 'material-light' && settings.theme !== 'light';
@@ -980,24 +983,7 @@ export const ChatList: React.FC = () => {
                         </div>
                       </button>
 
-                      {/* 4. Mark as read / unread */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setOpenMenuId(null);
-                          showToast(`Marked as unread`);
-                        }}
-                        className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${
-                          isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <CheckCheck className="w-4.5 h-4.5 opacity-80" />
-                          <span>Mark as unread</span>
-                        </div>
-                      </button>
-
-                      {/* 5. Add / Remove from favourites */}
+                      {/* 4. Add / Remove from favourites */}
                       <button
                         type="button"
                         onClick={() => {
@@ -1015,23 +1001,52 @@ export const ChatList: React.FC = () => {
                         </div>
                       </button>
 
-                      {/* 6. Add to list */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setOpenMenuId(null);
-                          showToast(`Added to list`);
-                        }}
-                        className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${
-                          isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <ListPlus className="w-4.5 h-4.5 opacity-80" />
-                          <span>Add to list</span>
-                        </div>
-                        <ChevronRight className="w-4 h-4 opacity-40" />
-                      </button>
+                      {/* 5. Block / Unblock Contact */}
+                      {contact.id !== user.id && !contact.isGroup && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOpenMenuId(null);
+                            const isBlocked = blockedContactIds.includes(contact.id);
+                            if (isBlocked) {
+                              unblockContact(contact.id);
+                              showToast(`Unblocked ${getContactDisplayName(contact)}`);
+                            } else {
+                              blockContact(contact.id);
+                              showToast(`Blocked ${getContactDisplayName(contact)}`);
+                            }
+                          }}
+                          className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${
+                            isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 text-amber-500">
+                            <Ban className="w-4.5 h-4.5" />
+                            <span>{blockedContactIds.includes(contact.id) ? 'Unblock contact' : 'Block contact'}</span>
+                          </div>
+                        </button>
+                      )}
+
+                      {/* 6. Unfriend Contact */}
+                      {contact.id !== user.id && !contact.isGroup && friendUids.includes(contact.id) && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            setOpenMenuId(null);
+                            const targetName = getContactDisplayName(contact);
+                            await unfriendContact(contact.id);
+                            showToast(`Unfriended ${targetName}`);
+                          }}
+                          className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors text-rose-500 ${
+                            isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <UserMinus className="w-4.5 h-4.5" />
+                            <span>Unfriend contact</span>
+                          </div>
+                        </button>
+                      )}
 
                       {/* Divider line */}
                       <div className={`my-1 border-t ${isDark ? 'border-[#2a3942]' : 'border-gray-200'}`} />

@@ -833,11 +833,6 @@ export const ChatList: React.FC = () => {
                       <h3 className={`font-semibold text-[16px] truncate ${
                         isDark ? 'text-[#e9edef]' : 'text-gray-900'
                       }`}>{getContactDisplayName(contact)}</h3>
-                      {customNicknames[contact.id] && (
-                        <span title={`Custom nickname for ${contact.name}`}>
-                          <Tag className="w-3.5 h-3.5 text-[#ff2e93] shrink-0" />
-                        </span>
-                      )}
                       {contact.isMuted && <BellOff className="w-3.5 h-3.5 text-gray-400 shrink-0 opacity-80" />}
                       {contact.isPinned && <Pin className={`w-3.5 h-3.5 rotate-45 shrink-0 ${isDark ? 'text-[#8596a0]' : 'text-gray-400'}`} />}
                       {contact.isLocked && <Lock className="w-3 h-3 text-amber-400 shrink-0" />}

@@ -113,7 +113,7 @@ export const ChatWindow: React.FC = () => {
   const [inputText, setInputText] = useState('');
   const [showAttachModal, setShowAttachModal] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [previewMedia, setPreviewMedia] = useState<string | null>(null);
+  const [previewMedia, setPreviewMedia] = useState<{ url: string; type?: 'image' | 'video'; name?: string } | string | null>(null);
   const [showFullAvatar, setShowFullAvatar] = useState(false);
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [showInChatSearch, setShowInChatSearch] = useState(false);
@@ -1212,11 +1212,6 @@ export const ChatWindow: React.FC = () => {
                 }`}>
                   <span className="truncate">{getContactDisplayName(contact)}</span>
                   {checkIsAdmin(contact) && <VerifiedBadge className="w-4 h-4 shrink-0" />}
-                  {customNicknames[contact.id] && (
-                    <span title={`Custom nickname for ${contact.name}`}>
-                      <Tag className="w-3.5 h-3.5 text-[#00a8ff] shrink-0" />
-                    </span>
-                  )}
                   {contact.isLocked && <Lock className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
                 </h2>
                 <p className={`text-xs truncate ${
@@ -1830,7 +1825,7 @@ export const ChatWindow: React.FC = () => {
                                   <img
                                     src={msg.media.url}
                                     alt={msg.media.name}
-                                    onClick={() => setPreviewMedia(msg.media!.url)}
+                                    onClick={() => setPreviewMedia({ url: msg.media!.url, type: 'image', name: msg.media!.name })}
                                     className="max-h-64 w-full object-cover cursor-pointer hover:opacity-95 transition-opacity"
                                   />
                                 )}
@@ -1838,11 +1833,12 @@ export const ChatWindow: React.FC = () => {
                                 {msg.media.type === 'video' && (
                                   <VideoMessagePlayer
                                     src={msg.media.url}
+                                    mediaId={msg.media.id}
                                     thumbnailUrl={msg.media.thumbnailUrl}
                                     duration={msg.media.duration}
                                     name={msg.media.name}
                                     isMe={isMe}
-                                    onOpenLightbox={(url) => setPreviewMedia(url)}
+                                    onOpenLightbox={(url) => setPreviewMedia({ url, type: 'video', name: msg.media?.name })}
                                   />
                                 )}
                               </>
@@ -2586,7 +2582,6 @@ export const ChatWindow: React.FC = () => {
                     <Edit3 className="w-4 h-4" />
                   </button>
                 )}
-                {!contact.isGroup && customNicknames[contact.id] && <Tag className="w-4 h-4 text-[#00a8ff]" />}
               </h4>
 
               {contact.isGroup ? (
@@ -2807,16 +2802,6 @@ export const ChatWindow: React.FC = () => {
               Send Forward ({forwardContactIds.length})
             </button>
           </div>
-        </div>
-      )}
-
-      {/* Lightbox Modal for Full Image Preview */}
-      {previewMedia && (
-        <div
-          onClick={() => setPreviewMedia(null)}
-          className="fixed inset-0 z-50 bg-black/95 backdrop-blur flex items-center justify-center p-4 cursor-zoom-out animate-fade-in"
-        >
-          <img src={previewMedia} alt="Media Lightbox" className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl" />
         </div>
       )}
 
@@ -3432,79 +3417,107 @@ export const ChatWindow: React.FC = () => {
       )}
 
       {/* Enhanced Lightbox Image / Video Viewer */}
-      {previewMedia && (
-        <div
-          onClick={() => {
-            setPreviewMedia(null);
-            setZoomScale(1);
-            setImageRotation(0);
-          }}
-          className="fixed inset-0 z-50 bg-black/95 backdrop-blur flex flex-col items-center justify-between p-4 animate-fade-in text-white select-none"
-        >
-          {/* Header Controls */}
-          <div className="w-full max-w-4xl flex items-center justify-between p-2 z-10" onClick={e => e.stopPropagation()}>
-            <div className="text-xs text-gray-300 font-mono">WhatsApp Media Viewer</div>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setZoomScale(prev => Math.min(prev + 0.25, 3))}
-                className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
-                title="Zoom In"
-              >
-                <ZoomIn className="w-5 h-5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setZoomScale(prev => Math.max(prev - 0.25, 0.5))}
-                className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
-                title="Zoom Out"
-              >
-                <ZoomOut className="w-5 h-5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setImageRotation(prev => (prev + 90) % 360)}
-                className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
-                title="Rotate"
-              >
-                <RotateCw className="w-5 h-5" />
-              </button>
-              <a
-                href={previewMedia}
-                download="WhatsApp_Media.jpg"
-                className="p-2 rounded-full bg-[#00a8ff] text-[#0b141a] font-bold hover:bg-[#0088cc] transition-colors cursor-pointer"
-                title="Download"
-              >
-                <Download className="w-5 h-5" />
-              </a>
-              <button
-                type="button"
-                onClick={() => {
-                  setPreviewMedia(null);
-                  setZoomScale(1);
-                  setImageRotation(0);
-                }}
-                className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+      {previewMedia && (() => {
+        const mediaUrl = typeof previewMedia === 'string' ? previewMedia : previewMedia.url;
+        const isVideo = typeof previewMedia === 'object' && previewMedia.type
+          ? previewMedia.type === 'video'
+          : (mediaUrl.startsWith('data:video') || mediaUrl.includes('video') || mediaUrl.endsWith('.mp4') || mediaUrl.endsWith('.webm') || mediaUrl.endsWith('.mov'));
+        const fileName = (typeof previewMedia === 'object' && previewMedia.name) || (isVideo ? 'WhatsApp_Video.mp4' : 'WhatsApp_Image.jpg');
+
+        return (
+          <div
+            onClick={() => {
+              setPreviewMedia(null);
+              setZoomScale(1);
+              setImageRotation(0);
+            }}
+            className="fixed inset-0 z-50 bg-black/95 backdrop-blur flex flex-col items-center justify-between p-4 animate-fade-in text-white select-none"
+          >
+            {/* Header Controls */}
+            <div className="w-full max-w-4xl flex items-center justify-between p-2 z-10" onClick={e => e.stopPropagation()}>
+              <div className="text-xs text-gray-300 font-mono flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#00a8ff]" />
+                <span>{isVideo ? 'WhatsApp Video Viewer' : 'WhatsApp Media Viewer'}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                {!isVideo && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setZoomScale(prev => Math.min(prev + 0.25, 3))}
+                      className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+                      title="Zoom In"
+                    >
+                      <ZoomIn className="w-5 h-5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setZoomScale(prev => Math.max(prev - 0.25, 0.5))}
+                      className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+                      title="Zoom Out"
+                    >
+                      <ZoomOut className="w-5 h-5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setImageRotation(prev => (prev + 90) % 360)}
+                      className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+                      title="Rotate"
+                    >
+                      <RotateCw className="w-5 h-5" />
+                    </button>
+                  </>
+                )}
+                <a
+                  href={mediaUrl}
+                  download={fileName}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 rounded-full bg-[#00a8ff] text-[#0b141a] font-bold hover:bg-[#0088cc] transition-colors cursor-pointer flex items-center justify-center"
+                  title="Download"
+                >
+                  <Download className="w-5 h-5" />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPreviewMedia(null);
+                    setZoomScale(1);
+                    setImageRotation(0);
+                  }}
+                  className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+                  title="Close"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Canvas Image or Video */}
+            <div className="flex-1 flex items-center justify-center p-2 w-full overflow-hidden" onClick={e => e.stopPropagation()}>
+              {isVideo ? (
+                <video
+                  src={mediaUrl}
+                  controls
+                  autoPlay
+                  playsInline
+                  className="max-w-full max-h-[85vh] rounded-2xl shadow-2xl object-contain bg-black border border-white/10"
+                />
+              ) : (
+                <img
+                  src={mediaUrl}
+                  alt="Media Preview"
+                  style={{
+                    transform: `scale(${zoomScale}) rotate(${imageRotation}deg)`,
+                    transition: 'transform 0.2s ease-out',
+                  }}
+                  className="max-w-full max-h-[80vh] object-contain shadow-2xl rounded-lg"
+                />
+              )}
             </div>
           </div>
-
-          {/* Canvas Image */}
-          <div className="flex-1 flex items-center justify-center p-2 w-full overflow-hidden" onClick={e => e.stopPropagation()}>
-            <img
-              src={previewMedia}
-              alt="Media Preview"
-              style={{
-                transform: `scale(${zoomScale}) rotate(${imageRotation}deg)`,
-                transition: 'transform 0.2s ease-out',
-              }}
-              className="max-w-full max-h-[80vh] object-contain shadow-2xl rounded-lg"
-            />
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Live Camera Modal */}
       {showCameraModal && (

@@ -18,6 +18,8 @@ import {
 import { DEFAULT_SETTINGS, DEFAULT_USER } from '../data/initialData';
 import { isFirebaseConfigured, firebaseAuth, googleProvider, db } from '../lib/firebase';
 import { compressImage } from '../lib/mediaCompressor';
+import { saveMediaBlob, getMediaBlob } from '../lib/mediaStorage';
+import { extractVideoMetadata } from '../lib/videoUtils';
 import { playMessageArrivalSound } from '../lib/soundUtils';
 import { formatStatusTime } from '../lib/dateUtils';
 
@@ -2106,6 +2108,12 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     let finalMedia = media ? { ...media } : null;
 
     if (finalMedia && finalMedia.url) {
+      // 1. Save media blob/data URL to IndexedDB for offline & instant video playback
+      if (finalMedia.id) {
+        saveMediaBlob(finalMedia.id, finalMedia.url).catch(() => {});
+      }
+
+      // 2. Compress image if payload is large
       if (finalMedia.type === 'image' && finalMedia.url.length > 400000) {
         try {
           const compressed = await compressImage(finalMedia.url, 1024, 450000);
@@ -2116,11 +2124,27 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           console.warn('Failed to compress image payload:', e);
         }
       }
-      // Safety guard: if dataUrl length still exceeds 700,000 chars (~500KB)
-      if (finalMedia.url.length > 700000) {
-        finalMedia.url = '';
-        finalMedia.name = `${finalMedia.name} (File exceeds 500KB size limit)`;
+
+      // 3. Extract thumbnail for video if missing
+      if (finalMedia.type === 'video' && !finalMedia.thumbnailUrl) {
+        try {
+          const meta = await extractVideoMetadata(finalMedia.url);
+          if (meta && meta.thumbnailUrl) {
+            finalMedia.thumbnailUrl = meta.thumbnailUrl;
+          }
+          if (meta && meta.durationStr && !finalMedia.duration) {
+            finalMedia.duration = meta.durationStr;
+          }
+        } catch (e) {
+          console.warn('Failed to extract video thumbnail:', e);
+        }
       }
+    }
+
+    // Prepare media payload for Firestore (keep under 1MB Firestore document limit)
+    let firestoreMedia = finalMedia ? { ...finalMedia } : null;
+    if (firestoreMedia && firestoreMedia.url && firestoreMedia.url.length > 700000) {
+      firestoreMedia.url = '';
     }
 
     try {
@@ -2139,7 +2163,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         receiverId,
         text: text || '',
         type: messageType,
-        media: finalMedia,
+        media: firestoreMedia,
         replyTo: replyTo || null,
         statusReply: statusReply || null,
         statusReaction: statusReaction || null,
@@ -2730,6 +2754,17 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     setActiveCall(initialCallState);
 
+    const initialCallInfo: CallInfo = {
+      id: callId,
+      type,
+      callType: type,
+      direction: 'outgoing',
+      status: 'ringing',
+      callerId: authUser.uid,
+      receiverId: contactId,
+    };
+    recordCallInChat(contactId, initialCallInfo);
+
     callDocUnsubRef.current = onSnapshot(callDocRef, async (snap) => {
       if (!snap.exists()) {
         cleanupCall('cancelled');
@@ -2883,7 +2918,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const recordCallInChat = async (contactId: string, callInfo: CallInfo) => {
-    if (!authUser || !isFriend(contactId)) return;
+    if (!authUser || !contactId) return;
 
     const chatId = [authUser.uid, contactId].sort().join('_');
     let textLabel = `${callInfo.type === 'video' ? '📹 Video Call' : '📞 Voice Call'}`;
@@ -2902,24 +2937,47 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const msgRef = collection(db, 'chats', chatId, 'messages');
     const senderId = callInfo.direction === 'outgoing' ? authUser.uid : contactId;
     const receiverId = callInfo.direction === 'outgoing' ? contactId : authUser.uid;
+    const isSelfChat = contactId === authUser.uid;
 
-    await addDoc(msgRef, {
-      senderId,
-      receiverId,
-      text: textLabel,
-      type: callInfo.type === 'video' ? 'video_call' : 'voice_call',
-      callInfo,
-      isRead: true,
-      createdAt: serverTimestamp(),
-    }).catch(() => {});
+    try {
+      let existingDocId: string | null = null;
+      if (callInfo.id) {
+        const q = query(msgRef, where('callInfo.id', '==', callInfo.id));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          existingDocId = snap.docs[0].id;
+        }
+      }
 
-    await setDoc(doc(db, 'chats', chatId), {
-      participants: [authUser.uid, contactId],
-      lastMessage: textLabel,
-      lastMessageTime: serverTimestamp(),
-      lastMessageSenderId: senderId,
-      updatedAt: serverTimestamp(),
-    }, { merge: true }).catch(() => {});
+      if (existingDocId) {
+        await updateDoc(doc(db, 'chats', chatId, 'messages', existingDocId), {
+          text: textLabel,
+          callInfo,
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        await addDoc(msgRef, {
+          senderId,
+          receiverId,
+          text: textLabel,
+          type: callInfo.type === 'video' ? 'video_call' : 'voice_call',
+          callInfo,
+          seen: isSelfChat ? true : false,
+          isRead: isSelfChat ? true : false,
+          createdAt: serverTimestamp(),
+        });
+      }
+
+      await setDoc(doc(db, 'chats', chatId), {
+        participants: [authUser.uid, contactId],
+        lastMessage: textLabel,
+        lastMessageTime: serverTimestamp(),
+        lastMessageSenderId: senderId,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    } catch (err) {
+      console.warn('Error recording call in chat:', err);
+    }
   };
 
   const rejectCall = () => {

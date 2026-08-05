@@ -4,9 +4,11 @@ import {
   Volume2, VolumeX, Download, Loader2 
 } from 'lucide-react';
 import { extractVideoMetadata, VideoMetadata, formatVideoDuration } from '../lib/videoUtils';
+import { getMediaBlob } from '../lib/mediaStorage';
 
 interface VideoMessagePlayerProps {
   src: string;
+  mediaId?: string;
   thumbnailUrl?: string;
   duration?: string;
   name?: string;
@@ -17,6 +19,7 @@ interface VideoMessagePlayerProps {
 
 export const VideoMessagePlayer: React.FC<VideoMessagePlayerProps> = ({
   src,
+  mediaId,
   thumbnailUrl: initialThumbnailUrl,
   duration: initialDuration,
   name,
@@ -24,6 +27,7 @@ export const VideoMessagePlayer: React.FC<VideoMessagePlayerProps> = ({
   className = '',
   onOpenLightbox,
 }) => {
+  const [videoSrc, setVideoSrc] = useState<string>(src || '');
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(!initialThumbnailUrl);
   const [isError, setIsError] = useState(false);
@@ -34,50 +38,67 @@ export const VideoMessagePlayer: React.FC<VideoMessagePlayerProps> = ({
 
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Extract video metadata & thumbnail if missing
+  // Synchronize and resolve video source (from prop or IndexedDB cache)
   useEffect(() => {
     let isMounted = true;
 
-    if (!src) {
-      setIsError(true);
-      setIsLoading(false);
-      return;
-    }
+    async function resolveSource() {
+      let currentSrc = src || '';
 
-    setIsError(false);
-
-    // If both thumbnail and duration are already passed, calculate metadata or aspect ratio fast
-    extractVideoMetadata(src).then((meta) => {
-      if (!isMounted) return;
-
-      if (meta.error) {
-        // If error extracting metadata, mark error only if src fails completely
-        if (!initialThumbnailUrl && !src.startsWith('data:') && !src.startsWith('blob:')) {
-          setIsError(true);
+      // If initial src is empty but mediaId exists, fetch from IndexedDB
+      if (!currentSrc && mediaId) {
+        setIsLoading(true);
+        const storedBlob = await getMediaBlob(mediaId);
+        if (storedBlob && isMounted) {
+          currentSrc = storedBlob;
+          setVideoSrc(storedBlob);
         }
       } else {
-        if (!initialThumbnailUrl && meta.thumbnailUrl) {
-          setThumbnail(meta.thumbnailUrl);
-        }
-        if (!initialDuration && meta.durationStr) {
-          setDurationStr(meta.durationStr);
-        }
-        if (meta.aspectRatio) {
-          setAspectRatio(meta.aspectRatio);
-        }
+        setVideoSrc(src || '');
       }
-      setIsLoading(false);
-    }).catch((err) => {
-      console.warn('Error extracting video metadata:', err);
-      if (isMounted) {
-        setIsLoading(false);
+
+      if (!currentSrc) {
+        if (isMounted) {
+          setIsError(true);
+          setIsLoading(false);
+        }
+        return;
       }
-    });
+
+      setIsError(false);
+
+      try {
+        const meta = await extractVideoMetadata(currentSrc);
+        if (!isMounted) return;
+
+        if (meta.error) {
+          if (!initialThumbnailUrl && !currentSrc.startsWith('data:') && !currentSrc.startsWith('blob:')) {
+            setIsError(true);
+          }
+        } else {
+          if (!initialThumbnailUrl && meta.thumbnailUrl) {
+            setThumbnail(meta.thumbnailUrl);
+          }
+          if (!initialDuration && meta.durationStr) {
+            setDurationStr(meta.durationStr);
+          }
+          if (meta.aspectRatio) {
+            setAspectRatio(meta.aspectRatio);
+          }
+        }
+      } catch (err) {
+        console.warn('Error extracting video metadata:', err);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    resolveSource();
 
     return () => {
       isMounted = false;
     };
-  }, [src, initialThumbnailUrl, initialDuration, retryCount]);
+  }, [src, mediaId, initialThumbnailUrl, initialDuration, retryCount]);
 
   // Handle Play / Pause Toggle
   const togglePlay = (e?: React.MouseEvent) => {
@@ -131,9 +152,9 @@ export const VideoMessagePlayer: React.FC<VideoMessagePlayerProps> = ({
             <RefreshCw className="w-3.5 h-3.5" />
             <span>Retry</span>
           </button>
-          {src && (
+          {videoSrc && (
             <a
-              href={src}
+              href={videoSrc}
               download={name || 'video.mp4'}
               target="_blank"
               rel="noopener noreferrer"
@@ -162,7 +183,7 @@ export const VideoMessagePlayer: React.FC<VideoMessagePlayerProps> = ({
         <div className="relative w-full h-full bg-black flex items-center justify-center">
           <video
             ref={videoRef}
-            src={src}
+            src={videoSrc}
             controls
             autoPlay
             playsInline
@@ -177,7 +198,14 @@ export const VideoMessagePlayer: React.FC<VideoMessagePlayerProps> = ({
       ) : (
         /* 2. Thumbnail / Poster Mode with Play Overlay */
         <div 
-          onClick={togglePlay}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onOpenLightbox) {
+              onOpenLightbox(videoSrc || src);
+            } else {
+              togglePlay(e);
+            }
+          }}
           className="relative w-full h-full cursor-pointer overflow-hidden flex items-center justify-center bg-slate-900 group/thumb"
         >
           {/* Thumbnail Image or Video First-Frame Fallback */}
@@ -189,7 +217,7 @@ export const VideoMessagePlayer: React.FC<VideoMessagePlayerProps> = ({
             />
           ) : (
             <video
-              src={`${src}#t=0.1`}
+              src={videoSrc ? `${videoSrc}#t=0.1` : undefined}
               preload="metadata"
               muted
               playsInline
@@ -235,7 +263,7 @@ export const VideoMessagePlayer: React.FC<VideoMessagePlayerProps> = ({
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                onOpenLightbox(src);
+                onOpenLightbox(videoSrc || src);
               }}
               className="absolute top-2.5 right-2.5 z-20 p-1.5 rounded-lg bg-black/60 hover:bg-black/80 backdrop-blur-md text-white/90 hover:text-white transition-all opacity-0 group-hover/thumb:opacity-100 border border-white/10"
               title="Expand video"

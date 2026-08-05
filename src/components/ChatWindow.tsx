@@ -1497,6 +1497,12 @@ export const ChatWindow: React.FC = () => {
 
         {/* Messages View Area */}
         <div 
+          onClick={() => {
+            if (selectedMsgIds.length > 0 || activeReactionMsgId) {
+              setSelectedMsgIds([]);
+              setActiveReactionMsgId(null);
+            }
+          }}
           className={`flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 no-scrollbar min-h-0 transition-all ${
             isCustomImage || isCustomColor ? '' : (isDark ? 'bg-[#0b141a]' : 'bg-[#efeae2]')
           }`}
@@ -1589,18 +1595,26 @@ export const ChatWindow: React.FC = () => {
                           }}
                           onContextMenu={(e) => {
                             e.preventDefault();
+                            e.stopPropagation();
                             if (!isSelectMode) {
                               setSelectedMsgIds([msg.id]);
                               setActiveReactionMsgId(msg.id);
                             }
                           }}
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             if (isSelectMode) {
                               if (isSelected) {
-                                setSelectedMsgIds(selectedMsgIds.filter(id => id !== msg.id));
+                                const remaining = selectedMsgIds.filter(id => id !== msg.id);
+                                setSelectedMsgIds(remaining);
+                                if (activeReactionMsgId === msg.id || remaining.length === 0) {
+                                  setActiveReactionMsgId(null);
+                                }
                               } else {
                                 setSelectedMsgIds([...selectedMsgIds, msg.id]);
                               }
+                            } else if (activeReactionMsgId) {
+                              setActiveReactionMsgId(null);
                             }
                           }}
                           className={`w-full px-4 py-2.5 text-sm relative shadow-sm transition-all select-none ${

@@ -21,6 +21,7 @@ import { EmojiReactionBar } from './EmojiReactionBar';
 import { PinnedMessageBanner } from './PinnedMessageBanner';
 import { WhatsAppProfileViewer } from './WhatsAppProfileViewer';
 import { SetChatWallpaperModal } from './SetChatWallpaperModal';
+import { renderTextWithLinks } from '../lib/linkUtils';
 
 const EMOJI_LIST: string[] = [
   '😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','😘','😗','😚','😙',
@@ -1808,7 +1809,7 @@ export const ChatWindow: React.FC = () => {
                                   <Ban className="w-3 h-3 text-gray-400 inline" /> Deleted message
                                 </span>
                               ) : (
-                                msg.replyTo.text
+                                renderTextWithLinks(msg.replyTo.text)
                               )}
                             </p>
                           </div>
@@ -2145,7 +2146,7 @@ export const ChatWindow: React.FC = () => {
 
                         {/* Message Text */}
                         {!(msg.callInfo || msg.type === 'voice_call' || msg.type === 'video_call') && (
-                          <p className="leading-normal whitespace-pre-wrap break-words text-[15px]">{msg.text}</p>
+                          <p className="leading-normal whitespace-pre-wrap break-words text-[15px]">{renderTextWithLinks(msg.text)}</p>
                         )}
                       </>
                     )}
@@ -2281,7 +2282,7 @@ export const ChatWindow: React.FC = () => {
                 <span className="font-semibold text-[#00a8ff] block">
                   Replying to {replyingToMsg.senderId === user.id ? 'yourself' : contact.name}
                 </span>
-                <span className="truncate block opacity-80">{replyingToMsg.text}</span>
+                <span className="truncate block opacity-80">{renderTextWithLinks(replyingToMsg.text)}</span>
               </div>
             </div>
             <button onClick={() => setReplyingToMsg(null)} className="p-1 hover:bg-black/10 rounded">
@@ -2790,7 +2791,7 @@ export const ChatWindow: React.FC = () => {
             }`}>
               <span className="font-bold block text-[#00a8ff] mb-0.5">Message Content</span>
               <p className="line-clamp-2 text-xs font-medium text-current">
-                {forwardingMsg.text || (forwardingMsg.media ? `[${forwardingMsg.media.type}] ${forwardingMsg.media.name || ''}` : 'Media Attachment')}
+                {renderTextWithLinks(forwardingMsg.text) || (forwardingMsg.media ? `[${forwardingMsg.media.type}] ${forwardingMsg.media.name || ''}` : 'Media Attachment')}
               </p>
             </div>
 

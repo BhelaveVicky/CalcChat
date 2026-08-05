@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pin, X, ChevronRight } from 'lucide-react';
 import { Message } from '../types';
+import { renderTextWithLinks } from '../lib/linkUtils';
 
 interface PinnedMessageBannerProps {
   pinnedMessage: Message;
@@ -16,7 +17,7 @@ export const PinnedMessageBanner: React.FC<PinnedMessageBannerProps> = ({
   onUnpin,
 }) => {
   const getDisplayContent = () => {
-    if (pinnedMessage.text) return pinnedMessage.text;
+    if (pinnedMessage.text) return renderTextWithLinks(pinnedMessage.text);
     if (pinnedMessage.media) return `[${pinnedMessage.media.type || 'Attachment'}] ${pinnedMessage.media.name || ''}`;
     if (pinnedMessage.callInfo) return `[${pinnedMessage.callInfo.type === 'video' ? 'Video' : 'Voice'} Call]`;
     return 'Pinned Message';

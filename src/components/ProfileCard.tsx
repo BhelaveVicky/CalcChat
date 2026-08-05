@@ -6,6 +6,7 @@ import {
 import { checkIsAdmin, VerifiedBadge } from '../lib/adminUtils';
 import { getContactNotificationSettings, setContactNotificationSettings } from '../lib/contactSettings';
 import { Message } from '../types';
+import { WhatsAppProfileViewer } from './WhatsAppProfileViewer';
 
 export interface ProfileData {
   uid: string;
@@ -58,6 +59,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   const [showPrivateNotice, setShowPrivateNotice] = useState(false);
   const [showUnfriendConfirm, setShowUnfriendConfirm] = useState(false);
   const [showMediaModal, setShowMediaModal] = useState(false);
+  const [showFullPhotoViewer, setShowFullPhotoViewer] = useState(false);
   const [activeMediaTab, setActiveMediaTab] = useState<'photos' | 'videos' | 'links'>('photos');
   const [selectedPreviewItem, setSelectedPreviewItem] = useState<any | null>(null);
 
@@ -163,17 +165,21 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
       <div className="px-6 py-6 flex flex-col items-start">
         {/* Top Header Section: Profile Photo + Name & Username */}
         <div className="flex items-center gap-5 w-full mb-4">
-          <div className="relative shrink-0">
+          <div 
+            className="relative shrink-0 cursor-pointer group"
+            onClick={() => setShowFullPhotoViewer(true)}
+            title="View full profile photo in WhatsApp style"
+          >
             {avatarUrl ? (
               <img
                 src={avatarUrl}
                 alt={displayName}
-                className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover border-2 shadow-xl ${
+                className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover border-2 shadow-xl group-hover:scale-105 transition-transform ${
                   isDark ? 'border-[#202c33]' : 'border-gray-200'
                 }`}
               />
             ) : (
-              <div className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full flex items-center justify-center text-4xl font-bold shadow-xl border-2 ${
+              <div className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full flex items-center justify-center text-4xl font-bold shadow-xl border-2 group-hover:scale-105 transition-transform ${
                 isDark ? 'bg-[#1f2c34] text-[#e9edef] border-[#202c33]' : 'bg-[#1e293b] text-white border-gray-200'
               }`}>
                 {displayName.charAt(0).toUpperCase()}
@@ -664,6 +670,16 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
           </div>
         )}
       </div>
+      {/* Full Screen WhatsApp Profile Viewer Modal */}
+      <WhatsAppProfileViewer
+        isOpen={showFullPhotoViewer}
+        onClose={() => setShowFullPhotoViewer(false)}
+        name={displayName || 'Profile Photo'}
+        avatarUrl={avatarUrl || ''}
+        subText={usernameStr}
+        onSendMessage={onMessageClick}
+      />
+
     </div>
   );
 };

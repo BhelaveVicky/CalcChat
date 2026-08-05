@@ -19,6 +19,7 @@ import { extractVideoMetadata } from '../lib/videoUtils';
 import { MessageSelectionToolbar } from './MessageSelectionToolbar';
 import { EmojiReactionBar } from './EmojiReactionBar';
 import { PinnedMessageBanner } from './PinnedMessageBanner';
+import { WhatsAppProfileViewer } from './WhatsAppProfileViewer';
 
 const EMOJI_LIST: string[] = [
   '😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','😘','😗','😚','😙',
@@ -768,7 +769,7 @@ export const ChatWindow: React.FC = () => {
 
   const handleAttachMedia = (type: 'image' | 'video' | 'file') => {
     const sampleImages = [
-      { name: 'blueprint_TopSecret.png', url: 'https://images.unsplash.com/photo-1509228468518-180dd4864904?w=600&auto=format&fit=crop&q=80' },
+      { name: 'Blueprint_TopSecret.png', url: 'https://images.unsplash.com/photo-1509228468518-180dd4864904?w=600&auto=format&fit=crop&q=80' },
       { name: 'Confidential_Matrix_Code.jpg', url: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=600&auto=format&fit=crop&q=80' },
       { name: 'Surveillance_Camera_Grid.png', url: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=600&auto=format&fit=crop&q=80' }
     ];
@@ -1432,12 +1433,12 @@ export const ChatWindow: React.FC = () => {
                         } ${
                           isSelectMode ? 'cursor-pointer' : ''
                         } ${
-                          isSelected ? 'ring-2 ring-blue-500 bg-blue-500/20 scale-[1.01]' : ''
+                          isSelected ? 'ring-2 ring-pink-500 bg-pink-500/20 scale-[1.01]' : ''
                         } ${
                           highlightedMsgId === msg.id ? 'ring-2 ring-amber-400 animate-pulse' : ''
                         } ${
                           isMe
-                            ? 'bg-[#ea4c89] text-white shadow-blue-500/10'
+                            ? 'bg-[#ea4c89] text-white shadow-pink-500/10'
                             : (isDark ? 'bg-[#202c33] text-[#e9edef]' : 'bg-white text-gray-900 border border-gray-100')
                         }`}
                       >
@@ -1478,8 +1479,8 @@ export const ChatWindow: React.FC = () => {
 
                         {/* Status Reply Card */}
                         {msg.statusReply && (
-                          <div className={`p-2 rounded-xl border-l-4 mb-2 text-xs border-blue-500 flex items-center gap-2.5 ${
-                            isDark ? 'bg-black/30' : 'bg-blue-500/10'
+                          <div className={`p-2 rounded-xl border-l-4 mb-2 text-xs border-pink-500 flex items-center gap-2.5 ${
+                            isDark ? 'bg-black/30' : 'bg-pink-500/10'
                           }`}>
                             {msg.statusReply.statusMediaUrl ? (
                               <img
@@ -1488,12 +1489,12 @@ export const ChatWindow: React.FC = () => {
                                 className="w-11 h-11 object-cover rounded-lg shrink-0 border border-white/20"
                               />
                             ) : (
-                              <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-blue-500 to-rose-600 flex items-center justify-center shrink-0 text-white font-bold text-[10px] p-1 text-center truncate">
+                              <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center shrink-0 text-white font-bold text-[10px] p-1 text-center truncate">
                                 Status
                               </div>
                             )}
                             <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-blue-400 text-[11px] truncate">
+                              <p className="font-semibold text-pink-400 text-[11px] truncate">
                                 Reply to {msg.statusReply.statusOwnerName}'s Status
                               </p>
                               {msg.statusReply.statusText && (
@@ -1505,8 +1506,8 @@ export const ChatWindow: React.FC = () => {
 
                         {/* Status Reaction Card */}
                         {msg.statusReaction && (
-                          <div className={`p-2 rounded-xl border-l-4 mb-2 text-xs border-blue-500 flex items-center gap-2.5 ${
-                            isDark ? 'bg-black/30' : 'bg-blue-500/10'
+                          <div className={`p-2 rounded-xl border-l-4 mb-2 text-xs border-pink-500 flex items-center gap-2.5 ${
+                            isDark ? 'bg-black/30' : 'bg-pink-500/10'
                           }`}>
                             {msg.statusReaction.statusMediaUrl ? (
                               <img
@@ -1515,12 +1516,12 @@ export const ChatWindow: React.FC = () => {
                                 className="w-11 h-11 object-cover rounded-lg shrink-0 border border-white/20"
                               />
                             ) : (
-                              <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-blue-500 to-rose-600 flex items-center justify-center shrink-0 text-white font-bold text-[10px] p-1 text-center truncate">
+                              <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center shrink-0 text-white font-bold text-[10px] p-1 text-center truncate">
                                 Status
                               </div>
                             )}
                             <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-blue-400 text-[11px] truncate flex items-center gap-1">
+                              <p className="font-semibold text-pink-400 text-[11px] truncate flex items-center gap-1">
                                 Reacted {msg.statusReaction.emoji} to status
                               </p>
                               {msg.statusReaction.statusText && (
@@ -2503,45 +2504,17 @@ export const ChatWindow: React.FC = () => {
         </div>
       )}
 
-      {/* Full Screen Avatar Modal */}
-      {showFullAvatar && (
-        <div 
-          onClick={() => setShowFullAvatar(false)} 
-          className="fixed inset-0 z-50 bg-black/95 flex flex-col justify-between p-4 animate-fade-in text-white select-none backdrop-blur-md"
-        >
-          <div className="w-full flex items-center justify-between py-2 px-2 max-w-2xl mx-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center gap-3">
-              <button 
-                type="button"
-                onClick={() => setShowFullAvatar(false)} 
-                className="p-2 hover:bg-white/10 rounded-full transition-colors text-white"
-              >
-                <ArrowLeft className="w-6 h-6" />
-              </button>
-              <span className="font-semibold text-lg text-white">{contact.name}</span>
-            </div>
-            <button 
-              type="button"
-              onClick={() => setShowFullAvatar(false)} 
-              className="p-2 hover:bg-white/10 rounded-full transition-colors text-white"
-            >
-              <X className="w-6 h-6" />
-            </button>
-          </div>
-
-          <div className="flex-1 flex items-center justify-center p-2 max-w-2xl mx-auto w-full" onClick={e => e.stopPropagation()}>
-            <img 
-              src={contact.avatar} 
-              alt={contact.name} 
-              className="max-w-full max-h-[80vh] w-auto h-auto object-contain shadow-2xl rounded-lg border border-white/10"
-            />
-          </div>
-
-          <div className="py-2 text-center text-xs text-gray-400">
-            Profile Photo • Tap anywhere to close
-          </div>
-        </div>
-      )}
+      {/* Full Screen WhatsApp Avatar Modal */}
+      <WhatsAppProfileViewer
+        isOpen={showFullAvatar}
+        onClose={() => setShowFullAvatar(false)}
+        name={contact?.name || 'Profile Photo'}
+        avatarUrl={contact?.avatar || ''}
+        subText={contact?.username ? `@${contact.username}` : contact?.status || 'Available'}
+        onSendMessage={() => setShowFullAvatar(false)}
+        onVoiceCall={() => alert(`Calling ${contact?.name}... 📞`)}
+        onVideoCall={() => alert(`Starting video call with ${contact?.name}... 📹`)}
+      />
 
       {/* Custom Contact Nickname Modal */}
       <NicknameModal 

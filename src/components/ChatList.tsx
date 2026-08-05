@@ -10,6 +10,7 @@ import { useVault } from '../context/VaultContext';
 import { Contact, Message } from '../types';
 import { NicknameModal } from './NicknameModal';
 import { formatChatDate, formatMessageTime } from '../lib/dateUtils.ts';
+import { WhatsAppProfileViewer } from './WhatsAppProfileViewer';
 
 export const ChatList: React.FC = () => {
   const navigate = useNavigate();
@@ -360,7 +361,7 @@ export const ChatList: React.FC = () => {
               onClick={() => setActiveFilter(filter.id as any)}
               className={`flex-1 min-w-[68px] py-1.5 px-3 rounded-full font-medium text-center flex items-center justify-center transition-all whitespace-nowrap cursor-pointer ${
                 isActive
-                  ? (isDark ? 'bg-[#0a2540] text-[#00a8ff] font-bold' : 'bg-sky-100 text-sky-800 font-bold')
+                  ? (isDark ? 'bg-[#ff2e93]/20 text-[#ff2e93] font-bold border border-[#ff2e93]/40' : 'bg-pink-100 text-pink-700 font-bold border border-pink-300')
                   : (isDark ? 'bg-[#202c33] text-[#8596a0] hover:bg-[#2a3942]' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')
               }`}
             >
@@ -396,16 +397,16 @@ export const ChatList: React.FC = () => {
           >
             <div className="flex items-center gap-3">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold shrink-0 ${
-                isDark ? 'bg-[#202c33] text-[#00a8ff]' : 'bg-gray-200 text-sky-700'
+                isDark ? 'bg-[#202c33] text-[#ff2e93]' : 'bg-pink-100 text-pink-600'
               }`}>
                 <Archive className="w-4 h-4" />
               </div>
               <div className="text-left">
                 <span className="font-bold block leading-tight">Archived</span>
-                <span className="text-[11px] text-[#00a8ff] block">Tap to view archived chats</span>
+                <span className="text-[11px] text-[#ff2e93] block">Tap to view archived chats</span>
               </div>
             </div>
-            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#00a8ff] text-[#0b141a]">
+            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#ff2e93] text-white shadow-sm">
               {archivedContactsCount}
             </span>
           </button>
@@ -415,12 +416,12 @@ export const ChatList: React.FC = () => {
       {/* Header bar when viewing Archived list */}
       {showArchivedOnly && (
         <div className={`px-4 py-2.5 shrink-0 flex items-center justify-between border-b ${
-          isDark ? 'bg-[#182229] border-[#2a3942] text-white' : 'bg-sky-50 border-sky-200 text-gray-900'
+          isDark ? 'bg-[#182229] border-[#2a3942] text-white' : 'bg-pink-50 border-pink-200 text-gray-900'
         }`}>
           <button
             type="button"
             onClick={() => setShowArchivedOnly(false)}
-            className="flex items-center gap-2 text-sm font-bold text-[#00a8ff] hover:opacity-80"
+            className="flex items-center gap-2 text-sm font-bold text-[#ff2e93] hover:opacity-80"
           >
             <ArrowLeft className="w-5 h-5" />
             <span>Archived Chats ({archivedContactsCount})</span>
@@ -428,7 +429,7 @@ export const ChatList: React.FC = () => {
           <button
             type="button"
             onClick={() => setShowArchivedOnly(false)}
-            className="text-xs font-semibold px-3 py-1 rounded-full bg-[#00a8ff]/20 text-[#00a8ff] hover:bg-[#00a8ff]/30 transition-colors"
+            className="text-xs font-semibold px-3 py-1 rounded-full bg-[#ff2e93]/20 text-[#ff2e93] hover:bg-[#ff2e93]/30 transition-colors"
           >
             Back to All
           </button>
@@ -440,7 +441,7 @@ export const ChatList: React.FC = () => {
         {/* Global User Search Section when user is typing in search input */}
         {search.trim().length > 0 && (
           <div className="p-4 border-b border-[#2a3942]/40">
-            <h4 className="text-xs font-bold text-[#00a8ff] uppercase tracking-wider mb-3 flex items-center gap-1.5">
+            <h4 className="text-xs font-bold text-[#ff2e93] uppercase tracking-wider mb-3 flex items-center gap-1.5">
               <Search className="w-3.5 h-3.5" /> Global User Search Results
             </h4>
 
@@ -449,7 +450,7 @@ export const ChatList: React.FC = () => {
             ) : searchResults.length === 0 ? (
               <div className="py-8 text-center flex flex-col items-center gap-3">
                 <div className={`w-16 h-16 rounded-3xl flex items-center justify-center border ${
-                  isDark ? 'bg-[#111b21] border-[#202c33] text-[#00a8ff]' : 'bg-gray-100 border-gray-200 text-sky-600'
+                  isDark ? 'bg-[#111b21] border-[#202c33] text-[#ff2e93]' : 'bg-pink-50 border-pink-200 text-pink-600'
                 }`}>
                   <Search className="w-8 h-8" />
                 </div>
@@ -468,7 +469,7 @@ export const ChatList: React.FC = () => {
                       setSearch('');
                     }}
                     className={`group flex items-center justify-between gap-3 p-3.5 rounded-2xl border transition-all duration-300 cursor-pointer hover:-translate-y-0.5 hover:shadow-xl ${
-                      isDark ? 'bg-[#111b21] border-[#202c33] hover:border-[#00a8ff]/40' : 'bg-gray-50 border-gray-200 hover:border-[#00a8ff]/40'
+                      isDark ? 'bg-[#111b21] border-[#202c33] hover:border-[#ff2e93]/40' : 'bg-gray-50 border-gray-200 hover:border-[#ff2e93]/40'
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -476,7 +477,7 @@ export const ChatList: React.FC = () => {
                         <img 
                           src={resUser.avatar} 
                           alt={resUser.name} 
-                          className="w-12 h-12 rounded-full object-cover ring-2 ring-transparent group-hover:ring-[#00a8ff]/30 transition-all" 
+                          className="w-12 h-12 rounded-full object-cover ring-2 ring-transparent group-hover:ring-[#ff2e93]/30 transition-all" 
                         />
                         {resUser.isOnline && (
                           <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-[#0b141a]"></span>
@@ -489,12 +490,12 @@ export const ChatList: React.FC = () => {
                             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">Online</span>
                           )}
                         </div>
-                        <p className="text-xs text-[#00a8ff] font-mono truncate">@{resUser.username}</p>
+                        <p className="text-xs text-[#ff2e93] font-mono truncate">@{resUser.username}</p>
                         <p className={`text-[11px] mt-0.5 line-clamp-2 ${isDark ? 'text-[#8696a0]' : 'text-slate-500'}`}>
                           {resUser.about || resUser.status}
                         </p>
                         {resUser.mutualFriendsCount ? (
-                          <p className="text-[10px] mt-1 text-[#00a8ff] font-medium">{resUser.mutualFriendsCount} mutual friends</p>
+                          <p className="text-[10px] mt-1 text-[#ff2e93] font-medium">{resUser.mutualFriendsCount} mutual friends</p>
                         ) : null}
                       </div>
                     </div>
@@ -507,7 +508,7 @@ export const ChatList: React.FC = () => {
                             await sendFriendRequest(resUser.id);
                             showToast('Friend request sent.');
                           }}
-                          className="px-4 py-2 rounded-xl bg-[#00a8ff] hover:bg-[#0091ea] text-[#0b141a] font-bold text-xs flex items-center gap-1.5 shadow-lg transition-all active:scale-95 cursor-pointer"
+                          className="px-4 py-2 rounded-xl bg-[#ff2e93] hover:bg-[#ff1e85] text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-pink-500/20 transition-all active:scale-95 cursor-pointer"
                         >
                           <UserPlus className="w-3.5 h-3.5" /> Add Friend
                         </button>
@@ -556,7 +557,7 @@ export const ChatList: React.FC = () => {
                             setActiveContactId(resUser.id);
                             setSearch('');
                           }}
-                          className="px-4 py-2 rounded-xl bg-[#00a8ff] hover:bg-[#0091ea] text-[#0b141a] font-bold text-xs flex items-center gap-1.5 shadow-lg cursor-pointer"
+                          className="px-4 py-2 rounded-xl bg-[#ff2e93] hover:bg-[#ff1e85] text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-pink-500/20 cursor-pointer"
                         >
                           <MessageSquare className="w-3.5 h-3.5" /> Message Yourself
                         </button>
@@ -578,14 +579,14 @@ export const ChatList: React.FC = () => {
             </div>
             <h3 className={`font-bold text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>No Favourites Yet</h3>
             <p className="max-w-xs text-xs text-gray-400 leading-relaxed">
-              Long press or click the 3-dots options menu on any chat and tap <span className="text-[#00a8ff] font-bold">"Add to favourites"</span> to filter them here!
+              Long press or click the 3-dots options menu on any chat and tap <span className="text-[#ff2e93] font-bold">"Add to favourites"</span> to filter them here!
             </p>
           </div>
         ) : sortedContacts.length === 0 && !search.trim() ? (
           <div className={`p-8 text-center text-sm flex flex-col items-center justify-center gap-3 h-full min-h-[300px] ${
             isDark ? 'text-[#8596a0]' : 'text-gray-500'
           }`}>
-            <div className="w-16 h-16 rounded-3xl bg-[#00a8ff]/10 text-[#00a8ff] flex items-center justify-center border border-[#00a8ff]/20 shadow-inner">
+            <div className="w-16 h-16 rounded-3xl bg-[#ff2e93]/10 text-[#ff2e93] flex items-center justify-center border border-[#ff2e93]/20 shadow-inner">
               <Users className="w-8 h-8" />
             </div>
             <h3 className="font-bold text-lg text-white">No Friends Yet</h3>
@@ -779,13 +780,13 @@ export const ChatList: React.FC = () => {
                     }`}
                   />
                   {contact.isOnline && (
-                    <span className={`absolute bottom-0 right-0 w-3 h-3 bg-[#00a8ff] border-2 rounded-full ${
+                    <span className={`absolute bottom-0 right-0 w-3 h-3 bg-[#ff2e93] border-2 rounded-full ${
                       isDark ? 'border-[#0b141a]' : 'border-white'
                     }`}></span>
                   )}
                   {contact.isAiBot && (
                     <span className={`absolute -bottom-1 -left-1 p-0.5 rounded-full border ${
-                      isDark ? 'bg-[#0a2540] text-[#00a8ff] border-[#0b141a]' : 'bg-sky-100 text-sky-700 border-white'
+                      isDark ? 'bg-[#ff2e93]/20 text-[#ff2e93] border-[#0b141a]' : 'bg-pink-100 text-pink-700 border-white'
                     }`}>
                       <Sparkles className="w-2.5 h-2.5" />
                     </span>
@@ -803,7 +804,7 @@ export const ChatList: React.FC = () => {
                       }`}>{getContactDisplayName(contact)}</h3>
                       {customNicknames[contact.id] && (
                         <span title={`Custom nickname for ${contact.name}`}>
-                          <Tag className="w-3.5 h-3.5 text-[#00a8ff] shrink-0" />
+                          <Tag className="w-3.5 h-3.5 text-[#ff2e93] shrink-0" />
                         </span>
                       )}
                       {contact.isMuted && <BellOff className="w-3.5 h-3.5 text-gray-400 shrink-0 opacity-80" />}
@@ -812,7 +813,7 @@ export const ChatList: React.FC = () => {
                     </div>
                     
                     <span className={`text-xs whitespace-nowrap ml-2 ${
-                      unreadBadge > 0 ? 'text-[#00a8ff] font-medium' : (isDark ? 'text-[#8596a0]' : 'text-gray-400')
+                      unreadBadge > 0 ? 'text-[#ff2e93] font-semibold' : (isDark ? 'text-[#8596a0]' : 'text-gray-400')
                     }`}>
                       {lastMsg ? (
                         (() => {
@@ -841,7 +842,7 @@ export const ChatList: React.FC = () => {
                           {previewData.isOutgoing && previewData.status && (
                             <span className="shrink-0">
                               {previewData.status === 'read' ? (
-                                <CheckCheck className="w-4 h-4 text-[#34b7f1] inline stroke-[2.5]" />
+                                <CheckCheck className="w-4 h-4 text-[#ff2e93] inline stroke-[2.5]" />
                               ) : previewData.status === 'delivered' ? (
                                 <CheckCheck className="w-4 h-4 text-[#8596a0] inline" />
                               ) : (
@@ -856,7 +857,7 @@ export const ChatList: React.FC = () => {
 
                     <div className="flex items-center gap-1 shrink-0">
                       {unreadBadge > 0 && (
-                        <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shrink-0 min-w-[20px] text-center shadow-xs">
+                        <span className="bg-[#ff2e93] text-white text-xs font-bold px-2 py-0.5 rounded-full shrink-0 min-w-[20px] text-center shadow-xs">
                           {unreadBadge > 99 ? '99+' : unreadBadge}
                         </span>
                       )}
@@ -909,7 +910,7 @@ export const ChatList: React.FC = () => {
                           isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
                         }`}
                       >
-                        <div className="flex items-center gap-3 text-[#00a8ff] font-semibold">
+                        <div className="flex items-center gap-3 text-[#ff2e93] font-semibold">
                           <Tag className="w-4.5 h-4.5" />
                           <span>{customNicknames[contact.id] ? 'Edit Custom Name' : 'Set Custom Name'}</span>
                         </div>
@@ -928,7 +929,7 @@ export const ChatList: React.FC = () => {
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <Archive className="w-4.5 h-4.5 opacity-80 text-[#00a8ff]" />
+                          <Archive className="w-4.5 h-4.5 text-[#ff2e93]" />
                           <span>{contact.isArchived ? 'Unarchive chat' : 'Archive chat'}</span>
                         </div>
                       </button>
@@ -948,7 +949,7 @@ export const ChatList: React.FC = () => {
                         <div className="flex items-center gap-3">
                           {contact.isMuted ? (
                             <>
-                              <Bell className="w-4.5 h-4.5 text-[#00a8ff]" />
+                              <Bell className="w-4.5 h-4.5 text-[#ff2e93]" />
                               <span>Unmute notifications</span>
                             </>
                           ) : (
@@ -1083,7 +1084,7 @@ export const ChatList: React.FC = () => {
       <button
         type="button"
         onClick={() => setShowCreateGroupModal(true)}
-        className="absolute bottom-4 right-4 z-30 w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-[#00a8ff] hover:bg-[#0091ea] active:scale-90 text-[#0b141a] shadow-2xl flex items-center justify-center transition-all cursor-pointer border border-[#00a8ff]/40 group"
+        className="absolute bottom-4 right-4 z-30 w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-[#ff2e93] hover:bg-[#ff1e85] active:scale-90 text-white shadow-2xl shadow-pink-500/30 flex items-center justify-center transition-all cursor-pointer border border-[#ff2e93]/50 group"
         title="Create New Group"
       >
         <Users className="w-6 h-6 stroke-[2.3] group-hover:scale-110 transition-transform" />
@@ -1094,7 +1095,7 @@ export const ChatList: React.FC = () => {
         <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in select-none">
           <form onSubmit={handleGroupSubmit} className="bg-[#233138] border border-[#2a3942] w-full max-w-sm rounded-3xl p-6 shadow-2xl text-sm flex flex-col max-h-[90vh]">
             <div className="flex items-center justify-between mb-4 border-b border-[#2a3942] pb-3">
-              <h2 className="text-lg font-bold text-[#00a8ff] flex items-center gap-2">
+              <h2 className="text-lg font-bold text-[#ff2e93] flex items-center gap-2">
                 <Users className="w-5 h-5" /> Create New Group
               </h2>
               <button 
@@ -1116,7 +1117,7 @@ export const ChatList: React.FC = () => {
                   placeholder="e.g. Project Alpha, Family Vault, Friends"
                   value={groupNameInput}
                   onChange={e => setGroupNameInput(e.target.value)}
-                  className="w-full bg-[#0b141a] border border-[#2a3942] focus:border-[#00a8ff] rounded-xl px-3.5 py-2.5 text-white focus:outline-none text-sm"
+                  className="w-full bg-[#0b141a] border border-[#2a3942] focus:border-[#ff2e93] rounded-xl px-3.5 py-2.5 text-white focus:outline-none text-sm"
                 />
               </div>
 
@@ -1133,7 +1134,7 @@ export const ChatList: React.FC = () => {
                           key={c.id}
                           onClick={() => toggleSelectMember(c.id)}
                           className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
-                            isSelected ? 'bg-[#0a2540] text-white' : 'hover:bg-[#182229] text-gray-300'
+                            isSelected ? 'bg-[#ff2e93]/20 text-white' : 'hover:bg-[#182229] text-gray-300'
                           }`}
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
@@ -1141,7 +1142,7 @@ export const ChatList: React.FC = () => {
                             <span className="text-xs font-medium truncate">{c.name}</span>
                           </div>
                           {isSelected ? (
-                            <UserCheck className="w-4 h-4 text-[#00a8ff] shrink-0" />
+                            <UserCheck className="w-4 h-4 text-[#ff2e93] shrink-0" />
                           ) : (
                             <div className="w-4 h-4 rounded-full border border-gray-600 shrink-0" />
                           )}
@@ -1159,7 +1160,7 @@ export const ChatList: React.FC = () => {
                   placeholder="e.g. Rahul, Priya, Alex (comma separated)"
                   value={customMemberInput}
                   onChange={e => setCustomMemberInput(e.target.value)}
-                  className="w-full bg-[#0b141a] border border-[#2a3942] focus:border-[#00a8ff] rounded-xl px-3.5 py-2.5 text-white focus:outline-none text-xs"
+                  className="w-full bg-[#0b141a] border border-[#2a3942] focus:border-[#ff2e93] rounded-xl px-3.5 py-2.5 text-white focus:outline-none text-xs"
                 />
                 <span className="text-[11px] text-gray-400 mt-1 block">Separate multiple usernames with commas</span>
               </div>
@@ -1176,7 +1177,7 @@ export const ChatList: React.FC = () => {
               <button
                 type="submit"
                 disabled={!groupNameInput.trim()}
-                className="px-5 py-2 rounded-xl bg-[#00a8ff] hover:bg-[#0091ea] text-[#0b141a] font-bold transition-colors shadow disabled:opacity-50 text-xs flex items-center gap-1.5"
+                className="px-5 py-2 rounded-xl bg-[#ff2e93] hover:bg-[#ff1e85] text-white font-bold transition-colors shadow-lg shadow-pink-500/25 disabled:opacity-50 text-xs flex items-center gap-1.5"
               >
                 <Users className="w-4 h-4" />
                 Create Group
@@ -1190,7 +1191,7 @@ export const ChatList: React.FC = () => {
       {showAddModal && (
         <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
           <form onSubmit={handleCreateContact} className="bg-[#233138] border border-[#2a3942] w-full max-w-sm rounded-3xl p-6 shadow-2xl text-sm">
-            <h2 className="text-lg font-bold text-[#00a8ff] mb-4 flex items-center gap-2">
+            <h2 className="text-lg font-bold text-[#ff2e93] mb-4 flex items-center gap-2">
               <Plus className="w-5 h-5" /> New Chat
             </h2>
 
@@ -1203,7 +1204,7 @@ export const ChatList: React.FC = () => {
                   placeholder="e.g. +91 98765 43210 or Rahul"
                   value={newContactName}
                   onChange={e => setNewContactName(e.target.value)}
-                  className="w-full bg-[#0b141a] border border-[#2a3942] focus:border-[#00a8ff] rounded-xl px-3.5 py-2.5 text-white focus:outline-none"
+                  className="w-full bg-[#0b141a] border border-[#2a3942] focus:border-[#ff2e93] rounded-xl px-3.5 py-2.5 text-white focus:outline-none"
                 />
               </div>
 
@@ -1214,7 +1215,7 @@ export const ChatList: React.FC = () => {
                   placeholder="e.g. Hey there! I am using WhatsApp."
                   value={newContactStatus}
                   onChange={e => setNewContactStatus(e.target.value)}
-                  className="w-full bg-[#0b141a] border border-[#2a3942] focus:border-[#00a8ff] rounded-xl px-3.5 py-2.5 text-white focus:outline-none"
+                  className="w-full bg-[#0b141a] border border-[#2a3942] focus:border-[#ff2e93] rounded-xl px-3.5 py-2.5 text-white focus:outline-none"
                 />
               </div>
 
@@ -1224,11 +1225,11 @@ export const ChatList: React.FC = () => {
                     type="checkbox"
                     checked={isAiContact}
                     onChange={e => setIsAiContact(e.target.checked)}
-                    className="accent-[#00a8ff] w-4 h-4 rounded"
+                    className="accent-[#ff2e93] w-4 h-4 rounded"
                   />
                   <span>Simulate Meta AI Responder</span>
                 </label>
-                <Bot className={`w-5 h-5 ${isAiContact ? 'text-[#00a8ff]' : 'text-[#8596a0]'}`} />
+                <Bot className={`w-5 h-5 ${isAiContact ? 'text-[#ff2e93]' : 'text-[#8596a0]'}`} />
               </div>
             </div>
 
@@ -1242,7 +1243,7 @@ export const ChatList: React.FC = () => {
               </button>
               <button
                 type="submit"
-                className="px-5 py-2.5 rounded-xl bg-[#00a8ff] hover:bg-[#0091ea] text-[#0b141a] font-bold transition-colors shadow"
+                className="px-5 py-2.5 rounded-xl bg-[#ff2e93] hover:bg-[#ff1e85] text-white font-bold transition-colors shadow-lg shadow-pink-500/25"
               >
                 Start Chat
               </button>
@@ -1254,8 +1255,8 @@ export const ChatList: React.FC = () => {
       {/* Chat Lock PIN Prompt Modal */}
       {targetLockId && (
         <div className="absolute inset-0 z-50 bg-[#0b141a]/95 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
-          <form onSubmit={verifyChatPin} className="bg-[#233138] border border-[#00a8ff]/40 w-full max-w-xs rounded-3xl p-6 shadow-2xl text-center">
-            <div className="w-14 h-14 rounded-2xl bg-[#0a2540] text-[#00a8ff] flex items-center justify-center mx-auto mb-4">
+          <form onSubmit={verifyChatPin} className="bg-[#233138] border border-[#ff2e93]/40 w-full max-w-xs rounded-3xl p-6 shadow-2xl text-center">
+            <div className="w-14 h-14 rounded-2xl bg-[#ff2e93]/20 text-[#ff2e93] flex items-center justify-center mx-auto mb-4">
               <Lock className="w-7 h-7 animate-pulse" />
             </div>
             <h3 className="font-bold text-lg text-white mb-1">Chat Lock</h3>
@@ -1267,7 +1268,7 @@ export const ChatList: React.FC = () => {
               placeholder="••••"
               value={lockPinAttempt}
               onChange={e => setLockPinAttempt(e.target.value)}
-              className="w-full bg-[#0b141a] border border-[#2a3942] focus:border-[#00a8ff] text-center font-mono text-2xl tracking-widest text-white rounded-xl py-3 mb-5 focus:outline-none"
+              className="w-full bg-[#0b141a] border border-[#2a3942] focus:border-[#ff2e93] text-center font-mono text-2xl tracking-widest text-white rounded-xl py-3 mb-5 focus:outline-none"
             />
 
             <div className="flex gap-3 text-sm font-semibold">
@@ -1280,7 +1281,7 @@ export const ChatList: React.FC = () => {
               </button>
               <button
                 type="submit"
-                className="flex-1 bg-[#00a8ff] hover:bg-[#0091ea] text-[#0b141a] py-2.5 rounded-xl transition-colors"
+                className="flex-1 bg-[#ff2e93] hover:bg-[#ff1e85] text-white py-2.5 rounded-xl transition-colors shadow-md shadow-pink-500/20"
               >
                 Unlock
               </button>
@@ -1324,7 +1325,7 @@ export const ChatList: React.FC = () => {
             </div>
 
             {/* Bottom action bar */}
-            <div className="flex items-center justify-around py-2.5 bg-[#1f2c34] text-[#00a8ff] border-t border-[#2a3942]/60">
+            <div className="flex items-center justify-around py-2.5 bg-[#1f2c34] text-[#ff2e93] border-t border-[#2a3942]/60">
               <button 
                 onClick={() => {
                   handleContactClick(previewContact.id, previewContact.isLocked);
@@ -1374,48 +1375,17 @@ export const ChatList: React.FC = () => {
         </div>
       )}
 
-      {/* Full Screen Contact Avatar Modal */}
-      {fullImageContact && (
-        <div 
-          onClick={() => setFullImageContact(null)} 
-          className="fixed inset-0 z-50 bg-black/95 flex flex-col justify-between p-4 animate-fade-in text-white select-none backdrop-blur-md"
-        >
-          {/* Top Bar */}
-          <div className="w-full flex items-center justify-between py-2 px-2 max-w-2xl mx-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center gap-3">
-              <button 
-                type="button"
-                onClick={() => setFullImageContact(null)} 
-                className="p-2 hover:bg-white/10 rounded-full transition-colors text-white"
-              >
-                <ArrowLeft className="w-6 h-6" />
-              </button>
-              <span className="font-semibold text-lg text-white">{fullImageContact.name}</span>
-            </div>
-            <button 
-              type="button"
-              onClick={() => setFullImageContact(null)} 
-              className="p-2 hover:bg-white/10 rounded-full transition-colors text-white"
-            >
-              <X className="w-6 h-6" />
-            </button>
-          </div>
-
-          {/* Center Image */}
-          <div className="flex-1 flex items-center justify-center p-2 max-w-2xl mx-auto w-full" onClick={e => e.stopPropagation()}>
-            <img 
-              src={fullImageContact.avatar} 
-              alt={fullImageContact.name} 
-              className="max-w-full max-h-[80vh] w-auto h-auto object-contain shadow-2xl rounded-lg border border-white/10"
-            />
-          </div>
-
-          {/* Bottom Bar / Action */}
-          <div className="py-2 text-center text-xs text-gray-400">
-            Profile Photo • Tap anywhere to close
-          </div>
-        </div>
-      )}
+      {/* Full Screen WhatsApp Contact Avatar Modal */}
+      <WhatsAppProfileViewer
+        isOpen={!!fullImageContact}
+        onClose={() => setFullImageContact(null)}
+        name={fullImageContact?.name || 'Profile Photo'}
+        avatarUrl={fullImageContact?.avatar || ''}
+        subText={fullImageContact?.username ? `@${fullImageContact.username}` : fullImageContact?.status || 'Available'}
+        onSendMessage={fullImageContact ? () => handleContactClick(fullImageContact.id, fullImageContact.isLocked) : undefined}
+        onVoiceCall={fullImageContact ? () => alert(`Calling ${fullImageContact.name}... 📞`) : undefined}
+        onVideoCall={fullImageContact ? () => alert(`Starting video call with ${fullImageContact.name}... 📹`) : undefined}
+      />
 
       {/* Custom Contact Nickname Modal */}
       <NicknameModal 
@@ -1429,7 +1399,7 @@ export const ChatList: React.FC = () => {
 
       {/* Toast Notification Banner */}
       {toastMsg && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-[#233138] border border-[#00a8ff]/40 text-[#00a8ff] px-5 py-2.5 rounded-full text-xs font-semibold shadow-2xl animate-fade-in flex items-center gap-2 pointer-events-none">
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-[#233138] border border-[#ff2e93]/40 text-[#ff2e93] px-5 py-2.5 rounded-full text-xs font-semibold shadow-2xl animate-fade-in flex items-center gap-2 pointer-events-none">
           <CheckCheck className="w-4 h-4" />
           <span>{toastMsg}</span>
         </div>

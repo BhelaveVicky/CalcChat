@@ -484,23 +484,33 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const ensureUserDocument = async (fbUser: FirebaseUser) => {
       const userRef = doc(db, 'users', fbUser.uid);
-      const photoURL = fbUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
+      const snap = await getDoc(userRef).catch(() => null);
+      if (!snap || !snap.exists()) {
+        const photoURL = fbUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=1200&auto=format&fit=crop&q=95';
 
-      await setDoc(userRef, {
-        uid: fbUser.uid,
-        email: fbUser.email || '',
-        displayName: fbUser.displayName || fbUser.email?.split('@')[0] || 'User',
-        username: fbUser.email?.split('@')[0]?.toLowerCase() || '',
-        usernameLower: fbUser.email?.split('@')[0]?.toLowerCase() || '',
-        photoURL,
-        avatar: photoURL,
-        status: 'Available on Secret Vault',
-        about: 'Available on CalcChat',
-        online: true,
-        lastSeen: 'Online',
-        lastLogin: serverTimestamp(),
-        isProfileComplete: false,
-      }, { merge: true });
+        await setDoc(userRef, {
+          uid: fbUser.uid,
+          email: fbUser.email || '',
+          displayName: fbUser.displayName || fbUser.email?.split('@')[0] || 'User',
+          username: fbUser.email?.split('@')[0]?.toLowerCase() || '',
+          usernameLower: fbUser.email?.split('@')[0]?.toLowerCase() || '',
+          photoURL,
+          avatar: photoURL,
+          status: 'Available on Secret Vault',
+          about: 'Available on CalcChat',
+          online: true,
+          lastSeen: 'Online',
+          lastLogin: serverTimestamp(),
+          isProfileComplete: false,
+        }, { merge: true });
+      } else {
+        // Just update lastLogin and online status
+        await updateDoc(userRef, {
+          online: true,
+          lastSeen: 'Online',
+          lastLogin: serverTimestamp(),
+        }).catch(() => {});
+      }
     };
 
     const unsubscribe = onAuthStateChanged(firebaseAuth, async (fbUser) => {
@@ -552,7 +562,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             id: fbUser.uid,
             name: uData.displayName || fbUser.displayName || 'User',
             username: uData.username,
-            avatar: uData.photoURL || fbUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+            avatar: uData.avatar || uData.photoURL || fbUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=1200&auto=format&fit=crop&q=95',
             status: uData.status || 'Available on Secret Vault',
             isOnline: true,
             email: fbUser.email || '',
@@ -3068,12 +3078,44 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateProfile = async (newProfile: Partial<UserProfile>) => {
-    setUser(prev => ({ ...prev, ...newProfile }));
+    const updatedUser = { ...user, ...newProfile };
+    setUser(updatedUser);
+
+    try {
+      localStorage.setItem('secret_vault_user_profile', JSON.stringify(updatedUser));
+    } catch (_) {}
+
+    // Synchronize contacts or allRegisteredUsers if self is listed
+    if (newProfile.avatar) {
+      setContacts(prev => prev.map(c => c.isSelf || c.id === user.id ? { ...c, avatar: newProfile.avatar! } : c));
+      setAllRegisteredUsers(prev => prev.map(u => u.uid === user.id ? { ...u, photoURL: newProfile.avatar!, avatar: newProfile.avatar! } : u));
+    }
+
     if (authUser) {
-      await updateDoc(doc(db, 'users', authUser.uid), {
-        status: newProfile.status || user.status,
-        displayName: newProfile.name || user.name,
-      }).catch(() => {});
+      const docUpdates: Record<string, any> = {};
+      if (newProfile.name !== undefined) docUpdates.displayName = newProfile.name;
+      if (newProfile.status !== undefined) docUpdates.status = newProfile.status;
+      if (newProfile.username !== undefined) {
+        docUpdates.username = newProfile.username;
+        docUpdates.usernameLower = newProfile.username.toLowerCase();
+      }
+      if (newProfile.avatar !== undefined) {
+        docUpdates.avatar = newProfile.avatar;
+        docUpdates.photoURL = newProfile.avatar;
+      }
+
+      if (Object.keys(docUpdates).length > 0) {
+        await updateDoc(doc(db, 'users', authUser.uid), docUpdates).catch(err => {
+          console.warn('Failed to update user document in Firestore:', err);
+        });
+      }
+
+      if (newProfile.avatar || newProfile.name) {
+        await updateAuthProfile(authUser, {
+          displayName: newProfile.name || authUser.displayName || undefined,
+          photoURL: newProfile.avatar || authUser.photoURL || undefined,
+        }).catch(() => {});
+      }
     }
   };
 

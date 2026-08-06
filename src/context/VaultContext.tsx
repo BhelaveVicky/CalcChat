@@ -41,6 +41,7 @@ export interface ActiveCallState {
   durationSeconds: number;
   isMuted: boolean;
   isVideoOff: boolean;
+  isRemoteVideoOff?: boolean;
   isSpeakerOn: boolean;
   isFrontCamera: boolean;
   signalBars: number;
@@ -779,6 +780,32 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (timer) clearInterval(timer);
     };
   }, [activeCall?.status]);
+
+  // 30-second timeout for unanswered calls (auto disconnect if not picked up in 30s)
+  useEffect(() => {
+    let timeoutTimer: NodeJS.Timeout | null = null;
+    if (activeCall && (activeCall.status === 'ringing' || activeCall.status === 'incoming' || activeCall.status === 'connecting')) {
+      timeoutTimer = setTimeout(() => {
+        if (activeCallRef.current && (activeCallRef.current.status === 'ringing' || activeCallRef.current.status === 'incoming' || activeCallRef.current.status === 'connecting')) {
+          const callId = activeCallRef.current.id;
+          if (activeCallRef.current.direction === 'outgoing') {
+            if (callId) {
+              updateDoc(doc(db, 'calls', callId), { status: 'cancelled' }).catch(() => {});
+            }
+            cleanupCall('cancelled');
+          } else {
+            if (callId) {
+              updateDoc(doc(db, 'calls', callId), { status: 'rejected' }).catch(() => {});
+            }
+            cleanupCall('rejected');
+          }
+        }
+      }, 30000); // 30 seconds limit
+    }
+    return () => {
+      if (timeoutTimer) clearTimeout(timeoutTimer);
+    };
+  }, [activeCall?.status, activeCall?.id]);
 
   // Auth state listener & User Profile loading
   useEffect(() => {
@@ -2794,6 +2821,23 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             remoteStream: null,
             connectionQuality: 'excellent',
           });
+
+          if (callDocUnsubRef.current) {
+            callDocUnsubRef.current();
+          }
+          callDocUnsubRef.current = onSnapshot(doc(db, 'calls', callId), (snap) => {
+            if (!snap.exists()) {
+              cleanupCall('cancelled');
+              return;
+            }
+            const cData = snap.data();
+            if (cData.status === 'rejected' || cData.status === 'cancelled' || cData.status === 'ended' || cData.status === 'busy') {
+              cleanupCall(cData.status);
+            }
+            if (cData.callerVideoOff !== undefined) {
+              setActiveCall(prev => prev ? { ...prev, isRemoteVideoOff: !!cData.callerVideoOff } : null);
+            }
+          });
         } else if (activeCallRef.current && activeCallRef.current.id === callId) {
           if (data.status === 'rejected' || data.status === 'cancelled' || data.status === 'ended' || data.status === 'busy') {
             cleanupCall(data.status);
@@ -3221,6 +3265,14 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         remoteStreamRef.current = event.streams[0];
         setActiveCall((prev) => prev ? { ...prev, remoteStream: event.streams[0] } : null);
       }
+      if (event.track && event.track.kind === 'video') {
+        event.track.onmute = () => {
+          setActiveCall(prev => prev ? { ...prev, isRemoteVideoOff: true } : null);
+        };
+        event.track.onunmute = () => {
+          setActiveCall(prev => prev ? { ...prev, isRemoteVideoOff: false } : null);
+        };
+      }
     };
 
     pc.onicecandidate = (event) => {
@@ -3293,6 +3345,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (data.status === 'rejected' || data.status === 'busy' || data.status === 'cancelled' || data.status === 'ended') {
         cleanupCall(data.status);
         return;
+      }
+
+      if (data.receiverVideoOff !== undefined) {
+        setActiveCall(prev => prev ? { ...prev, isRemoteVideoOff: !!data.receiverVideoOff } : null);
       }
 
       if (data.answer && pc.signalingState !== 'stable' && !pc.currentRemoteDescription) {
@@ -3370,6 +3426,14 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         remoteStreamRef.current = event.streams[0];
         setActiveCall((prev) => prev ? { ...prev, remoteStream: event.streams[0] } : null);
       }
+      if (event.track && event.track.kind === 'video') {
+        event.track.onmute = () => {
+          setActiveCall(prev => prev ? { ...prev, isRemoteVideoOff: true } : null);
+        };
+        event.track.onunmute = () => {
+          setActiveCall(prev => prev ? { ...prev, isRemoteVideoOff: false } : null);
+        };
+      }
     };
 
     pc.onicecandidate = (event) => {
@@ -3432,6 +3496,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const data = snap.data();
       if (data.status === 'ended' || data.status === 'rejected' || data.status === 'cancelled') {
         cleanupCall(data.status);
+      }
+      if (data.callerVideoOff !== undefined) {
+        setActiveCall(prev => prev ? { ...prev, isRemoteVideoOff: !!data.callerVideoOff } : null);
       }
     });
   };
@@ -3540,6 +3607,12 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
     }
     setActiveCall(prev => prev ? { ...prev, isVideoOff: newVideoOff } : null);
+
+    const callId = activeCallRef.current.id;
+    if (callId && authUser) {
+      const isCaller = activeCallRef.current.callerId === authUser.uid || activeCallRef.current.direction === 'outgoing';
+      updateDoc(doc(db, 'calls', callId), isCaller ? { callerVideoOff: newVideoOff } : { receiverVideoOff: newVideoOff }).catch(() => {});
+    }
   };
 
   const toggleSpeakerCall = () => {

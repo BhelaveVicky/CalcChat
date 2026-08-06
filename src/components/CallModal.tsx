@@ -9,7 +9,7 @@ import { getContactNotificationSettings } from '../lib/contactSettings';
 
 export const CallModal: React.FC = () => {
   const { 
-    activeCall, contacts, groupContacts, acceptCall, joinGroupCall, rejectCall, cancelCall, endCall,
+    user, activeCall, contacts, groupContacts, acceptCall, joinGroupCall, rejectCall, cancelCall, endCall,
     toggleMuteCall, toggleVideoCall, toggleSpeakerCall, switchCameraCall,
     getContactDisplayName, callPermissionError, clearCallPermissionError
   } = useVault();
@@ -148,6 +148,9 @@ export const CallModal: React.FC = () => {
 
   if (!activeCall || !contact) return null;
 
+  const userAvatar = user?.photoURL || user?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
+  const contactAvatar = contact.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
+
   const mins = Math.floor(activeCall.durationSeconds / 60);
   const secs = activeCall.durationSeconds % 60;
   const timerStr = `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
@@ -201,41 +204,54 @@ export const CallModal: React.FC = () => {
         
         {/* Video Call Active Screen */}
         {activeCall.type === 'video' && (activeCall.status === 'connected' || activeCall.status === 'connecting') ? (
-          <div className="w-full h-[400px] sm:h-[500px] rounded-3xl overflow-hidden relative shadow-2xl border border-white/10 bg-slate-900 group">
+          <div className="w-full h-[400px] sm:h-[500px] rounded-3xl overflow-hidden relative shadow-2xl border border-white/10 bg-slate-900 group flex items-center justify-center">
             
-            {/* Remote Video Stream */}
-            {activeCall.remoteStream ? (
+            {/* Remote Video Stream or Profile Picture */}
+            <div className="w-full h-full relative flex items-center justify-center bg-slate-900">
               <video 
                 ref={remoteVideoRef} 
                 autoPlay 
                 playsInline 
-                className="w-full h-full object-cover" 
+                className={`w-full h-full object-cover ${!activeCall.remoteStream || activeCall.isRemoteVideoOff ? 'hidden' : 'block'}`} 
               />
-            ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center bg-slate-800 text-slate-300">
-                <img 
-                  src={contact.avatar} 
-                  alt={contact.name} 
-                  className="w-24 h-24 rounded-full object-cover border-2 border-sky-500 mb-3 animate-pulse" 
-                />
-                <span className="text-sm font-medium">Connecting video feed...</span>
-              </div>
-            )}
+
+              {(!activeCall.remoteStream || activeCall.isRemoteVideoOff) && (
+                <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 p-4">
+                  <img 
+                    src={contactAvatar} 
+                    alt={contact.name} 
+                    className="w-28 h-28 sm:w-36 sm:h-36 rounded-full object-cover border-4 border-slate-700/60 shadow-2xl" 
+                  />
+                  {activeCall.isRemoteVideoOff && (
+                    <span className="mt-3 text-xs font-medium text-slate-400 bg-black/40 px-3 py-1 rounded-full backdrop-blur-md border border-white/5">
+                      Camera Off
+                    </span>
+                  )}
+                  {!activeCall.remoteStream && !activeCall.isRemoteVideoOff && (
+                    <span className="mt-3 text-xs font-medium text-slate-300 animate-pulse">
+                      Connecting video feed...
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* PIP Local Self Video Overlay */}
-            <div className="absolute bottom-4 right-4 w-28 h-36 sm:w-32 sm:h-44 rounded-2xl overflow-hidden border-2 border-[#00a8ff] shadow-2xl bg-black">
-              {!activeCall.isVideoOff && activeCall.localStream ? (
-                <video 
-                  ref={localVideoRef} 
-                  autoPlay 
-                  playsInline 
-                  muted 
-                  className="w-full h-full object-cover" 
-                />
-              ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center bg-slate-800 text-slate-400 text-xs">
-                  <VideoOff className="w-6 h-6 mb-1 text-slate-500" />
-                  <span>Cam Off</span>
+            <div className="absolute bottom-4 right-4 w-28 h-36 sm:w-32 sm:h-44 rounded-2xl overflow-hidden border-2 border-[#00a8ff] shadow-2xl bg-slate-900 flex items-center justify-center">
+              <video 
+                ref={localVideoRef} 
+                autoPlay 
+                playsInline 
+                muted 
+                className={`w-full h-full object-cover ${activeCall.isVideoOff || !activeCall.localStream ? 'hidden' : 'block'}`} 
+              />
+              {(activeCall.isVideoOff || !activeCall.localStream) && (
+                <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 p-2 text-center">
+                  <img 
+                    src={userAvatar} 
+                    alt="Me" 
+                    className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-slate-700/60 shadow-md" 
+                  />
                 </div>
               )}
             </div>

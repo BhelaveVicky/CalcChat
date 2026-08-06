@@ -94,17 +94,18 @@ export const CallsView: React.FC = () => {
                           nickname.toLowerCase().includes(searchQuery.toLowerCase());
     if (!matchesSearch) return false;
 
+    const isOutgoing = log.direction === 'outgoing' || (log.callerId && log.callerId === user?.id);
     let normStatus: string = log.status || 'completed';
     if (normStatus === 'ended' || normStatus === 'connected') {
       normStatus = 'completed';
     }
 
-    const isMissed = normStatus === 'missed' || normStatus === 'rejected';
-    const isIncoming = log.direction === 'incoming';
     const isAnswered = normStatus === 'completed';
+    const isMissed = !isAnswered;
+    const isIncoming = !isOutgoing;
 
     if (filterTab === 'missed') {
-      return isMissed;
+      return isIncoming && isMissed;
     }
     if (filterTab === 'received_voice') {
       return isIncoming && log.type === 'voice' && isAnswered;
@@ -310,59 +311,35 @@ export const CallsView: React.FC = () => {
                 normStatus = 'completed';
               }
 
-              // Status configuration strictly adhering to WhatsApp requirements
+              const isAnswered = normStatus === 'completed';
+
               let statusText = '';
-              let textColorClass = 'text-gray-400';
-              let badgeBg = 'bg-gray-400';
-              let isRed = false;
+              let textColorClass = '';
+              let nameColorClass = '';
+              let badgeBg = '';
+              let avatarBorderClass = '';
 
-              switch (normStatus) {
-                case 'completed':
-                  statusText = isOutgoing ? 'Outgoing Call' : 'Incoming Call';
-                  textColorClass = 'text-emerald-500 dark:text-emerald-400';
-                  badgeBg = 'bg-emerald-500';
-                  if (log.duration) {
-                    statusText += ` • ${log.duration}`;
-                  }
-                  break;
-
-                case 'missed':
-                  statusText = 'Missed Call';
-                  textColorClass = 'text-rose-500 dark:text-rose-400';
-                  badgeBg = 'bg-rose-500';
-                  isRed = true;
-                  break;
-
-                case 'rejected':
-                  statusText = isOutgoing ? 'Rejected' : 'Declined';
-                  textColorClass = 'text-rose-500 dark:text-rose-400';
-                  badgeBg = 'bg-rose-500';
-                  isRed = true;
-                  break;
-
-                case 'cancelled':
-                  statusText = 'Cancelled';
-                  textColorClass = 'text-gray-400 dark:text-gray-400';
-                  badgeBg = 'bg-gray-400';
-                  break;
-
-                case 'busy':
-                  statusText = 'Busy';
-                  textColorClass = 'text-orange-500 dark:text-amber-400';
-                  badgeBg = 'bg-orange-500';
-                  break;
-
-                case 'failed':
-                  statusText = 'Failed';
-                  textColorClass = 'text-gray-400 dark:text-gray-400';
-                  badgeBg = 'bg-gray-400';
-                  break;
-
-                default:
-                  statusText = isOutgoing ? 'Outgoing Call' : 'Incoming Call';
-                  textColorClass = 'text-gray-400';
-                  badgeBg = 'bg-gray-400';
-                  break;
+              if (isAnswered) {
+                // Call Answered Successfully: Display entire call entry in Green, replace status text with actual call duration
+                statusText = log.duration || '00:00';
+                textColorClass = 'text-emerald-500 dark:text-emerald-400';
+                nameColorClass = 'text-emerald-600 dark:text-emerald-400';
+                badgeBg = 'bg-emerald-500';
+                avatarBorderClass = 'border-emerald-500/80';
+              } else if (isOutgoing) {
+                // Outgoing Call Not Answered / Busy: Display entire call entry in Orange, status text "Busy"
+                statusText = 'Busy';
+                textColorClass = 'text-orange-500 dark:text-amber-400';
+                nameColorClass = 'text-orange-500 dark:text-amber-400';
+                badgeBg = 'bg-orange-500';
+                avatarBorderClass = 'border-orange-500/80';
+              } else {
+                // Receiver Missed Call: Display entire call entry in Red, status text "Missed Call"
+                statusText = 'Missed Call';
+                textColorClass = 'text-rose-500 dark:text-rose-400';
+                nameColorClass = 'text-rose-500 dark:text-rose-400';
+                badgeBg = 'bg-rose-500';
+                avatarBorderClass = 'border-rose-500/80';
               }
 
               const IconComponent = log.type === 'video' ? Video : Phone;
@@ -409,11 +386,7 @@ export const CallsView: React.FC = () => {
                     <img
                       src={avatar}
                       alt={name}
-                      className={`w-12 h-12 rounded-full object-cover border-2 ${
-                        isRed
-                          ? 'border-rose-500/60'
-                          : isDark ? 'border-[#ff2e93]/30' : 'border-blue-200'
-                      }`}
+                      className={`w-12 h-12 rounded-full object-cover border-2 ${avatarBorderClass}`}
                     />
                     <div className={`absolute -bottom-0.5 -right-0.5 p-1 rounded-full text-white ${badgeBg}`}>
                       <IconComponent className="w-2.5 h-2.5" />
@@ -422,11 +395,7 @@ export const CallsView: React.FC = () => {
 
                   {/* Call Details */}
                   <div className="flex-1 min-w-0 flex flex-col justify-center">
-                    <h4 className={`text-sm font-semibold truncate flex items-center gap-1 ${
-                      isRed 
-                        ? 'text-rose-500' 
-                        : (isDark ? 'text-[#e9edef]' : 'text-gray-900')
-                    }`}>
+                    <h4 className={`text-sm font-semibold truncate flex items-center gap-1 ${nameColorClass}`}>
                       <span className="truncate">{name}</span>
                       {checkIsAdmin(contact || registeredUser || log.contactId) && (
                         <VerifiedBadge className="w-3.5 h-3.5 shrink-0 text-[#00a8ff]" />

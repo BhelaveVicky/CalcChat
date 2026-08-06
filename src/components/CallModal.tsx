@@ -9,7 +9,7 @@ import { getContactNotificationSettings } from '../lib/contactSettings';
 
 export const CallModal: React.FC = () => {
   const { 
-    activeCall, contacts, acceptCall, rejectCall, cancelCall, endCall,
+    activeCall, contacts, groupContacts, acceptCall, joinGroupCall, rejectCall, cancelCall, endCall,
     toggleMuteCall, toggleVideoCall, toggleSpeakerCall, switchCameraCall,
     getContactDisplayName, callPermissionError, clearCallPermissionError
   } = useVault();
@@ -21,7 +21,7 @@ export const CallModal: React.FC = () => {
 
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const contact = contacts.find(c => c.id === activeCall?.contactId);
+  const contact = contacts.find(c => c.id === activeCall?.contactId) || groupContacts.find(g => g.id === activeCall?.contactId);
 
   // Toggle browser fullscreen mode
   const toggleFullscreen = () => {
@@ -299,7 +299,13 @@ export const CallModal: React.FC = () => {
             </button>
 
             <button
-              onClick={acceptCall}
+              onClick={() => {
+                if (activeCall.isGroupCall && contact?.id) {
+                  joinGroupCall(contact.id, activeCall.type);
+                } else {
+                  acceptCall();
+                }
+              }}
               className="flex flex-col items-center gap-1.5 text-sky-400 group"
             >
               <div className="w-16 h-16 rounded-full bg-[#00a8ff] text-[#0b141a] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform animate-bounce">

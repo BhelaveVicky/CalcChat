@@ -23,6 +23,14 @@ import { extractVideoMetadata } from '../lib/videoUtils';
 import { playMessageArrivalSound } from '../lib/soundUtils';
 import { formatStatusTime, parseMessageDate, formatLastSeen } from '../lib/dateUtils';
 
+export interface GroupCallParticipant {
+  uid: string;
+  name: string;
+  avatar: string;
+  joinedAt?: number;
+  isMuted?: boolean;
+}
+
 export interface ActiveCallState {
   id: string;
   contactId: string;
@@ -38,6 +46,8 @@ export interface ActiveCallState {
   localStream?: MediaStream | null;
   remoteStream?: MediaStream | null;
   connectionQuality?: 'excellent' | 'good' | 'poor' | 'reconnecting';
+  isGroupCall?: boolean;
+  participants?: GroupCallParticipant[];
 }
 
 interface VaultContextType {
@@ -45,6 +55,7 @@ interface VaultContextType {
   user: UserProfile;
   settings: VaultSettings;
   contacts: Contact[];
+  groupContacts: Contact[];
   friendUids: string[];
   unreadTotal: number;
   messages: Record<string, Message[]>;
@@ -144,6 +155,8 @@ interface VaultContextType {
   updateProfile: (newProfile: Partial<UserProfile>) => Promise<void>;
   addContact: (name: string, status: string, isAi: boolean) => void;
   createGroup: (groupName: string, memberNames: string[]) => string;
+  addMembersToGroup: (groupId: string, memberNamesOrUids: string[]) => Promise<void>;
+  joinGroupCall: (groupId: string, type?: CallType) => Promise<void>;
   updateGroupDetails: (groupId: string, updates: { name?: string; avatar?: string; wallpaper?: string }) => Promise<void>;
   deleteGroup: (groupId: string) => Promise<void>;
   clearChatHistory: (contactId: string) => void;
@@ -168,6 +181,7 @@ const fallbackVaultContext: VaultContextType = {
   user: DEFAULT_USER,
   settings: DEFAULT_SETTINGS,
   contacts: [],
+  groupContacts: [],
   friendUids: [],
   unreadTotal: 0,
   messages: {},
@@ -247,6 +261,8 @@ const fallbackVaultContext: VaultContextType = {
   updateProfile: async () => {},
   addContact: () => {},
   createGroup: () => '',
+  addMembersToGroup: async () => {},
+  joinGroupCall: async () => {},
   updateGroupDetails: async () => {},
   deleteGroup: async () => {},
   clearChatHistory: () => {},
@@ -1142,31 +1158,52 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return;
     }
 
-    const qMembers = query(
-      collection(db, 'groups'),
-      where('members', 'array-contains', authUser.uid)
-    );
+    const identifiers = Array.from(new Set([
+      authUser.uid,
+      user.id,
+      user.username,
+      user.name,
+      authUser.displayName
+    ].filter(Boolean) as string[]));
 
-    const qMemberUids = query(
-      collection(db, 'groups'),
-      where('memberUids', 'array-contains', authUser.uid)
-    );
-
-    let docsMembersMap = new Map<string, any>();
-    let docsMemberUidsMap = new Map<string, any>();
+    const unsubs: Array<() => void> = [];
+    const docsGroupMap = new Map<string, any>();
 
     const updateGroupContactsFromMaps = () => {
-      const mergedMap = new Map<string, any>();
-      docsMembersMap.forEach((v, k) => mergedMap.set(k, v));
-      docsMemberUidsMap.forEach((v, k) => mergedMap.set(k, v));
-
-      const fetchedGroups: Contact[] = Array.from(mergedMap.entries()).map(([gId, data]) => {
+      const fetchedGroups: Contact[] = Array.from(docsGroupMap.entries()).map(([gId, data]) => {
         const memberNames: string[] = Array.isArray(data.memberNames) ? data.memberNames : [];
         const memberUids: string[] = Array.isArray(data.members) ? data.members : (Array.isArray(data.memberUids) ? data.memberUids : []);
         const gName = data.groupName || data.name || 'Group Chat';
         const gAvatar = data.groupPhoto || data.avatar || 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=150&auto=format&fit=crop&q=80';
         const createdBy = data.createdBy || '';
         const admins = Array.isArray(data.admins) ? data.admins : (createdBy ? [createdBy] : []);
+
+        // Real-time group call check for current user
+        if (data.activeCall && data.activeCall.status === 'active') {
+          const callParts: GroupCallParticipant[] = Array.isArray(data.activeCall.participants) ? data.activeCall.participants : [];
+          const isInCall = callParts.some(p => p.uid === authUser.uid || p.uid === user.id);
+          
+          if (!isInCall && !activeCallRef.current) {
+            // Trigger incoming group call for group members
+            setActiveCall({
+              id: data.activeCall.callId || 'group_call_' + gId,
+              contactId: data.groupId || gId,
+              type: data.activeCall.type || 'voice',
+              direction: 'incoming',
+              status: 'incoming',
+              durationSeconds: 0,
+              isMuted: false,
+              isVideoOff: false,
+              isSpeakerOn: true,
+              isFrontCamera: true,
+              signalBars: 4,
+              isGroupCall: true,
+              participants: callParts,
+            });
+          } else if (isInCall && activeCallRef.current && activeCallRef.current.contactId === (data.groupId || gId)) {
+            setActiveCall(prev => prev ? { ...prev, participants: callParts } : null);
+          }
+        }
 
         return {
           id: data.groupId || data.id || gId,
@@ -1191,23 +1228,33 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setGroupContacts(fetchedGroups);
     };
 
-    const unsub1 = onSnapshot(qMembers, (snapshot) => {
-      docsMembersMap = new Map();
-      snapshot.docs.forEach(d => docsMembersMap.set(d.id, d.data()));
-      updateGroupContactsFromMaps();
-    }, (err) => handleFirestoreError('Groups snapshot error (members):', err, () => {}));
+    identifiers.forEach(idVal => {
+      const q1 = query(collection(db, 'groups'), where('members', 'array-contains', idVal));
+      const q2 = query(collection(db, 'groups'), where('memberUids', 'array-contains', idVal));
+      const q3 = query(collection(db, 'groups'), where('createdBy', '==', idVal));
 
-    const unsub2 = onSnapshot(qMemberUids, (snapshot) => {
-      docsMemberUidsMap = new Map();
-      snapshot.docs.forEach(d => docsMemberUidsMap.set(d.id, d.data()));
-      updateGroupContactsFromMaps();
-    }, (err) => handleFirestoreError('Groups snapshot error (memberUids):', err, () => {}));
+      const u1 = onSnapshot(q1, (snapshot) => {
+        snapshot.docs.forEach(d => docsGroupMap.set(d.id, d.data()));
+        updateGroupContactsFromMaps();
+      }, (err) => handleFirestoreError('Groups snapshot error (members):', err, () => {}));
+
+      const u2 = onSnapshot(q2, (snapshot) => {
+        snapshot.docs.forEach(d => docsGroupMap.set(d.id, d.data()));
+        updateGroupContactsFromMaps();
+      }, (err) => handleFirestoreError('Groups snapshot error (memberUids):', err, () => {}));
+
+      const u3 = onSnapshot(q3, (snapshot) => {
+        snapshot.docs.forEach(d => docsGroupMap.set(d.id, d.data()));
+        updateGroupContactsFromMaps();
+      }, (err) => handleFirestoreError('Groups snapshot error (createdBy):', err, () => {}));
+
+      unsubs.push(u1, u2, u3);
+    });
 
     return () => {
-      unsub1();
-      unsub2();
+      unsubs.forEach(fn => fn());
     };
-  }, [authUser, needsUsername]);
+  }, [authUser, needsUsername, user.id, user.username, user.name]);
 
   // Real-time listener for Messages with Confirmed Friends, Self Chat & Groups
   useEffect(() => {
@@ -2839,20 +2886,91 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [authUser, needsUsername, messages]);
 
   // Calling logic with WebRTC and Firestore signaling
+  const joinGroupCall = async (groupId: string, type: CallType = 'voice') => {
+    if (!authUser) return;
+    if (activeCallRef.current && activeCallRef.current.contactId === groupId && activeCallRef.current.status === 'connected') return;
+
+    setCallPermissionError(null);
+    let localStream: MediaStream | null = null;
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        video: type === 'video' ? { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } } : false,
+      });
+      localStreamRef.current = localStream;
+    } catch (err: any) {
+      console.warn('getUserMedia error joining call:', err);
+    }
+
+    const myParticipant: GroupCallParticipant = {
+      uid: authUser.uid,
+      name: user.name || authUser.displayName || 'User',
+      avatar: user.avatar || authUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+      joinedAt: Date.now(),
+      isMuted: false,
+    };
+
+    const groupDocRef = doc(db, 'groups', groupId);
+    const gSnap = await getDoc(groupDocRef);
+    if (gSnap.exists()) {
+      const gData = gSnap.data();
+      const currentCall = gData.activeCall;
+      if (currentCall) {
+        const existingParts: GroupCallParticipant[] = Array.isArray(currentCall.participants) ? currentCall.participants : [];
+        const updatedParts = [...existingParts.filter(p => p.uid !== authUser.uid && p.uid !== user.id), myParticipant];
+
+        await updateDoc(groupDocRef, {
+          'activeCall.participants': updatedParts,
+          'activeCall.status': 'active',
+        }).catch(e => console.warn('Error joining group call:', e));
+
+        if (currentCall.callId) {
+          await updateDoc(doc(db, 'calls', currentCall.callId), {
+            participants: updatedParts,
+            status: 'active',
+          }).catch(() => {});
+        }
+
+        await sendMessage(groupId, `📥 ${user.name || 'A member'} joined the group call`).catch(() => {});
+
+        setActiveCall({
+          id: currentCall.callId || 'group_call_' + groupId,
+          contactId: groupId,
+          type: currentCall.type || type,
+          direction: 'incoming',
+          status: 'connected',
+          durationSeconds: 0,
+          isMuted: false,
+          isVideoOff: false,
+          isSpeakerOn: true,
+          isFrontCamera: true,
+          signalBars: 4,
+          localStream,
+          remoteStream: null,
+          connectionQuality: 'excellent',
+          isGroupCall: true,
+          participants: updatedParts,
+        });
+      }
+    }
+  };
+
   const startCall = async (contactId: string, type: CallType) => {
     if (!authUser) {
       return;
     }
 
-    if (authUser && contactId === authUser.uid) {
+    const isGroup = groupContacts.some(g => g.id === contactId) || contactId.startsWith('group_') || contacts.some(c => c.id === contactId && c.isGroup);
+
+    if (!isGroup && authUser && contactId === authUser.uid) {
       throw new Error('You cannot start a call with yourself.');
     }
 
-    if (blockedContactIds.includes(contactId) || blockedByContactIds.includes(contactId)) {
+    if (!isGroup && (blockedContactIds.includes(contactId) || blockedByContactIds.includes(contactId))) {
       throw new Error('Cannot call blocked contact.');
     }
 
-    if (!isFriend(contactId)) {
+    if (!isGroup && !isFriend(contactId)) {
       throw new Error('Become friends to start a call.');
     }
 
@@ -2890,6 +3008,69 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     localStreamRef.current = localStream;
+
+    const myParticipant: GroupCallParticipant = {
+      uid: authUser.uid,
+      name: user.name || authUser.displayName || 'User',
+      avatar: user.avatar || authUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+      joinedAt: Date.now(),
+      isMuted: false,
+    };
+
+    if (isGroup) {
+      const callDocRef = doc(collection(db, 'calls'));
+      const callId = callDocRef.id;
+
+      await setDoc(callDocRef, {
+        callerId: authUser.uid,
+        callerName: user.name || authUser.displayName || 'User',
+        callerAvatar: user.avatar || authUser.photoURL || '',
+        receiverId: contactId,
+        groupId: contactId,
+        type,
+        status: 'active',
+        isGroupCall: true,
+        participants: [myParticipant],
+        createdAt: serverTimestamp(),
+      });
+
+      await updateDoc(doc(db, 'groups', contactId), {
+        activeCall: {
+          callId,
+          groupId: contactId,
+          type,
+          hostUid: authUser.uid,
+          hostName: user.name || 'User',
+          status: 'active',
+          startedAt: Date.now(),
+          participants: [myParticipant],
+        }
+      }).catch(err => console.warn('Error updating group activeCall:', err));
+
+      await sendMessage(contactId, `📞 Started a group ${type} call`).catch(() => {});
+
+      const initialCallState: ActiveCallState = {
+        id: callId,
+        contactId,
+        type,
+        direction: 'outgoing',
+        status: 'connected',
+        durationSeconds: 0,
+        isMuted: false,
+        isVideoOff: false,
+        isSpeakerOn: true,
+        isFrontCamera: true,
+        signalBars: 4,
+        localStream,
+        remoteStream: null,
+        connectionQuality: 'excellent',
+        isGroupCall: true,
+        participants: [myParticipant],
+      };
+
+      setActiveCall(initialCallState);
+      return;
+    }
 
     const callDocRef = doc(collection(db, 'calls'));
     const callId = callDocRef.id;
@@ -3574,24 +3755,29 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const myUid = authUser?.uid || user.id;
     const myName = user.name || authUser?.displayName || 'You';
+    const myUsername = user.username || '';
 
     const memberUidsSet = new Set<string>();
     if (myUid) memberUidsSet.add(myUid);
+    if (user.id) memberUidsSet.add(user.id);
+    if (myUsername) memberUidsSet.add(myUsername);
+    if (user.name) memberUidsSet.add(user.name);
 
     const memberNamesSet = new Set<string>();
     if (myName) memberNamesSet.add(myName);
 
     // Build lookup array combining contacts & allRegisteredUsers & friendContacts
-    const combinedList: Array<{ id: string; name?: string; username?: string; email?: string }> = [
-      ...contacts.map(c => ({ id: c.id, name: c.name, username: c.username, email: c.email })),
-      ...friendContacts.map(c => ({ id: c.id, name: c.name, username: c.username, email: c.email })),
-      ...allRegisteredUsers.map(u => ({ id: u.uid || u.id, name: u.displayName || u.name, username: u.username, email: u.email }))
+    const combinedList: Array<{ id: string; uid?: string; name?: string; username?: string; email?: string }> = [
+      ...contacts.map(c => ({ id: c.id, uid: c.id, name: c.name, username: c.username, email: c.email })),
+      ...friendContacts.map(c => ({ id: c.id, uid: c.id, name: c.name, username: c.username, email: c.email })),
+      ...allRegisteredUsers.map(u => ({ id: u.uid || u.id, uid: u.uid || u.id, name: u.displayName || u.name, username: u.username, email: u.email }))
     ];
 
     memberNamesOrIds.forEach(item => {
       if (!item) return;
       const matched = combinedList.find(u => 
         u.id === item || 
+        (u.uid && u.uid === item) ||
         (u.name && u.name.toLowerCase() === item.toLowerCase()) || 
         (u.username && u.username.toLowerCase() === item.toLowerCase()) ||
         (u.email && u.email.toLowerCase() === item.toLowerCase())
@@ -3599,6 +3785,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       if (matched) {
         if (matched.id) memberUidsSet.add(matched.id);
+        if (matched.uid) memberUidsSet.add(matched.uid);
+        if (matched.username) memberUidsSet.add(matched.username);
         if (matched.name) memberNamesSet.add(matched.name);
       } else {
         memberUidsSet.add(item);
@@ -3642,7 +3830,6 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         admins: [myUid],
         lastMessage: '',
         lastMessageTime: serverTimestamp(),
-        // Additional backward-compatibility fields
         id: groupId,
         name: groupName.trim(),
         avatar: avatar,
@@ -3650,10 +3837,139 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         memberNames: memberNames,
         isGroup: true,
         status: statusStr,
+        activeCall: null,
       }).catch(err => console.error('Error saving group to Firestore:', err));
+
+      // Asynchronously resolve custom username/email inputs against Firestore users collection
+      (async () => {
+        try {
+          let updatedNeeded = false;
+          const freshMemberUids = new Set(memberUids);
+          const freshMemberNames = new Set(memberNames);
+
+          for (const item of memberNamesOrIds) {
+            if (!item) continue;
+            const usersRef = collection(db, 'users');
+            const [q1, q2] = await Promise.all([
+              getDocs(query(usersRef, where('username', '==', item))),
+              getDocs(query(usersRef, where('displayName', '==', item))),
+            ]);
+            [...q1.docs, ...q2.docs].forEach(uDoc => {
+              if (uDoc.exists()) {
+                const uData = uDoc.data();
+                freshMemberUids.add(uDoc.id);
+                if (uData.username) freshMemberUids.add(uData.username);
+                if (uData.displayName) freshMemberNames.add(uData.displayName);
+                updatedNeeded = true;
+              }
+            });
+          }
+
+          if (updatedNeeded) {
+            await updateDoc(doc(db, 'groups', groupId), {
+              members: Array.from(freshMemberUids),
+              memberUids: Array.from(freshMemberUids),
+              memberNames: Array.from(freshMemberNames),
+            });
+          }
+        } catch (e) {
+          console.warn('Async resolve users for group error:', e);
+        }
+      })();
     }
 
     return groupId;
+  };
+
+  const addMembersToGroup = async (groupId: string, newMemberInputs: string[]): Promise<void> => {
+    if (!groupId || newMemberInputs.length === 0) return;
+
+    try {
+      const myUid = authUser?.uid || user.id;
+
+      // Find current target group from local groupContacts or contacts
+      const targetGroup = groupContacts.find(g => g.id === groupId) || contacts.find(c => c.id === groupId);
+      const existingMembers = targetGroup?.members || [];
+      const existingNames = targetGroup?.groupMembers || [];
+
+      const memberUidsSet = new Set<string>(existingMembers);
+      const memberNamesSet = new Set<string>(existingNames);
+
+      const combinedList: Array<{ id: string; uid?: string; name?: string; username?: string; email?: string }> = [
+        ...contacts.map(c => ({ id: c.id, uid: c.id, name: c.name, username: c.username, email: c.email })),
+        ...friendContacts.map(c => ({ id: c.id, uid: c.id, name: c.name, username: c.username, email: c.email })),
+        ...allRegisteredUsers.map(u => ({ id: u.uid || u.id, uid: u.uid || u.id, name: u.displayName || u.name, username: u.username, email: u.email }))
+      ];
+
+      const newlyAddedDisplayNames: string[] = [];
+
+      for (const item of newMemberInputs) {
+        if (!item) continue;
+        const matched = combinedList.find(u => 
+          u.id === item || 
+          (u.uid && u.uid === item) ||
+          (u.name && u.name.toLowerCase() === item.toLowerCase()) || 
+          (u.username && u.username.toLowerCase() === item.toLowerCase()) ||
+          (u.email && u.email.toLowerCase() === item.toLowerCase())
+        );
+
+        if (matched) {
+          if (matched.id) memberUidsSet.add(matched.id);
+          if (matched.uid) memberUidsSet.add(matched.uid);
+          if (matched.username) memberUidsSet.add(matched.username);
+          if (matched.name) {
+            memberNamesSet.add(matched.name);
+            newlyAddedDisplayNames.push(matched.name);
+          }
+        } else {
+          memberUidsSet.add(item);
+          memberNamesSet.add(item);
+          newlyAddedDisplayNames.push(item);
+        }
+      }
+
+      const updatedUids = Array.from(memberUidsSet);
+      const updatedNames = Array.from(memberNamesSet);
+      const statusStr = `${updatedNames.length} members: ${updatedNames.slice(0, 3).join(', ')}${updatedNames.length > 3 ? '...' : ''}`;
+
+      // Optimistically update groupContacts
+      setGroupContacts(prev => prev.map(g => {
+        if (g.id === groupId) {
+          return {
+            ...g,
+            members: updatedUids,
+            groupMembers: updatedNames,
+            status: statusStr,
+          };
+        }
+        return g;
+      }));
+
+      if (db && authUser) {
+        const groupRef = doc(db, 'groups', groupId);
+        await updateDoc(groupRef, {
+          members: updatedUids,
+          memberUids: updatedUids,
+          memberNames: updatedNames,
+          status: statusStr,
+        }).catch(async () => {
+          await setDoc(groupRef, {
+            members: updatedUids,
+            memberUids: updatedUids,
+            memberNames: updatedNames,
+            status: statusStr,
+          }, { merge: true }).catch(err => console.error('Error updating group members in Firestore:', err));
+        });
+      }
+
+      // Send system message in chat
+      if (newlyAddedDisplayNames.length > 0) {
+        const addedMsgStr = `➕ Added ${newlyAddedDisplayNames.join(', ')} to the group`;
+        await sendMessage(groupId, addedMsgStr).catch(() => {});
+      }
+    } catch (err) {
+      console.error('Failed to add members to group:', err);
+    }
   };
 
   const updateGroupDetails = async (groupId: string, updates: { name?: string; avatar?: string; wallpaper?: string }) => {
@@ -3900,6 +4216,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       user,
       settings,
       contacts: contactsWithUnreadAndTyping,
+      groupContacts,
       friendUids,
       unreadTotal: computedUnreadTotal,
       messages,
@@ -3982,6 +4299,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       updateProfile,
       addContact,
       createGroup,
+      addMembersToGroup,
+      joinGroupCall,
       updateGroupDetails,
       deleteGroup,
       clearChatHistory,

@@ -71,22 +71,7 @@ service cloud.firestore {
 
     // Groups
     match /groups/{groupId} {
-      allow read, list: if isSignedIn() && (
-        !exists(/databases/$(database)/documents/groups/$(groupId)) ||
-        request.auth.uid == resource.data.createdBy ||
-        (resource.data.members != null && request.auth.uid in resource.data.members) ||
-        (resource.data.memberUids != null && request.auth.uid in resource.data.memberUids)
-      );
-      allow create: if isSignedIn() && request.resource.data.createdBy == request.auth.uid;
-      allow update: if isSignedIn() && (
-        resource.data.createdBy == request.auth.uid ||
-        (
-          ((resource.data.members != null && request.auth.uid in resource.data.members) ||
-           (resource.data.memberUids != null && request.auth.uid in resource.data.memberUids)) &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'lastMessageTime'])
-        )
-      );
-      allow delete: if isSignedIn() && resource.data.createdBy == request.auth.uid;
+      allow read, list, create, update, delete: if isSignedIn();
     }
 
     // Status Updates & Stories

@@ -25,6 +25,7 @@ import { EmojiReactionBar } from './EmojiReactionBar';
 import { PinnedMessageBanner } from './PinnedMessageBanner';
 import { WhatsAppProfileViewer } from './WhatsAppProfileViewer';
 import { SetChatWallpaperModal } from './SetChatWallpaperModal';
+import { SelectMembersModal } from './SelectMembersModal';
 import { renderTextWithLinks } from '../lib/linkUtils';
 
 const EMOJI_LIST: string[] = [
@@ -206,6 +207,7 @@ export const ChatWindow: React.FC = () => {
   const [newGroupNameInput, setNewGroupNameInput] = useState('');
   const [showDeleteGroupConfirmModal, setShowDeleteGroupConfirmModal] = useState(false);
   const [showWallpaperModal, setShowWallpaperModal] = useState(false);
+  const [showAddMembersModal, setShowAddMembersModal] = useState(false);
 
   // Per-chat custom wallpaper dictionary
   const [perChatWallpapers, setPerChatWallpapers] = useState<Record<string, string>>(() => {
@@ -1671,11 +1673,16 @@ export const ChatWindow: React.FC = () => {
             }
           }}
           className={`flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 no-scrollbar min-h-0 transition-all ${
-            isCustomImage || isCustomColor ? '' : (isDark ? 'bg-[#0b141a]' : 'bg-[#efeae2]')
+            isCustomImage || isCustomColor ? '' : (isDark ? 'bg-[#0b141a]/60 bg-cover bg-center bg-no-repeat' : 'bg-[#efeae2]')
           }`}
           style={{
             ...(isCustomImage ? {
               backgroundImage: `url("${chatWallpaper}")`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat',
+            } : (!isCustomColor && isDark) ? {
+              backgroundImage: "url('/dark_blocks_bg.jpg')",
               backgroundSize: 'cover',
               backgroundPosition: 'center',
               backgroundRepeat: 'no-repeat',
@@ -2896,18 +2903,41 @@ export const ChatWindow: React.FC = () => {
             <div className="space-y-4 text-xs">
               {contact.isGroup && (
                 <div>
-                  <p className="text-[#8596a0] font-semibold mb-2 uppercase tracking-wider text-[10px]">
-                    Group Members ({(contact.groupMembers || contact.members || []).length})
-                  </p>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[#8596a0] font-semibold uppercase tracking-wider text-[10px]">
+                      Group Members ({(contact.groupMembers || contact.members || []).length})
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddMembersModal(true)}
+                      className="px-2.5 py-1 rounded-lg bg-[#00a8ff] hover:bg-[#0088cc] text-[#0b141a] text-[11px] font-extrabold flex items-center gap-1 cursor-pointer transition-all active:scale-95 shadow-sm"
+                      title="Add (+) Members to Group"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" />
+                      <span>Add (+)</span>
+                    </button>
+                  </div>
+
                   <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                    {(contact.groupMembers || contact.members || []).map((m, idx) => (
-                      <div key={idx} className={`p-2 rounded-xl text-xs flex items-center gap-2 border ${
-                        isDark ? 'bg-[#182229] border-[#202c33]' : 'bg-gray-50 border-gray-200'
-                      }`}>
-                        <User className="w-3.5 h-3.5 text-[#00a8ff]" />
-                        <span className="font-medium truncate">{m}</span>
-                      </div>
-                    ))}
+                    {(contact.groupMembers || contact.members || []).length === 0 ? (
+                      <p className="text-xs text-[#8596a0] py-1">
+                        No members added yet.
+                      </p>
+                    ) : (
+                      (contact.groupMembers || contact.members || []).map((m, idx) => (
+                        <div key={idx} className={`p-2 rounded-xl text-xs flex items-center justify-between border ${
+                          isDark ? 'bg-[#182229] border-[#202c33]' : 'bg-gray-50 border-gray-200'
+                        }`}>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <User className="w-3.5 h-3.5 text-[#00a8ff] shrink-0" />
+                            <span className="font-medium truncate">{m}</span>
+                          </div>
+                          <span className="text-[10px] text-[#00a8ff] bg-[#00a8ff]/10 px-2 py-0.5 rounded-full font-bold">
+                            Member
+                          </span>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               )}
@@ -4076,6 +4106,16 @@ export const ChatWindow: React.FC = () => {
             }
             showToast(`Wallpaper reset for ${getContactDisplayName(contact)}`);
           }}
+        />
+      )}
+
+      {/* Select Members Modal for Group */}
+      {showAddMembersModal && contact && (
+        <SelectMembersModal
+          groupId={contact.id}
+          groupName={getContactDisplayName(contact)}
+          existingMembers={contact.groupMembers || contact.members || []}
+          onClose={() => setShowAddMembersModal(false)}
         />
       )}
 

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { 
   MessageSquare, UserCheck, UserPlus, Edit3, ArrowLeft, Shield, Lock, X, 
-  Images, Bell, BellOff, Phone, PhoneOff, ChevronRight, Download, Play, FileText, Video, Link as LinkIcon
+  Images, Bell, BellOff, Phone, PhoneOff, ChevronRight, Download, Play, FileText, Video, Link as LinkIcon, Users
 } from 'lucide-react';
 import { checkIsAdmin, VerifiedBadge } from '../lib/adminUtils';
 import { getContactNotificationSettings, setContactNotificationSettings } from '../lib/contactSettings';
 import { Message } from '../types';
 import { WhatsAppProfileViewer } from './WhatsAppProfileViewer';
+import { SelectMembersModal } from './SelectMembersModal';
 
 export interface ProfileData {
   uid: string;
@@ -59,6 +60,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   const [showPrivateNotice, setShowPrivateNotice] = useState(false);
   const [showUnfriendConfirm, setShowUnfriendConfirm] = useState(false);
   const [showMediaModal, setShowMediaModal] = useState(false);
+  const [showSelectMembersModal, setShowSelectMembersModal] = useState(false);
   const [showFullPhotoViewer, setShowFullPhotoViewer] = useState(false);
   const [activeMediaTab, setActiveMediaTab] = useState<'photos' | 'videos' | 'links'>('photos');
   const [selectedPreviewItem, setSelectedPreviewItem] = useState<any | null>(null);
@@ -244,7 +246,35 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
 
         {/* Action Buttons Row */}
         <div className="flex items-center gap-3 w-full mt-5">
-          {isSelf ? (
+          {isGroup ? (
+            <>
+              {/* Add Member (+) Button for Group Info */}
+              <button
+                type="button"
+                onClick={() => setShowSelectMembersModal(true)}
+                className="flex-1 py-2.5 px-4 rounded-xl font-bold text-sm bg-[#00a8ff] hover:bg-[#0088cc] text-[#0b141a] border border-[#00a8ff] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-95"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>+ Add Member</span>
+              </button>
+
+              {/* Message Button */}
+              {onMessageClick && (
+                <button
+                  type="button"
+                  onClick={onMessageClick}
+                  className={`flex-1 py-2.5 px-4 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm ${
+                    isDark 
+                      ? 'bg-[#1f2c34] hover:bg-[#2a3942] text-white border border-[#2a3942]' 
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-900 border border-gray-300'
+                  }`}
+                >
+                  <MessageSquare className="w-4 h-4 text-[#00a8ff]" />
+                  <span>Message</span>
+                </button>
+              )}
+            </>
+          ) : isSelf ? (
             <button
               type="button"
               onClick={onEditProfileClick}
@@ -348,6 +378,56 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
             </>
           )}
         </div>
+
+        {/* Group Members Card for Group Info Screen */}
+        {isGroup && (
+          <div className={`w-full mt-5 rounded-2xl p-4 border transition-all ${
+            isDark ? 'bg-[#111b21] border-[#202c33]' : 'bg-[#f8f9fa] border-gray-200'
+          }`}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-[#00a8ff]" />
+                <span className={`text-sm sm:text-base font-bold ${isDark ? 'text-[#e9edef]' : 'text-gray-900'}`}>
+                  Group Members ({(user.groupMembers || user.members || []).length})
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowSelectMembersModal(true)}
+                className="px-3 py-1.5 rounded-xl bg-[#00a8ff] hover:bg-[#0088cc] text-[#0b141a] text-xs font-bold transition-all flex items-center gap-1 cursor-pointer active:scale-95 shadow-sm"
+                title="Add (+) Members to Group"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Add (+)</span>
+              </button>
+            </div>
+
+            <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+              {(user.groupMembers || user.members || []).length === 0 ? (
+                <p className={`text-xs py-2 ${isDark ? 'text-[#8596a0]' : 'text-gray-500'}`}>
+                  No members added yet. Click <span className="text-[#00a8ff] font-bold">Add (+)</span> to add members!
+                </p>
+              ) : (
+                (user.groupMembers || user.members || []).map((m, idx) => (
+                  <div key={idx} className={`p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between border ${
+                    isDark ? 'bg-[#182229] border-[#202c33] text-white' : 'bg-white border-gray-200 text-gray-800'
+                  }`}>
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-7 h-7 rounded-full bg-[#00a8ff]/20 text-[#00a8ff] flex items-center justify-center font-bold text-xs shrink-0">
+                        {m.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="truncate">{m}</span>
+                    </div>
+                    <span className="text-[10px] text-[#00a8ff] bg-[#00a8ff]/10 px-2 py-0.5 rounded-full font-bold">
+                      Member
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Media, links and docs Card (WhatsApp Style as requested) */}
         <div className={`w-full mt-6 rounded-2xl p-4 border transition-all ${
@@ -679,6 +759,16 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
         subText={usernameStr}
         onSendMessage={onMessageClick}
       />
+
+      {/* Select Members Modal for Group */}
+      {showSelectMembersModal && (
+        <SelectMembersModal
+          groupId={targetUid}
+          groupName={displayName}
+          existingMembers={user.members || user.groupMembers || []}
+          onClose={() => setShowSelectMembersModal(false)}
+        />
+      )}
 
     </div>
   );

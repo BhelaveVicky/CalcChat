@@ -210,8 +210,8 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
   };
 
   const handleTogglePermission = async (key: keyof GroupPermissions) => {
-    if (!isGroupAdmin) {
-      showToast('Only admins can change group permissions');
+    if (!isOwner) {
+      showToast('Only the Group Creator can change group permissions');
       return;
     }
     const val = !currentPermissions[key];

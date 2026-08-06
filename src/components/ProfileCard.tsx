@@ -298,14 +298,16 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
           {isGroup ? (
             <>
               {/* Add Member (+) Button for Group Info */}
-              <button
-                type="button"
-                onClick={() => setShowSelectMembersModal(true)}
-                className="flex-1 py-2.5 px-3 rounded-xl font-bold text-xs bg-[#00a8ff] hover:bg-[#0088cc] text-[#0b141a] border border-[#00a8ff] transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md active:scale-95"
-              >
-                <UserPlus className="w-4 h-4" />
-                <span>+ Add Member</span>
-              </button>
+              {canAddMembers && (
+                <button
+                  type="button"
+                  onClick={() => setShowSelectMembersModal(true)}
+                  className="flex-1 py-2.5 px-3 rounded-xl font-bold text-xs bg-[#00a8ff] hover:bg-[#0088cc] text-[#0b141a] border border-[#00a8ff] transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md active:scale-95"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>+ Add Member</span>
+                </button>
+              )}
 
               {/* Group Permissions & Settings Button */}
               <button
@@ -523,15 +525,17 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                 </span>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setShowSelectMembersModal(true)}
-                className="px-3 py-1.5 rounded-xl bg-[#00a8ff] hover:bg-[#0088cc] text-[#0b141a] text-xs font-bold transition-all flex items-center gap-1 cursor-pointer active:scale-95 shadow-sm"
-                title="Add (+) Members to Group"
-              >
-                <UserPlus className="w-4 h-4" />
-                <span>Add (+)</span>
-              </button>
+              {canAddMembers && (
+                <button
+                  type="button"
+                  onClick={() => setShowSelectMembersModal(true)}
+                  className="px-3 py-1.5 rounded-xl bg-[#00a8ff] hover:bg-[#0088cc] text-[#0b141a] text-xs font-bold transition-all flex items-center gap-1 cursor-pointer active:scale-95 shadow-sm"
+                  title="Add (+) Members to Group"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>Add (+)</span>
+                </button>
+              )}
             </div>
 
             <div className="space-y-2 max-h-52 overflow-y-auto pr-1">

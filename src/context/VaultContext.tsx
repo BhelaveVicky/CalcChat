@@ -2408,27 +2408,29 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const isAdmin = isOwner || (targetGroup.admins && targetGroup.admins.includes(myUid));
 
         if (!isAdmin) {
-          const perms = targetGroup.permissions;
-          if (perms) {
-            if (perms.onlyAdminsSend || perms.sendMessages === false) {
-              throw new Error('Only group admins can send messages in this group.');
+          const perms = targetGroup.permissions ? { ...DEFAULT_GROUP_PERMISSIONS, ...targetGroup.permissions } : DEFAULT_GROUP_PERMISSIONS;
+          if (perms.onlyAdminsSend || perms.sendMessages === false) {
+            throw new Error('Only group admins can send messages in this group.');
+          }
+          if (media) {
+            if (perms.disableMediaSharing) {
+              throw new Error('Media sharing is disabled in this group.');
             }
-            if (media) {
-              if (perms.disableMediaSharing) {
-                throw new Error('Media sharing is disabled in this group.');
-              }
-              if (media.type === 'image' && perms.sendImages === false) {
-                throw new Error('Sending images is disabled in this group.');
-              }
-              if (media.type === 'video' && perms.sendVideos === false) {
-                throw new Error('Sending videos is disabled in this group.');
-              }
-              if (media.type === 'file' && perms.sendFiles === false) {
-                throw new Error('Sending files is disabled in this group.');
-              }
-              if (media.type === 'audio' && perms.sendVoice === false) {
-                throw new Error('Sending voice notes is disabled in this group.');
-              }
+            const isGifOrSticker = Boolean(media.isGif || (media.name && media.name.toLowerCase().endsWith('.gif')));
+            if (isGifOrSticker && perms.sendGifs === false) {
+              throw new Error('Sending GIFs & stickers is disabled in this group.');
+            }
+            if (media.type === 'image' && perms.sendImages === false) {
+              throw new Error('Sending images is disabled in this group.');
+            }
+            if (media.type === 'video' && perms.sendVideos === false) {
+              throw new Error('Sending videos is disabled in this group.');
+            }
+            if (media.type === 'file' && perms.sendFiles === false) {
+              throw new Error('Sending files is disabled in this group.');
+            }
+            if (media.type === 'audio' && perms.sendVoice === false) {
+              throw new Error('Sending voice notes is disabled in this group.');
             }
           }
         }
@@ -2994,6 +2996,19 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!authUser) return;
     if (activeCallRef.current && activeCallRef.current.contactId === groupId && activeCallRef.current.status === 'connected') return;
 
+    const targetGroup = groupContacts.find(g => g.id === groupId) || contacts.find(c => c.id === groupId);
+    if (targetGroup) {
+      const myUid = authUser?.uid || user.id;
+      const isOwner = targetGroup.ownerId === myUid || targetGroup.createdBy === myUid;
+      const isAdmin = isOwner || (targetGroup.admins && targetGroup.admins.includes(myUid));
+      if (!isAdmin) {
+        const perms = targetGroup.permissions ? { ...DEFAULT_GROUP_PERMISSIONS, ...targetGroup.permissions } : DEFAULT_GROUP_PERMISSIONS;
+        if (perms.startGroupCalls === false) {
+          throw new Error('Group calls are disabled for regular members in this group.');
+        }
+      }
+    }
+
     setCallPermissionError(null);
     let localStream: MediaStream | null = null;
     try {
@@ -3065,6 +3080,21 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     const isGroup = groupContacts.some(g => g.id === contactId) || contactId.startsWith('group_') || contacts.some(c => c.id === contactId && c.isGroup);
+
+    if (isGroup) {
+      const targetGroup = groupContacts.find(g => g.id === contactId) || contacts.find(c => c.id === contactId);
+      if (targetGroup) {
+        const myUid = authUser?.uid || user.id;
+        const isOwner = targetGroup.ownerId === myUid || targetGroup.createdBy === myUid;
+        const isAdmin = isOwner || (targetGroup.admins && targetGroup.admins.includes(myUid));
+        if (!isAdmin) {
+          const perms = targetGroup.permissions ? { ...DEFAULT_GROUP_PERMISSIONS, ...targetGroup.permissions } : DEFAULT_GROUP_PERMISSIONS;
+          if (perms.startGroupCalls === false) {
+            throw new Error('Group calls are disabled for regular members in this group.');
+          }
+        }
+      }
+    }
 
     if (!isGroup && authUser && contactId === authUser.uid) {
       throw new Error('You cannot start a call with yourself.');
@@ -4048,6 +4078,16 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       // Find current target group from local groupContacts or contacts
       const targetGroup = groupContacts.find(g => g.id === groupId) || contacts.find(c => c.id === groupId);
+      if (targetGroup) {
+        const isOwner = targetGroup.ownerId === myUid || targetGroup.createdBy === myUid;
+        const isAdmin = isOwner || (targetGroup.admins && targetGroup.admins.includes(myUid));
+        if (!isAdmin) {
+          const perms = targetGroup.permissions ? { ...DEFAULT_GROUP_PERMISSIONS, ...targetGroup.permissions } : DEFAULT_GROUP_PERMISSIONS;
+          if (perms.addMembers === false) {
+            throw new Error('Adding new members is disabled in this group.');
+          }
+        }
+      }
       const existingMembers = targetGroup?.members || [];
       const existingNames = targetGroup?.groupMembers || [];
 

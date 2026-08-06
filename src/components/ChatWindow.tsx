@@ -12,7 +12,7 @@ import {
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useVault } from '../context/VaultContext';
-import { MediaAttachment, Message, Contact, StatusUpdate } from '../types';
+import { MediaAttachment, Message, Contact, StatusUpdate, GroupPermissions, DEFAULT_GROUP_PERMISSIONS } from '../types';
 import { StatusViewer } from './Status/StatusViewer';
 import { NicknameModal } from './NicknameModal';
 import { compressImage } from '../lib/mediaCompressor';
@@ -226,6 +226,25 @@ export const ChatWindow: React.FC = () => {
   const isDark = settings.theme !== 'material-light' && settings.theme !== 'light';
   
   const contact = contacts.find(c => c.id === activeContactId);
+
+  const groupPerms: GroupPermissions = contact?.permissions
+    ? { ...DEFAULT_GROUP_PERMISSIONS, ...contact.permissions }
+    : DEFAULT_GROUP_PERMISSIONS;
+
+  const isGroupOwner = Boolean(contact?.isGroup && (contact.ownerId === user.id || contact.createdBy === user.id));
+  const isGroupAdmin = Boolean(contact?.isGroup && (isGroupOwner || (Array.isArray(contact.admins) && contact.admins.includes(user.id))));
+
+  const canSendMessages = !contact?.isGroup || isGroupAdmin || (groupPerms.sendMessages && !groupPerms.onlyAdminsSend);
+  const canSendImages = !contact?.isGroup || isGroupAdmin || (groupPerms.sendImages && !groupPerms.onlyAdminsSend && !groupPerms.disableMediaSharing);
+  const canSendVideos = !contact?.isGroup || isGroupAdmin || (groupPerms.sendVideos && !groupPerms.onlyAdminsSend && !groupPerms.disableMediaSharing);
+  const canSendFiles = !contact?.isGroup || isGroupAdmin || (groupPerms.sendFiles && !groupPerms.onlyAdminsSend && !groupPerms.disableMediaSharing);
+  const canSendVoice = !contact?.isGroup || isGroupAdmin || (groupPerms.sendVoice && !groupPerms.onlyAdminsSend && !groupPerms.disableMediaSharing);
+  const canSendGifs = !contact?.isGroup || isGroupAdmin || (groupPerms.sendGifs && !groupPerms.onlyAdminsSend && !groupPerms.disableMediaSharing);
+  const canStartGroupCalls = !contact?.isGroup || isGroupAdmin || (groupPerms.startGroupCalls !== false);
+  const canEditGroupInfo = !contact?.isGroup || isGroupAdmin || (groupPerms.editGroupInfo !== false);
+  const canAddMembers = !contact?.isGroup || isGroupAdmin || (groupPerms.addMembers !== false);
+  const canShareInviteLink = !contact?.isGroup || isGroupAdmin || (groupPerms.shareInviteLink !== false);
+  const hasAnyMediaPermission = canSendImages || canSendVideos || canSendFiles;
   
   // Wallpaper styling - priority: 1) per-chat custom wallpaper, 2) group wallpaper, 3) global app wallpaper
   const chatWallpaper = (contact?.id && perChatWallpapers[contact.id])
@@ -828,6 +847,11 @@ export const ChatWindow: React.FC = () => {
     e.preventDefault();
     if (!inputText.trim() || !activeContactId) return;
 
+    if (!canSendMessages) {
+      showToast(groupPerms.onlyAdminsSend ? 'Only admins can send messages in this group.' : 'Sending text messages is disabled in this group.');
+      return;
+    }
+
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = null;
@@ -860,6 +884,11 @@ export const ChatWindow: React.FC = () => {
   };
 
   const handleStartRecording = async () => {
+    if (!canSendVoice) {
+      showToast('Sending voice notes is disabled in this group.');
+      return;
+    }
+
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       showToast('Voice recording is not supported in this browser');
       return;
@@ -1116,6 +1145,23 @@ export const ChatWindow: React.FC = () => {
       const isVid = file.type.startsWith('video/');
       const isAud = file.type.startsWith('audio/');
       const type = isImg ? 'image' : isVid ? 'video' : isAud ? 'audio' : 'file';
+
+      if (isImg && !canSendImages) {
+        showToast('Sending images is disabled in this group.');
+        continue;
+      }
+      if (isVid && !canSendVideos) {
+        showToast('Sending videos is disabled in this group.');
+        continue;
+      }
+      if (isAud && !canSendVoice) {
+        showToast('Sending voice notes is disabled in this group.');
+        continue;
+      }
+      if (!isImg && !isVid && !isAud && !canSendFiles) {
+        showToast('Sending files is disabled in this group.');
+        continue;
+      }
 
       const formattedSize = file.size / (1024 * 1024) > 1 
         ? (file.size / (1024 * 1024)).toFixed(1) + ' MB'
@@ -1408,7 +1454,11 @@ export const ChatWindow: React.FC = () => {
                     showToast('You cannot call yourself in Message Yourself.');
                     return;
                   }
-                  if (!isFriend(contact.id)) {
+                  if (contact.isGroup && !canStartGroupCalls) {
+                    showToast('Group calls are disabled for regular members in this group.');
+                    return;
+                  }
+                  if (!contact.isGroup && !isFriend(contact.id)) {
                     showToast('Become friends to start a call.');
                     return;
                   }
@@ -1427,7 +1477,11 @@ export const ChatWindow: React.FC = () => {
                     showToast('You cannot call yourself in Message Yourself.');
                     return;
                   }
-                  if (!isFriend(contact.id)) {
+                  if (contact.isGroup && !canStartGroupCalls) {
+                    showToast('Group calls are disabled for regular members in this group.');
+                    return;
+                  }
+                  if (!contact.isGroup && !isFriend(contact.id)) {
                     showToast('Become friends to start a call.');
                     return;
                   }
@@ -2621,40 +2675,66 @@ export const ChatWindow: React.FC = () => {
                 isDark ? 'bg-[#111b21] border-[#222e35]' : 'bg-white border-gray-200'
               }`}>
                 {/* Photos */}
-                <button
-                  type="button"
-                  onClick={() => photoInputRef.current?.click()}
-                  className="flex flex-col items-center gap-1.5 p-2 text-xs hover:opacity-80 transition-opacity cursor-pointer"
-                >
-                  <div className="w-12 h-12 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center border border-purple-500/30 shadow">
-                    <Image className="w-6 h-6" />
-                  </div>
-                  <span className={isDark ? 'text-gray-300 font-medium' : 'text-gray-700 font-medium'}>Photos</span>
-                </button>
+                {canSendImages && (
+                  <button
+                    type="button"
+                    onClick={() => photoInputRef.current?.click()}
+                    className="flex flex-col items-center gap-1.5 p-2 text-xs hover:opacity-80 transition-opacity cursor-pointer"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center border border-purple-500/30 shadow">
+                      <Image className="w-6 h-6" />
+                    </div>
+                    <span className={isDark ? 'text-gray-300 font-medium' : 'text-gray-700 font-medium'}>Photos</span>
+                  </button>
+                )}
 
                 {/* Video */}
-                <button
-                  type="button"
-                  onClick={() => videoInputRef.current?.click()}
-                  className="flex flex-col items-center gap-1.5 p-2 text-xs hover:opacity-80 transition-opacity cursor-pointer"
-                >
-                  <div className="w-12 h-12 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center border border-rose-500/30 shadow">
-                    <Video className="w-6 h-6" />
-                  </div>
-                  <span className={isDark ? 'text-gray-300 font-medium' : 'text-gray-700 font-medium'}>Video</span>
-                </button>
+                {canSendVideos && (
+                  <button
+                    type="button"
+                    onClick={() => videoInputRef.current?.click()}
+                    className="flex flex-col items-center gap-1.5 p-2 text-xs hover:opacity-80 transition-opacity cursor-pointer"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center border border-rose-500/30 shadow">
+                      <Video className="w-6 h-6" />
+                    </div>
+                    <span className={isDark ? 'text-gray-300 font-medium' : 'text-gray-700 font-medium'}>Video</span>
+                  </button>
+                )}
 
                 {/* Camera */}
-                <button
-                  type="button"
-                  onClick={() => openCameraModal('user')}
-                  className="flex flex-col items-center gap-1.5 p-2 text-xs hover:opacity-80 transition-opacity cursor-pointer"
-                >
-                  <div className="w-12 h-12 rounded-full bg-sky-500/20 text-[#00a8ff] flex items-center justify-center border border-sky-500/30 shadow">
-                    <Camera className="w-6 h-6" />
+                {(canSendImages || canSendVideos) && (
+                  <button
+                    type="button"
+                    onClick={() => openCameraModal('user')}
+                    className="flex flex-col items-center gap-1.5 p-2 text-xs hover:opacity-80 transition-opacity cursor-pointer"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-sky-500/20 text-[#00a8ff] flex items-center justify-center border border-sky-500/30 shadow">
+                      <Camera className="w-6 h-6" />
+                    </div>
+                    <span className={isDark ? 'text-gray-300 font-medium' : 'text-gray-700 font-medium'}>Camera</span>
+                  </button>
+                )}
+
+                {/* Document */}
+                {canSendFiles && (
+                  <button
+                    type="button"
+                    onClick={() => docInputRef.current?.click()}
+                    className="flex flex-col items-center gap-1.5 p-2 text-xs hover:opacity-80 transition-opacity cursor-pointer"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30 shadow">
+                      <File className="w-6 h-6" />
+                    </div>
+                    <span className={isDark ? 'text-gray-300 font-medium' : 'text-gray-700 font-medium'}>Document</span>
+                  </button>
+                )}
+
+                {!canSendImages && !canSendVideos && !canSendFiles && (
+                  <div className="col-span-3 text-xs text-amber-500 font-medium py-2 flex items-center gap-1.5">
+                    <Lock className="w-4 h-4" /> Media sharing is disabled by group admin
                   </div>
-                  <span className={isDark ? 'text-gray-300 font-medium' : 'text-gray-700 font-medium'}>Camera</span>
-                </button>
+                )}
               </div>
             )}
 
@@ -2719,6 +2799,17 @@ export const ChatWindow: React.FC = () => {
                   </button>
                 )}
               </div>
+            ) : !canSendMessages ? (
+              <div className={`p-4 text-center flex items-center justify-center gap-2 border-t shrink-0 ${
+                isDark ? 'bg-[#111b21] border-[#1f2c34] text-[#8696a0]' : 'bg-gray-100 border-gray-200 text-gray-600'
+              }`}>
+                <Lock className="w-4 h-4 text-amber-500 shrink-0" />
+                <span className="text-xs font-semibold">
+                  {groupPerms.onlyAdminsSend
+                    ? "Only admins can send messages in this group"
+                    : "Sending text messages is disabled in this group"}
+                </span>
+              </div>
             ) : (
               <form onSubmit={handleSend} className={`p-2 flex items-center gap-2 shrink-0 transition-colors ${
                 isDark ? 'bg-[#0b141a]' : 'bg-gray-100 border-t border-gray-200'
@@ -2755,6 +2846,10 @@ export const ChatWindow: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => {
+                      if (!hasAnyMediaPermission) {
+                        showToast('Media sharing is disabled in this group.');
+                        return;
+                      }
                       setShowAttachModal(!showAttachModal);
                       setShowEmojiPicker(false);
                     }}
@@ -2770,7 +2865,13 @@ export const ChatWindow: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={() => setActiveTab('gallery')}
+                    onClick={() => {
+                      if (!canSendImages && !canSendVideos) {
+                        showToast('Sending camera media is disabled in this group.');
+                        return;
+                      }
+                      setActiveTab('gallery');
+                    }}
                     className={`p-1.5 transition-colors hidden sm:block ${
                       isDark ? 'text-[#8596a0] hover:text-[#e9edef]' : 'text-gray-500 hover:text-gray-800'
                     }`}
@@ -2791,7 +2892,13 @@ export const ChatWindow: React.FC = () => {
                 ) : (
                   <button
                     type="button"
-                    onClick={handleStartRecording}
+                    onClick={() => {
+                      if (!canSendVoice) {
+                        showToast('Sending voice notes is disabled in this group.');
+                        return;
+                      }
+                      handleStartRecording();
+                    }}
                     className="bg-[#00a8ff] hover:bg-[#0088cc] active:scale-95 text-[#0b141a] w-11 h-11 rounded-full font-bold transition-all shadow-md flex items-center justify-center shrink-0 cursor-pointer"
                     title="Hold to Record Voice Message"
                   >

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -56,11 +56,18 @@ export const UserProfile: React.FC<UserProfileProps> = ({ targetUserId, onBack }
   const isSelf = effectiveUserId === myUid || effectiveUserId === 'me';
   const isFollowing = profileData?.followers?.includes(myUid) || false;
 
+  const prevUserIdRef = useRef<string | null>(null);
+
   // Fetch target user profile from Firestore
   useEffect(() => {
     let isMounted = true;
-    setLoading(true);
-    setError(null);
+    
+    // Only show full loading screen if switching to a new user or if profileData is missing
+    if (prevUserIdRef.current !== effectiveUserId || !profileData) {
+      setLoading(true);
+      setError(null);
+    }
+    prevUserIdRef.current = effectiveUserId;
 
     const fetchProfile = async () => {
       try {
@@ -80,10 +87,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ targetUserId, onBack }
               isOnline: true,
             });
           }
-        }
-
-        // Check if db is initialized
-        if (db && effectiveUserId && effectiveUserId !== 'me') {
+        } else if (db && effectiveUserId && effectiveUserId !== 'me') {
           const userDocRef = doc(db, 'users', effectiveUserId);
           const snap = await getDoc(userDocRef);
 
@@ -135,7 +139,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ targetUserId, onBack }
         }
       } catch (err) {
         console.error('Error fetching user profile:', err);
-        if (isMounted) setError('Failed to load profile details');
+        if (isMounted && !profileData) setError('Failed to load profile details');
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -146,7 +150,10 @@ export const UserProfile: React.FC<UserProfileProps> = ({ targetUserId, onBack }
     return () => {
       isMounted = false;
     };
-  }, [effectiveUserId, myUid, currentUser, authUser, contacts]);
+  }, [effectiveUserId, myUid]);
+
+  const followersKey = (profileData?.followers || []).join(',');
+  const followingKey = (profileData?.following || []).join(',');
 
   // Load followers list user objects
   useEffect(() => {
@@ -184,7 +191,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ targetUserId, onBack }
 
     loadFollowers();
     return () => { isMounted = false; };
-  }, [profileData?.followers]);
+  }, [followersKey]);
 
   // Load following list user objects
   useEffect(() => {
@@ -222,7 +229,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ targetUserId, onBack }
 
     loadFollowing();
     return () => { isMounted = false; };
-  }, [profileData?.following]);
+  }, [followingKey]);
 
   // Follow / Unfollow Toggle handler
   const handleFollowToggle = async () => {

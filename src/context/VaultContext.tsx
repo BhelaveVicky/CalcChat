@@ -2087,13 +2087,27 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const replyToStatus = async (status: StatusUpdate, replyText: string) => {
     if (!authUser || !status) return;
 
+    let createdAtFormatted: any = Date.now();
+    if (status.createdAt?.toMillis) {
+      createdAtFormatted = status.createdAt.toMillis();
+    } else if (status.createdAt?.seconds) {
+      createdAtFormatted = status.createdAt.seconds * 1000;
+    } else if (typeof status.createdAt === 'number') {
+      createdAtFormatted = status.createdAt;
+    }
+
+    const resolvedType = status.mediaType || (status.mediaUrl ? 'image' : 'text');
+
     const statusReplyData: StatusReplyData = {
       statusId: status.id,
-      statusMediaUrl: status.mediaUrl,
-      statusText: status.text,
-      statusMediaType: status.mediaType,
-      statusOwnerName: status.userName,
       statusOwnerId: status.userId,
+      statusType: resolvedType,
+      statusThumbnail: status.mediaUrl || '',
+      statusMediaUrl: status.mediaUrl || '',
+      statusText: status.text || status.caption || '',
+      statusMediaType: resolvedType,
+      statusOwnerName: status.userName || 'User',
+      statusCreatedAt: createdAtFormatted,
       textReply: replyText,
     };
 
@@ -2108,13 +2122,27 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const reactToStatus = async (status: StatusUpdate, emoji: string) => {
     if (!authUser || !status) return;
 
+    let createdAtFormatted: any = Date.now();
+    if (status.createdAt?.toMillis) {
+      createdAtFormatted = status.createdAt.toMillis();
+    } else if (status.createdAt?.seconds) {
+      createdAtFormatted = status.createdAt.seconds * 1000;
+    } else if (typeof status.createdAt === 'number') {
+      createdAtFormatted = status.createdAt;
+    }
+
+    const resolvedType = status.mediaType || (status.mediaUrl ? 'image' : 'text');
+
     const statusReactionData: StatusReactionData = {
       statusId: status.id,
-      statusMediaUrl: status.mediaUrl,
-      statusText: status.text,
-      statusMediaType: status.mediaType,
-      statusOwnerName: status.userName,
       statusOwnerId: status.userId,
+      statusType: resolvedType,
+      statusThumbnail: status.mediaUrl || '',
+      statusMediaUrl: status.mediaUrl || '',
+      statusText: status.text || status.caption || '',
+      statusMediaType: resolvedType,
+      statusOwnerName: status.userName || 'User',
+      statusCreatedAt: createdAtFormatted,
       emoji: emoji,
     };
 
@@ -2726,7 +2754,12 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const currentDeleted = getLocalDeletedCallIds();
       deletedCallIds.forEach(id => currentDeleted.add(id));
 
-      const filtered = Array.from(logsMap.values()).filter(log => !currentDeleted.has(log.id));
+      const filtered = Array.from(logsMap.values()).filter(log => {
+        if (!log || !log.id) return false;
+        if (currentDeleted.has(log.id)) return false;
+        if (log.callerId && currentDeleted.has(log.callerId + '_' + log.id)) return false;
+        return true;
+      });
 
       // Sort by creation time descending
       const sorted = filtered.sort((a, b) => {
@@ -3278,18 +3311,19 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const clearCallLogs = async () => {
     const allIds = callLogs.map(c => c.id);
     setCallLogs([]);
-    if (!authUser || !allIds.length) return;
-    markCallsDeleted(allIds);
-
-    try {
-      const batch = writeBatch(db);
-      allIds.forEach(cId => {
-        batch.delete(doc(db, 'calls', cId));
-        batch.set(doc(db, 'users', authUser.uid, 'deletedCalls', cId), { deletedAt: serverTimestamp() });
-      });
-      await batch.commit().catch(() => {});
-    } catch (e) {
-      console.warn('Error clearing call logs:', e);
+    if (!authUser) return;
+    if (allIds.length > 0) {
+      markCallsDeleted(allIds);
+      try {
+        const batch = writeBatch(db);
+        allIds.forEach(cId => {
+          batch.delete(doc(db, 'calls', cId));
+          batch.set(doc(db, 'users', authUser.uid, 'deletedCalls', cId), { deletedAt: serverTimestamp() });
+        });
+        await batch.commit().catch(() => {});
+      } catch (e) {
+        console.warn('Error clearing call logs:', e);
+      }
     }
   };
 

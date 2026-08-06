@@ -110,20 +110,26 @@ export interface Message {
   reactions?: Record<string, string>;
   statusReply?: {
     statusId: string;
+    statusOwnerId?: string;
+    statusType?: 'image' | 'video' | 'text';
+    statusThumbnail?: string;
     statusMediaUrl?: string;
     statusText?: string;
-    statusMediaType?: 'image' | 'video';
+    statusMediaType?: 'image' | 'video' | 'text';
     statusOwnerName?: string;
-    statusOwnerId?: string;
+    statusCreatedAt?: any;
     textReply?: string;
   };
   statusReaction?: {
     statusId: string;
+    statusOwnerId?: string;
+    statusType?: 'image' | 'video' | 'text';
+    statusThumbnail?: string;
     statusMediaUrl?: string;
     statusText?: string;
-    statusMediaType?: 'image' | 'video';
+    statusMediaType?: 'image' | 'video' | 'text';
     statusOwnerName?: string;
-    statusOwnerId?: string;
+    statusCreatedAt?: any;
     emoji: string;
   };
 }

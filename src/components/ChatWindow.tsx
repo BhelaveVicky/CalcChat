@@ -6,10 +6,14 @@ import {
   Lock, CheckCheck, Check, Paperclip, Camera, Phone, Mic, MicOff, MoreVertical, X,
   Search, CheckSquare, Heart, Ban, MinusCircle, Copy, Pin, Archive, Star,
   CornerUpLeft, Play, Pause, Volume2, Edit3, Forward, Share2, Info, ChevronRight, File, PhoneCall, Tag,
-  RotateCw, RefreshCw, Music, MapPin, User, ZoomIn, ZoomOut, Download, Clock, UserCheck, UserPlus, Flag, XCircle
+  RotateCw, RefreshCw, Music, MapPin, User, ZoomIn, ZoomOut, Download, Clock, UserCheck, UserPlus, Flag, XCircle,
+  AlertCircle, Loader2
 } from 'lucide-react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { useVault } from '../context/VaultContext';
-import { MediaAttachment, Message, Contact } from '../types';
+import { MediaAttachment, Message, Contact, StatusUpdate } from '../types';
+import { StatusViewer } from './Status/StatusViewer';
 import { NicknameModal } from './NicknameModal';
 import { compressImage } from '../lib/mediaCompressor';
 import { formatChatDate, formatMessageTime, formatLastSeen } from '../lib/dateUtils';
@@ -83,8 +87,119 @@ export const ChatWindow: React.FC = () => {
     markViewOnceOpened, sendFriendRequest, acceptFriendRequest,
     pendingFriendRequests, sentFriendRequests,
     addReactionMessage, removeReactionMessage, deleteMultipleMessages, authUser,
-    updateGroupDetails, deleteGroup, adminWallpapers
+    updateGroupDetails, deleteGroup, adminWallpapers,
+    statusUpdates, likeStatusUpdate, markStatusAsSeen, replyToStatus, reactToStatus,
+    deleteStatusUpdate, getSeenRecords, getLikeRecords
   } = useVault();
+
+  // Status Viewer from Chat Reply / Reaction State
+  const [statusViewerGroups, setStatusViewerGroups] = useState<any[] | null>(null);
+  const [statusViewerGroupIdx, setStatusViewerGroupIdx] = useState<number>(0);
+  const [statusViewerStatusIdx, setStatusViewerStatusIdx] = useState<number>(0);
+  const [statusToast, setStatusToast] = useState<string | null>(null);
+  const [isLoadingStatus, setIsLoadingStatus] = useState<boolean>(false);
+
+  const handleOpenStatusFromReply = async (statusId: string, statusOwnerId?: string) => {
+    if (!statusId) return;
+
+    setIsLoadingStatus(true);
+    try {
+      let targetStatus: StatusUpdate | null = null;
+
+      // 1. Check local statusUpdates from context
+      targetStatus = (statusUpdates || []).find((s: StatusUpdate) => s.id === statusId) || null;
+
+      // 2. If not found in memory, query Firestore directly
+      if (!targetStatus && db) {
+        const snap = await getDoc(doc(db, 'status', statusId)).catch(() => null);
+        if (snap && snap.exists()) {
+          const data = snap.data();
+          let createdMs = Date.now();
+          if (data.createdAt?.toMillis) {
+            createdMs = data.createdAt.toMillis();
+          } else if (data.createdAt?.seconds) {
+            createdMs = data.createdAt.seconds * 1000;
+          } else if (typeof data.createdAt === 'number') {
+            createdMs = data.createdAt;
+          }
+
+          const twentyFourHoursMs = 24 * 60 * 60 * 1000;
+          if (Date.now() - createdMs <= twentyFourHoursMs) {
+            targetStatus = {
+              id: snap.id,
+              userId: data.userId,
+              userName: data.userName || 'User',
+              userAvatar: data.userAvatar || '',
+              text: data.text,
+              mediaUrl: data.mediaUrl,
+              mediaType: data.mediaType || 'image',
+              caption: data.caption,
+              bgColor: data.bgColor,
+              privacyMode: data.privacyMode || 'contacts',
+              allowedUserIds: data.allowedUserIds || [],
+              createdAt: data.createdAt,
+              expiresAt: data.expiresAt,
+              likes: data.likes || [],
+              seenUserIds: data.seenUserIds || [],
+              likesCount: data.likesCount || 0,
+              seenCount: data.seenCount || 0,
+              repliesCount: data.repliesCount || 0,
+            };
+          }
+        }
+      }
+
+      // 3. If missing or expired (>24 hours)
+      if (!targetStatus) {
+        setStatusToast('This status is no longer available.');
+        setTimeout(() => setStatusToast(null), 3500);
+        setIsLoadingStatus(false);
+        return;
+      }
+
+      let createdMs = Date.now();
+      if (targetStatus.createdAt?.toMillis) {
+        createdMs = targetStatus.createdAt.toMillis();
+      } else if (targetStatus.createdAt?.seconds) {
+        createdMs = targetStatus.createdAt.seconds * 1000;
+      } else if (typeof targetStatus.createdAt === 'number') {
+        createdMs = targetStatus.createdAt;
+      }
+
+      if (Date.now() - createdMs > 24 * 60 * 60 * 1000) {
+        setStatusToast('This status is no longer available.');
+        setTimeout(() => setStatusToast(null), 3500);
+        setIsLoadingStatus(false);
+        return;
+      }
+
+      // 4. Group all available statuses for this owner
+      const targetUserId = targetStatus.userId || statusOwnerId || 'unknown';
+      let ownerStatuses = (statusUpdates || []).filter((s: StatusUpdate) => s.userId === targetUserId);
+      if (!ownerStatuses.some((s: StatusUpdate) => s.id === targetStatus!.id)) {
+        ownerStatuses = [targetStatus, ...ownerStatuses];
+      }
+
+      const targetGroup = {
+        userId: targetUserId,
+        userName: targetStatus.userName || 'User',
+        userAvatar: targetStatus.userAvatar || '',
+        statuses: ownerStatuses,
+      };
+
+      const targetStatusIdx = ownerStatuses.findIndex((s: StatusUpdate) => s.id === targetStatus!.id);
+
+      setStatusViewerGroups([targetGroup]);
+      setStatusViewerGroupIdx(0);
+      setStatusViewerStatusIdx(targetStatusIdx >= 0 ? targetStatusIdx : 0);
+    } catch (err) {
+      console.error('Error opening status from reply:', err);
+      setStatusToast('This status is no longer available.');
+      setTimeout(() => setStatusToast(null), 3500);
+    } finally {
+      setIsLoadingStatus(false);
+    }
+  };
 
   const [showUnfriendConfirmModal, setShowUnfriendConfirmModal] = useState(false);
   const [showEditGroupNameModal, setShowEditGroupNameModal] = useState(false);
@@ -1735,57 +1850,116 @@ export const ChatWindow: React.FC = () => {
                           </div>
                         )}
 
-                        {/* Status Reply Card */}
+                        {/* Status Reply Card - WhatsApp Style */}
                         {msg.statusReply && (
-                          <div className={`p-2 rounded-xl border-l-4 mb-2 text-xs border-pink-500 flex items-center gap-2.5 ${
-                            isDark ? 'bg-black/30' : 'bg-pink-500/10'
-                          }`}>
-                            {msg.statusReply.statusMediaUrl ? (
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (msg.statusReply?.statusId) {
+                                handleOpenStatusFromReply(msg.statusReply.statusId, msg.statusReply.statusOwnerId);
+                              }
+                            }}
+                            className={`p-2.5 rounded-xl border-l-[4px] mb-2.5 text-xs flex items-center justify-between gap-3 cursor-pointer hover:opacity-95 active:scale-[0.99] transition-all overflow-hidden ${
+                              isMe
+                                ? 'bg-black/20 border-white text-white hover:bg-black/30'
+                                : (isDark ? 'bg-[#111b21] border-[#ea4c89] text-[#e9edef] hover:bg-[#182229]' : 'bg-[#f0f2f5] border-[#ea4c89] text-gray-900 hover:bg-gray-200/80')
+                            }`}
+                            title="Click to view full status"
+                          >
+                            <div className="flex-1 min-w-0 pr-1">
+                              <div className={`font-semibold text-[12px] truncate flex items-center gap-1.5 ${
+                                isMe ? 'text-white' : 'text-[#ea4c89] dark:text-[#ff7b61]'
+                              }`}>
+                                <span className="font-bold truncate">{msg.statusReply.statusOwnerName || 'User'}</span>
+                                <span className="opacity-75 font-normal text-[11px] shrink-0">· Status</span>
+                              </div>
+                              <div className={`flex items-center gap-1.5 text-[11px] mt-0.5 truncate ${
+                                isMe ? 'text-white/85' : 'text-gray-600 dark:text-[#8696a0]'
+                              }`}>
+                                {(msg.statusReply.statusType === 'video' || msg.statusReply.statusMediaType === 'video') ? (
+                                  <>
+                                    <Video className={`w-3.5 h-3.5 shrink-0 inline ${isMe ? 'text-white' : 'text-[#ea4c89] dark:text-[#ff7b61]'}`} />
+                                    <span className="truncate font-medium">{msg.statusReply.statusText || 'Video'}</span>
+                                  </>
+                                ) : (msg.statusReply.statusType === 'image' || msg.statusReply.statusMediaType === 'image' || msg.statusReply.statusThumbnail || msg.statusReply.statusMediaUrl) ? (
+                                  <>
+                                    <Camera className={`w-3.5 h-3.5 shrink-0 inline ${isMe ? 'text-white' : 'text-[#ea4c89] dark:text-[#ff7b61]'}`} />
+                                    <span className="truncate font-medium">{msg.statusReply.statusText || 'Photo'}</span>
+                                  </>
+                                ) : (
+                                  <span className="truncate font-medium">{msg.statusReply.statusText || 'Status'}</span>
+                                )}
+                              </div>
+                            </div>
+
+                            {(msg.statusReply.statusThumbnail || msg.statusReply.statusMediaUrl) ? (
                               <img
-                                src={msg.statusReply.statusMediaUrl}
+                                src={msg.statusReply.statusThumbnail || msg.statusReply.statusMediaUrl}
                                 alt="Status preview"
-                                className="w-11 h-11 object-cover rounded-lg shrink-0 border border-white/20"
+                                className="w-12 h-12 object-cover rounded-lg shrink-0 border border-black/10 dark:border-white/20 shadow-xs"
                               />
                             ) : (
-                              <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center shrink-0 text-white font-bold text-[10px] p-1 text-center truncate">
+                              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center shrink-0 text-white font-bold text-[10px] p-1 text-center truncate shadow-xs">
                                 Status
                               </div>
                             )}
-                            <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-pink-400 text-[11px] truncate">
-                                Reply to {msg.statusReply.statusOwnerName}'s Status
-                              </p>
-                              {msg.statusReply.statusText && (
-                                <p className="truncate opacity-80 text-[11px]">{msg.statusReply.statusText}</p>
-                              )}
-                            </div>
                           </div>
                         )}
 
-                        {/* Status Reaction Card */}
+                        {/* Status Reaction Card - WhatsApp Style */}
                         {msg.statusReaction && (
-                          <div className={`p-2 rounded-xl border-l-4 mb-2 text-xs border-pink-500 flex items-center gap-2.5 ${
-                            isDark ? 'bg-black/30' : 'bg-pink-500/10'
-                          }`}>
-                            {msg.statusReaction.statusMediaUrl ? (
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (msg.statusReaction?.statusId) {
+                                handleOpenStatusFromReply(msg.statusReaction.statusId, msg.statusReaction.statusOwnerId);
+                              }
+                            }}
+                            className={`p-2.5 rounded-xl border-l-[4px] mb-2.5 text-xs flex items-center justify-between gap-3 cursor-pointer hover:opacity-95 active:scale-[0.99] transition-all overflow-hidden ${
+                              isMe
+                                ? 'bg-black/20 border-white text-white hover:bg-black/30'
+                                : (isDark ? 'bg-[#111b21] border-[#ea4c89] text-[#e9edef] hover:bg-[#182229]' : 'bg-[#f0f2f5] border-[#ea4c89] text-gray-900 hover:bg-gray-200/80')
+                            }`}
+                            title="Click to view full status"
+                          >
+                            <div className="flex-1 min-w-0 pr-1">
+                              <div className={`font-semibold text-[12px] truncate flex items-center gap-1.5 ${
+                                isMe ? 'text-white' : 'text-[#ea4c89] dark:text-[#ff7b61]'
+                              }`}>
+                                <span className="font-bold truncate">{msg.statusReaction.statusOwnerName || 'User'}</span>
+                                <span className="opacity-75 font-normal text-[11px] shrink-0">· Status</span>
+                              </div>
+                              <div className={`flex items-center gap-1.5 text-[11px] mt-0.5 truncate ${
+                                isMe ? 'text-white/85' : 'text-gray-600 dark:text-[#8696a0]'
+                              }`}>
+                                <span className="shrink-0 text-sm leading-none">{msg.statusReaction.emoji}</span>
+                                {(msg.statusReaction.statusType === 'video' || msg.statusReaction.statusMediaType === 'video') ? (
+                                  <>
+                                    <Video className={`w-3.5 h-3.5 shrink-0 inline ${isMe ? 'text-white' : 'text-[#ea4c89] dark:text-[#ff7b61]'}`} />
+                                    <span className="truncate font-medium">{msg.statusReaction.statusText || 'Video'}</span>
+                                  </>
+                                ) : (msg.statusReaction.statusType === 'image' || msg.statusReaction.statusMediaType === 'image' || msg.statusReaction.statusThumbnail || msg.statusReaction.statusMediaUrl) ? (
+                                  <>
+                                    <Camera className={`w-3.5 h-3.5 shrink-0 inline ${isMe ? 'text-white' : 'text-[#ea4c89] dark:text-[#ff7b61]'}`} />
+                                    <span className="truncate font-medium">{msg.statusReaction.statusText || 'Photo'}</span>
+                                  </>
+                                ) : (
+                                  <span className="truncate font-medium">{msg.statusReaction.statusText || 'Status'}</span>
+                                )}
+                              </div>
+                            </div>
+
+                            {(msg.statusReaction.statusThumbnail || msg.statusReaction.statusMediaUrl) ? (
                               <img
-                                src={msg.statusReaction.statusMediaUrl}
+                                src={msg.statusReaction.statusThumbnail || msg.statusReaction.statusMediaUrl}
                                 alt="Status preview"
-                                className="w-11 h-11 object-cover rounded-lg shrink-0 border border-white/20"
+                                className="w-12 h-12 object-cover rounded-lg shrink-0 border border-black/10 dark:border-white/20 shadow-xs"
                               />
                             ) : (
-                              <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center shrink-0 text-white font-bold text-[10px] p-1 text-center truncate">
+                              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center shrink-0 text-white font-bold text-[10px] p-1 text-center truncate shadow-xs">
                                 Status
                               </div>
                             )}
-                            <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-pink-400 text-[11px] truncate flex items-center gap-1">
-                                Reacted {msg.statusReaction.emoji} to status
-                              </p>
-                              {msg.statusReaction.statusText && (
-                                <p className="truncate opacity-80 text-[11px]">{msg.statusReaction.statusText}</p>
-                              )}
-                            </div>
                           </div>
                         )}
 
@@ -3902,6 +4076,45 @@ export const ChatWindow: React.FC = () => {
             }
             showToast(`Wallpaper reset for ${getContactDisplayName(contact)}`);
           }}
+        />
+      )}
+
+      {/* Status Unavailable Toast */}
+      {statusToast && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-[#111b21] text-white px-4 py-3 rounded-2xl shadow-2xl border border-white/10 text-xs font-semibold flex items-center gap-2.5 animate-bounce">
+          <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+          <span>{statusToast}</span>
+        </div>
+      )}
+
+      {/* Loading Status Indicator Overlay */}
+      {isLoadingStatus && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center">
+          <div className="bg-[#111b21] text-white p-4 rounded-2xl flex items-center gap-3 border border-white/10 shadow-2xl">
+            <Loader2 className="w-6 h-6 text-[#00a8ff] animate-spin" />
+            <span className="text-sm font-medium">Opening status...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Reused Fullscreen Status Viewer */}
+      {statusViewerGroups && statusViewerGroups.length > 0 && (
+        <StatusViewer
+          statusGroups={statusViewerGroups}
+          initialGroupIndex={statusViewerGroupIdx}
+          initialStatusIndex={statusViewerStatusIdx}
+          currentUserId={authUser?.uid || 'me'}
+          currentUserName={user.name || authUser?.displayName || 'Me'}
+          currentUserAvatar={user.avatar || authUser?.photoURL || ''}
+          onClose={() => setStatusViewerGroups(null)}
+          onLikeStatus={likeStatusUpdate}
+          onMarkSeen={markStatusAsSeen}
+          onSendReply={replyToStatus}
+          onSendReaction={reactToStatus}
+          onDeleteStatus={deleteStatusUpdate}
+          getSeenRecords={getSeenRecords}
+          getLikeRecords={getLikeRecords}
+          isDark={isDark}
         />
       )}
 

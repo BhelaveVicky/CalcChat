@@ -60,6 +60,9 @@ interface VaultContextType {
   groupContacts: Contact[];
   friendUids: string[];
   unreadTotal: number;
+  unseenStatusCount: number;
+  missedCallCount: number;
+  clearMissedCallsBadge: () => void;
   messages: Record<string, Message[]>;
   callLogs: CallLog[];
   activeCall: ActiveCallState | null;
@@ -203,6 +206,9 @@ const fallbackVaultContext: VaultContextType = {
   groupContacts: [],
   friendUids: [],
   unreadTotal: 0,
+  unseenStatusCount: 0,
+  missedCallCount: 0,
+  clearMissedCallsBadge: () => {},
   messages: {},
   callLogs: [],
   activeCall: null,
@@ -746,6 +752,56 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [customNicknames, setCustomNicknames] = useState<Record<string, string>>({});
 
   const unreadTotal = contacts.reduce((total, contact) => total + (contact.unreadCount || 0), 0);
+
+  // Status updates unseen count (from other users)
+  const unseenStatusCount = statusUpdates.filter(s => {
+    if (!authUser) return false;
+    if (s.userId === authUser.uid) return false;
+    const seen = s.seenUserIds || [];
+    return !seen.includes(authUser.uid);
+  }).length;
+
+  // Missed calls badge tracking
+  const [lastSeenCallsTabAt, setLastSeenCallsTabAt] = useState<number>(() => {
+    try {
+      return parseInt(localStorage.getItem('calcchat_last_seen_calls_at') || '0', 10);
+    } catch {
+      return 0;
+    }
+  });
+
+  const clearMissedCallsBadge = () => {
+    const now = Date.now();
+    setLastSeenCallsTabAt(now);
+    try {
+      localStorage.setItem('calcchat_last_seen_calls_at', now.toString());
+    } catch (e) {
+      console.warn('Failed to save lastSeenCallsTabAt', e);
+    }
+  };
+
+  const missedCallCount = callLogs.filter(log => {
+    const isIncoming = log.direction === 'incoming' || (log.receiverId === user?.id || (log.callerId && log.callerId !== user?.id));
+    const isMissed = log.status === 'missed' || log.status === 'rejected' || log.status === 'busy' || log.status === 'cancelled' || log.status === 'failed';
+    if (!isIncoming || !isMissed) return false;
+
+    let callTime = 0;
+    if (log.createdAt?.toMillis) {
+      callTime = log.createdAt.toMillis();
+    } else if (log.createdAt?.seconds) {
+      callTime = log.createdAt.seconds * 1000;
+    } else if (log.timestamp) {
+      callTime = new Date(log.timestamp).getTime() || 0;
+    }
+
+    return callTime > lastSeenCallsTabAt;
+  }).length;
+
+  useEffect(() => {
+    if (activeTab === 'calls') {
+      clearMissedCallsBadge();
+    }
+  }, [activeTab]);
 
   const clearCallPermissionError = () => setCallPermissionError(null);
 
@@ -5144,6 +5200,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       groupContacts,
       friendUids,
       unreadTotal: computedUnreadTotal,
+      unseenStatusCount,
+      missedCallCount,
+      clearMissedCallsBadge,
       messages,
       callLogs,
       activeCall,

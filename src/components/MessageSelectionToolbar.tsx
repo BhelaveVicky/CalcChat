@@ -37,7 +37,7 @@ export const MessageSelectionToolbar: React.FC<MessageSelectionToolbarProps> = (
   }, []);
 
   return (
-    <div className="w-full px-3 py-2.5 bg-gradient-to-r from-blue-600 via-rose-600 to-blue-700 text-white flex items-center justify-between shrink-0 z-30 shadow-lg animate-slide-down border-b border-blue-500/40 font-sans select-none">
+    <div className="w-full px-3 py-2.5 bg-gradient-to-r from-[#ff2e93] via-pink-600 to-[#d9006c] text-white flex items-center justify-between shrink-0 z-30 shadow-lg animate-slide-down border-b border-[#ff2e93]/40 font-sans select-none">
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -52,7 +52,7 @@ export const MessageSelectionToolbar: React.FC<MessageSelectionToolbarProps> = (
           <span className="font-bold text-lg tracking-wide text-white">
             {selectedMessages.length}
           </span>
-          <span className="text-sm font-semibold text-blue-100">
+          <span className="text-sm font-semibold text-pink-100">
             Selected
           </span>
         </div>
@@ -86,7 +86,7 @@ export const MessageSelectionToolbar: React.FC<MessageSelectionToolbarProps> = (
         <button
           type="button"
           onClick={() => onDelete(selectedMessages)}
-          className="p-2 rounded-full hover:bg-white/20 active:scale-95 transition-all text-white cursor-pointer hover:text-blue-100"
+          className="p-2 rounded-full hover:bg-white/20 active:scale-95 transition-all text-white cursor-pointer hover:text-pink-100"
           title="Delete"
         >
           <Trash2 className="w-5 h-5 stroke-[2.2]" />
@@ -105,16 +105,16 @@ export const MessageSelectionToolbar: React.FC<MessageSelectionToolbarProps> = (
             </button>
 
             {showMoreMenu && (
-              <div className="absolute right-0 top-11 w-48 rounded-2xl bg-[#1f2c34] text-[#e9edef] border border-blue-500/30 shadow-2xl py-2 z-50 animate-scale-in text-sm font-medium">
+              <div className="absolute right-0 top-11 w-48 rounded-2xl bg-[#1f2c34] text-[#e9edef] border border-[#ff2e93]/30 shadow-2xl py-2 z-50 animate-scale-in text-sm font-medium">
                 <button
                   type="button"
                   onClick={() => {
                     setShowMoreMenu(false);
                     onCopy(singleMsg);
                   }}
-                  className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-blue-500/20 hover:text-blue-300 transition-colors cursor-pointer"
+                  className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-[#ff2e93]/20 hover:text-pink-300 transition-colors cursor-pointer"
                 >
-                  <Copy className="w-4 h-4 text-blue-400" />
+                  <Copy className="w-4 h-4 text-[#ff2e93]" />
                   <span>Copy</span>
                 </button>
 
@@ -124,9 +124,9 @@ export const MessageSelectionToolbar: React.FC<MessageSelectionToolbarProps> = (
                     setShowMoreMenu(false);
                     onPin(singleMsg);
                   }}
-                  className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-blue-500/20 hover:text-blue-300 transition-colors cursor-pointer border-t border-gray-700/50"
+                  className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-[#ff2e93]/20 hover:text-pink-300 transition-colors cursor-pointer border-t border-gray-700/50"
                 >
-                  <Pin className="w-4 h-4 text-blue-400" />
+                  <Pin className="w-4 h-4 text-[#ff2e93]" />
                   <span>{singleMsg.isPinned ? 'Unpin Message' : 'Pin Message'}</span>
                 </button>
               </div>

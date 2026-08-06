@@ -14,8 +14,8 @@ export const CCLogo: React.FC<{ className?: string; size?: number }> = ({ classN
     <defs>
       {/* Outer Cyan Arc Gradient */}
       <linearGradient id="cyanArc" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#00e5ff" />
-        <stop offset="100%" stopColor="#0066ff" />
+        <stop offset="0%" stopColor="#ff52a0" />
+        <stop offset="100%" stopColor="#ff2e93" />
       </linearGradient>
 
       {/* Outer Silver Arc Gradient */}
@@ -34,9 +34,9 @@ export const CCLogo: React.FC<{ className?: string; size?: number }> = ({ classN
 
       {/* Lower Cyan C Gradient */}
       <linearGradient id="cyanC" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#00f2fe" />
-        <stop offset="50%" stopColor="#00a8ff" />
-        <stop offset="100%" stopColor="#0052d4" />
+        <stop offset="0%" stopColor="#ff65b3" />
+        <stop offset="50%" stopColor="#ff2e93" />
+        <stop offset="100%" stopColor="#d9006c" />
       </linearGradient>
 
       <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">

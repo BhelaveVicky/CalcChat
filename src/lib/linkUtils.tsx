@@ -58,7 +58,7 @@ export function renderTextWithLinks(text: string | undefined | null): React.Reac
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-blue-400 hover:text-blue-300 underline font-medium break-all transition-colors duration-150 inline cursor-pointer"
+        className="text-[#ff2e93] hover:text-[#ff1e85] underline font-medium break-all transition-colors duration-150 inline cursor-pointer"
         onClick={(e) => {
           e.stopPropagation(); // Stop propagation so message selection or bubble actions aren't triggered
           

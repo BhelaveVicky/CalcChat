@@ -26,6 +26,7 @@ import { PinnedMessageBanner } from './PinnedMessageBanner';
 import { WhatsAppProfileViewer } from './WhatsAppProfileViewer';
 import { SetChatWallpaperModal } from './SetChatWallpaperModal';
 import { SelectMembersModal } from './SelectMembersModal';
+import { StatusReplyCard } from './StatusReplyCard';
 import { renderTextWithLinks } from '../lib/linkUtils';
 import { getGroupMembersList } from '../lib/groupUtils';
 
@@ -837,7 +838,7 @@ export const ChatWindow: React.FC = () => {
   if (!contact || !activeContactId) {
     return (
       <div className="flex-1 bg-[#0b141a] flex flex-col items-center justify-center p-6 text-slate-500 text-xs select-none">
-        <ShieldCheck className="w-12 h-12 text-[#00a8ff]/60 mb-2 animate-pulse" />
+        <ShieldCheck className="w-12 h-12 text-[#ff2e93]/60 mb-2 animate-pulse" />
         <p className="font-mono text-slate-400">SELECT A CONVERSATION TO CHAT</p>
       </div>
     );
@@ -1464,7 +1465,7 @@ export const ChatWindow: React.FC = () => {
                   }
                   startCall(contact.id, 'video');
                 }} 
-                className="hover:opacity-80 p-1.5 rounded-full transition-colors text-[#00a8ff]"
+                className="hover:opacity-80 p-1.5 rounded-full transition-colors text-[#ff2e93]"
                 title="Video call"
               >
                 <Video className="w-5 h-5" />
@@ -1487,7 +1488,7 @@ export const ChatWindow: React.FC = () => {
                   }
                   startCall(contact.id, 'voice');
                 }} 
-                className="hover:opacity-80 p-1.5 rounded-full transition-colors text-[#00a8ff]"
+                className="hover:opacity-80 p-1.5 rounded-full transition-colors text-[#ff2e93]"
                 title="Voice call"
               >
                 <Phone className="w-5 h-5" />
@@ -1538,8 +1539,8 @@ export const ChatWindow: React.FC = () => {
                         isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
                       }`}
                     >
-                      <Tag className="w-4.5 h-4.5 text-[#00a8ff]" />
-                      <span className="text-[#00a8ff] font-semibold">{customNicknames[contact.id] ? 'Edit Custom Name' : 'Set Custom Name'}</span>
+                      <Tag className="w-4.5 h-4.5 text-[#ff2e93]" />
+                      <span className="text-[#ff2e93] font-semibold">{customNicknames[contact.id] ? 'Edit Custom Name' : 'Set Custom Name'}</span>
                     </button>
 
                     <button
@@ -1552,8 +1553,8 @@ export const ChatWindow: React.FC = () => {
                         isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
                       }`}
                     >
-                      <Image className="w-4.5 h-4.5 text-[#00a8ff]" />
-                      <span className="font-semibold text-[#00a8ff]">Set Wallpaper</span>
+                      <Image className="w-4.5 h-4.5 text-[#ff2e93]" />
+                      <span className="font-semibold text-[#ff2e93]">Set Wallpaper</span>
                     </button>
 
                     <button
@@ -1766,7 +1767,7 @@ export const ChatWindow: React.FC = () => {
               <div className={`p-3.5 rounded-2xl mb-3 border ${
                 isDark ? 'bg-[#182229] border-[#202c33]' : 'bg-white border-gray-200'
               }`}>
-                <Lock className="w-6 h-6 text-[#00a8ff]" />
+                <Lock className="w-6 h-6 text-[#ff2e93]" />
               </div>
               <p className={`font-semibold text-sm ${isDark ? 'text-[#e9edef]' : 'text-gray-900'}`}>End-to-End Encrypted</p>
               <p className={`max-w-xs mt-1 text-xs ${isDark ? 'text-[#8596a0]' : 'text-gray-500'}`}>Messages stay private and synchronized across all devices.</p>
@@ -1947,151 +1948,49 @@ export const ChatWindow: React.FC = () => {
                         {contact?.isGroup && !isMe && (
                           <div className="text-[11px] font-bold text-[#ea4c89] mb-1 truncate flex items-center gap-1">
                             <span className="truncate">{msg.senderName || 'Group Member'}</span>
-                            {checkIsAdmin(msg.senderId || msg.senderName) && <VerifiedBadge className="w-3.5 h-3.5 shrink-0 text-[#00a8ff]" />}
+                            {checkIsAdmin(msg.senderId || msg.senderName) && <VerifiedBadge className="w-3.5 h-3.5 shrink-0 text-[#ff2e93]" />}
                           </div>
                         )}
 
-                        {/* Status Reply Card - WhatsApp Style */}
-                        {msg.statusReply && (
-                          <div
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (msg.statusReply?.statusId) {
-                                handleOpenStatusFromReply(msg.statusReply.statusId, msg.statusReply.statusOwnerId);
-                              }
-                            }}
-                            className={`p-2.5 rounded-xl border-l-[4px] mb-2.5 text-xs flex items-center justify-between gap-3 cursor-pointer hover:opacity-95 active:scale-[0.99] transition-all overflow-hidden ${
-                              isMe
-                                ? 'bg-black/20 border-white text-white hover:bg-black/30'
-                                : (isDark ? 'bg-[#111b21] border-[#ea4c89] text-[#e9edef] hover:bg-[#182229]' : 'bg-[#f0f2f5] border-[#ea4c89] text-gray-900 hover:bg-gray-200/80')
-                            }`}
-                            title="Click to view full status"
-                          >
-                            <div className="flex-1 min-w-0 pr-1">
-                              <div className={`font-semibold text-[12px] truncate flex items-center gap-1.5 ${
-                                isMe ? 'text-white' : 'text-[#ea4c89] dark:text-[#ff7b61]'
-                              }`}>
-                                <span className="font-bold truncate">{msg.statusReply.statusOwnerName || 'User'}</span>
-                                <span className="opacity-75 font-normal text-[11px] shrink-0">· Status</span>
-                              </div>
-                              <div className={`flex items-center gap-1.5 text-[11px] mt-0.5 truncate ${
-                                isMe ? 'text-white/85' : 'text-gray-600 dark:text-[#8696a0]'
-                              }`}>
-                                {(msg.statusReply.statusType === 'video' || msg.statusReply.statusMediaType === 'video') ? (
-                                  <>
-                                    <Video className={`w-3.5 h-3.5 shrink-0 inline ${isMe ? 'text-white' : 'text-[#ea4c89] dark:text-[#ff7b61]'}`} />
-                                    <span className="truncate font-medium">{msg.statusReply.statusText || 'Video'}</span>
-                                  </>
-                                ) : (msg.statusReply.statusType === 'image' || msg.statusReply.statusMediaType === 'image' || msg.statusReply.statusThumbnail || msg.statusReply.statusMediaUrl) ? (
-                                  <>
-                                    <Camera className={`w-3.5 h-3.5 shrink-0 inline ${isMe ? 'text-white' : 'text-[#ea4c89] dark:text-[#ff7b61]'}`} />
-                                    <span className="truncate font-medium">{msg.statusReply.statusText || 'Photo'}</span>
-                                  </>
+                        {/* Status Reply / Status Reaction Card - Dedicated WhatsApp Style Component */}
+                        {(msg.statusReply || msg.statusReaction || msg.type === 'status_reply' || msg.type === 'status_reaction') ? (
+                          <StatusReplyCard
+                            statusReply={msg.statusReply}
+                            statusReaction={msg.statusReaction}
+                            isMe={isMe}
+                            isDark={isDark}
+                            onOpenStatus={handleOpenStatusFromReply}
+                          />
+                        ) : (
+                          /* Quoted Reply Context for standard messages */
+                          msg.replyTo && (
+                            <div 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (msg.replyTo?.id) {
+                                  scrollToMessage(msg.replyTo.id);
+                                }
+                              }}
+                              className={`p-2 rounded-lg border-l-4 mb-2 text-xs border-[#ff2e93] cursor-pointer hover:opacity-90 transition-opacity ${
+                                isDark ? 'bg-black/20' : 'bg-black/5'
+                              }`}
+                            >
+                              <p className="font-semibold text-[#ff2e93]">{msg.replyTo.senderName}</p>
+                              <p className="truncate opacity-80 flex items-center gap-1">
+                                {msg.replyTo.text === 'This message was deleted' || msg.replyTo.text.includes('deleted') ? (
+                                  <span className="italic text-gray-400 flex items-center gap-1">
+                                    <Ban className="w-3 h-3 text-gray-400 inline" /> Deleted message
+                                  </span>
                                 ) : (
-                                  <span className="truncate font-medium">{msg.statusReply.statusText || 'Status'}</span>
+                                  renderTextWithLinks(msg.replyTo.text)
                                 )}
-                              </div>
+                              </p>
                             </div>
-
-                            {(msg.statusReply.statusThumbnail || msg.statusReply.statusMediaUrl) ? (
-                              <img
-                                src={msg.statusReply.statusThumbnail || msg.statusReply.statusMediaUrl}
-                                alt="Status preview"
-                                className="w-12 h-12 object-cover rounded-lg shrink-0 border border-black/10 dark:border-white/20 shadow-xs"
-                              />
-                            ) : (
-                              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center shrink-0 text-white font-bold text-[10px] p-1 text-center truncate shadow-xs">
-                                Status
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Status Reaction Card - WhatsApp Style */}
-                        {msg.statusReaction && (
-                          <div
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (msg.statusReaction?.statusId) {
-                                handleOpenStatusFromReply(msg.statusReaction.statusId, msg.statusReaction.statusOwnerId);
-                              }
-                            }}
-                            className={`p-2.5 rounded-xl border-l-[4px] mb-2.5 text-xs flex items-center justify-between gap-3 cursor-pointer hover:opacity-95 active:scale-[0.99] transition-all overflow-hidden ${
-                              isMe
-                                ? 'bg-black/20 border-white text-white hover:bg-black/30'
-                                : (isDark ? 'bg-[#111b21] border-[#ea4c89] text-[#e9edef] hover:bg-[#182229]' : 'bg-[#f0f2f5] border-[#ea4c89] text-gray-900 hover:bg-gray-200/80')
-                            }`}
-                            title="Click to view full status"
-                          >
-                            <div className="flex-1 min-w-0 pr-1">
-                              <div className={`font-semibold text-[12px] truncate flex items-center gap-1.5 ${
-                                isMe ? 'text-white' : 'text-[#ea4c89] dark:text-[#ff7b61]'
-                              }`}>
-                                <span className="font-bold truncate">{msg.statusReaction.statusOwnerName || 'User'}</span>
-                                <span className="opacity-75 font-normal text-[11px] shrink-0">· Status</span>
-                              </div>
-                              <div className={`flex items-center gap-1.5 text-[11px] mt-0.5 truncate ${
-                                isMe ? 'text-white/85' : 'text-gray-600 dark:text-[#8696a0]'
-                              }`}>
-                                <span className="shrink-0 text-sm leading-none">{msg.statusReaction.emoji}</span>
-                                {(msg.statusReaction.statusType === 'video' || msg.statusReaction.statusMediaType === 'video') ? (
-                                  <>
-                                    <Video className={`w-3.5 h-3.5 shrink-0 inline ${isMe ? 'text-white' : 'text-[#ea4c89] dark:text-[#ff7b61]'}`} />
-                                    <span className="truncate font-medium">{msg.statusReaction.statusText || 'Video'}</span>
-                                  </>
-                                ) : (msg.statusReaction.statusType === 'image' || msg.statusReaction.statusMediaType === 'image' || msg.statusReaction.statusThumbnail || msg.statusReaction.statusMediaUrl) ? (
-                                  <>
-                                    <Camera className={`w-3.5 h-3.5 shrink-0 inline ${isMe ? 'text-white' : 'text-[#ea4c89] dark:text-[#ff7b61]'}`} />
-                                    <span className="truncate font-medium">{msg.statusReaction.statusText || 'Photo'}</span>
-                                  </>
-                                ) : (
-                                  <span className="truncate font-medium">{msg.statusReaction.statusText || 'Status'}</span>
-                                )}
-                              </div>
-                            </div>
-
-                            {(msg.statusReaction.statusThumbnail || msg.statusReaction.statusMediaUrl) ? (
-                              <img
-                                src={msg.statusReaction.statusThumbnail || msg.statusReaction.statusMediaUrl}
-                                alt="Status preview"
-                                className="w-12 h-12 object-cover rounded-lg shrink-0 border border-black/10 dark:border-white/20 shadow-xs"
-                              />
-                            ) : (
-                              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center shrink-0 text-white font-bold text-[10px] p-1 text-center truncate shadow-xs">
-                                Status
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Quoted Reply Context */}
-                        {msg.replyTo && (
-                          <div 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (msg.replyTo?.id) {
-                                scrollToMessage(msg.replyTo.id);
-                              }
-                            }}
-                            className={`p-2 rounded-lg border-l-4 mb-2 text-xs border-[#00a8ff] cursor-pointer hover:opacity-90 transition-opacity ${
-                              isDark ? 'bg-black/20' : 'bg-black/5'
-                            }`}
-                          >
-                            <p className="font-semibold text-[#00a8ff]">{msg.replyTo.senderName}</p>
-                            <p className="truncate opacity-80 flex items-center gap-1">
-                              {msg.replyTo.text === 'This message was deleted' || msg.replyTo.text.includes('deleted') ? (
-                                <span className="italic text-gray-400 flex items-center gap-1">
-                                  <Ban className="w-3 h-3 text-gray-400 inline" /> Deleted message
-                                </span>
-                              ) : (
-                                renderTextWithLinks(msg.replyTo.text)
-                              )}
-                            </p>
-                          </div>
+                          )
                         )}
 
                         {/* Attached Media Render */}
-                        {msg.media && (
+                        {msg.media && !(msg.statusReply || msg.statusReaction || msg.type === 'status_reply' || msg.type === 'status_reaction') && (
                           <div className="mb-2 mt-0.5 overflow-hidden rounded-xl bg-black/30 border border-white/5">
                             {msg.media.isViewOnce ? (
                               <div className="p-1">
@@ -2137,13 +2036,13 @@ export const ChatWindow: React.FC = () => {
                                         : 'bg-[#111b21] hover:bg-[#1f2c34] text-[#e9edef]'
                                     }`}
                                   >
-                                    <div className="w-9 h-9 rounded-full border-2 border-[#00a8ff] bg-[#00a8ff]/20 flex items-center justify-center font-extrabold text-xs text-[#00a8ff] shrink-0 shadow">
+                                    <div className="w-9 h-9 rounded-full border-2 border-[#ff2e93] bg-[#ff2e93]/20 flex items-center justify-center font-extrabold text-xs text-[#ff2e93] shrink-0 shadow">
                                       1
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                      <div className="font-bold text-xs flex items-center gap-1.5 text-[#00a8ff]">
+                                      <div className="font-bold text-xs flex items-center gap-1.5 text-[#ff2e93]">
                                         <span>{msg.media.type === 'video' ? 'Video' : 'Photo'}</span>
-                                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#00a8ff]/20 text-[#00a8ff] font-medium">View Once</span>
+                                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#ff2e93]/20 text-[#ff2e93] font-medium">View Once</span>
                                       </div>
                                       <p className="text-[11px] text-[#8596a0] font-medium truncate mt-0.5">
                                         {isMe ? 'Sent • Recipient can view 1 time' : 'Tap to view photo/video'}
@@ -2238,7 +2137,7 @@ export const ChatWindow: React.FC = () => {
                                         setPlayingAudioMsgId(msg.id);
                                       }
                                     }}
-                                    className="w-10 h-10 rounded-full bg-[#00a8ff] text-[#0b141a] flex items-center justify-center shrink-0 hover:scale-105 active:scale-95 transition-transform cursor-pointer shadow"
+                                    className="w-10 h-10 rounded-full bg-[#ff2e93] text-[#0b141a] flex items-center justify-center shrink-0 hover:scale-105 active:scale-95 transition-transform cursor-pointer shadow"
                                     title={isPlayingThis ? "Pause" : "Play Voice Note"}
                                   >
                                     {isPlayingThis ? (
@@ -2262,7 +2161,7 @@ export const ChatWindow: React.FC = () => {
                                           <div
                                             key={idx}
                                             className={`flex-1 rounded-full transition-colors ${
-                                              isFilled ? 'bg-[#00a8ff]' : 'bg-white/30 group-hover/wave:bg-white/50'
+                                              isFilled ? 'bg-[#ff2e93]' : 'bg-white/30 group-hover/wave:bg-white/50'
                                             }`}
                                             style={{ height: `${h}%` }}
                                           />
@@ -2273,7 +2172,7 @@ export const ChatWindow: React.FC = () => {
                                     <div className="flex items-center justify-between text-[10px] text-[#8596a0] font-mono">
                                       <span>{isPlayingThis ? formatSecs(currentTime) : (msg.media.duration || '0:15')}</span>
                                       <span className="flex items-center gap-1">
-                                        <Mic className="w-3 h-3 text-[#00a8ff]" /> Voice Note
+                                        <Mic className="w-3 h-3 text-[#ff2e93]" /> Voice Note
                                       </span>
                                     </div>
                                   </div>
@@ -2295,7 +2194,7 @@ export const ChatWindow: React.FC = () => {
                             {msg.media.type === 'file' && (
                               <div className="p-3 flex items-center justify-between gap-3 min-w-[220px]">
                                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                                  <div className="p-2.5 bg-[#00a8ff]/20 text-[#00a8ff] rounded-xl shrink-0 font-mono text-xs font-bold">
+                                  <div className="p-2.5 bg-[#ff2e93]/20 text-[#ff2e93] rounded-xl shrink-0 font-mono text-xs font-bold">
                                     <File className="w-5 h-5" />
                                   </div>
                                   <div className="min-w-0 flex-1">
@@ -2307,7 +2206,7 @@ export const ChatWindow: React.FC = () => {
                                   href={msg.media.url}
                                   download={msg.media.name}
                                   onClick={(e) => e.stopPropagation()}
-                                  className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-[#00a8ff] transition-colors shrink-0"
+                                  className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-[#ff2e93] transition-colors shrink-0"
                                   title="Download File"
                                 >
                                   <Download className="w-4 h-4" />
@@ -2342,7 +2241,7 @@ export const ChatWindow: React.FC = () => {
                                   {msg.media.contactData?.avatar ? (
                                     <img src={msg.media.contactData.avatar} alt="Contact" className="w-10 h-10 rounded-full object-cover border border-white/20" />
                                   ) : (
-                                    <div className="w-10 h-10 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold">
+                                    <div className="w-10 h-10 rounded-full bg-[#ff2e93]/20 text-pink-400 flex items-center justify-center font-bold">
                                       <User className="w-5 h-5" />
                                     </div>
                                   )}
@@ -2361,7 +2260,7 @@ export const ChatWindow: React.FC = () => {
                                       showToast(`Contact card for ${msg.media?.contactData?.name || msg.media?.name}`);
                                     }
                                   }}
-                                  className="w-full py-1.5 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-xs font-semibold text-center transition-colors"
+                                  className="w-full py-1.5 rounded-lg bg-[#ff2e93]/20 hover:bg-[#ff2e93]/30 text-pink-400 text-xs font-semibold text-center transition-colors"
                                 >
                                   Message Contact
                                 </button>
@@ -2411,7 +2310,7 @@ export const ChatWindow: React.FC = () => {
                                 e.stopPropagation();
                                 startCall(contact.id, msg.callInfo?.type || (msg.type === 'video_call' ? 'video' : 'voice'));
                               }}
-                              className="w-full py-1.5 px-3 rounded-xl bg-sky-600/30 hover:bg-sky-600/50 text-sky-300 border border-sky-500/30 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                              className="w-full py-1.5 px-3 rounded-xl bg-[#ff2e93]/30 hover:bg-[#ff2e93]/50 text-pink-300 border border-[#ff2e93]/30 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-95"
                             >
                               <PhoneCall className="w-3.5 h-3.5" />
                               <span>Call Again</span>
@@ -2548,13 +2447,13 @@ export const ChatWindow: React.FC = () => {
 
         {/* Replying Banner above Input */}
         {replyingToMsg && (
-          <div className={`px-4 py-2 flex items-center justify-between border-t border-[#00a8ff]/30 text-xs animate-fade-in ${
-            isDark ? 'bg-[#182229] text-[#e9edef]' : 'bg-sky-50 text-sky-900'
+          <div className={`px-4 py-2 flex items-center justify-between border-t border-[#ff2e93]/30 text-xs animate-fade-in ${
+            isDark ? 'bg-[#182229] text-[#e9edef]' : 'bg-pink-50 text-pink-900'
           }`}>
-            <div className="flex items-center gap-2 border-l-2 border-[#00a8ff] pl-2 truncate">
-              <CornerUpLeft className="w-3.5 h-3.5 text-[#00a8ff] shrink-0" />
+            <div className="flex items-center gap-2 border-l-2 border-[#ff2e93] pl-2 truncate">
+              <CornerUpLeft className="w-3.5 h-3.5 text-[#ff2e93] shrink-0" />
               <div className="truncate">
-                <span className="font-semibold text-[#00a8ff] block">
+                <span className="font-semibold text-[#ff2e93] block">
                   Replying to {replyingToMsg.senderId === user.id ? 'yourself' : contact.name}
                 </span>
                 <span className="truncate block opacity-80">{renderTextWithLinks(replyingToMsg.text)}</span>
@@ -2615,7 +2514,7 @@ export const ChatWindow: React.FC = () => {
               <button
                 type="button"
                 onClick={handleSendRecording}
-                className="p-2.5 rounded-full bg-[#00a8ff] text-[#0b141a] hover:bg-[#0088cc] transition-colors font-bold"
+                className="p-2.5 rounded-full bg-[#ff2e93] text-[#0b141a] hover:bg-[#ff1e85] transition-colors font-bold"
                 title="Send Voice Note"
               >
                 <Send className="w-5 h-5 ml-0.5" />
@@ -2659,7 +2558,7 @@ export const ChatWindow: React.FC = () => {
                       await sendFriendRequest(contact.id);
                       showToast('Friend request sent.');
                     }}
-                    className="px-3.5 py-1.5 rounded-xl bg-[#00a8ff] hover:bg-[#0088cc] text-[#0b141a] font-bold text-xs flex items-center gap-1 shadow cursor-pointer active:scale-95 transition-all"
+                    className="px-3.5 py-1.5 rounded-xl bg-[#ff2e93] hover:bg-[#ff1e85] text-[#0b141a] font-bold text-xs flex items-center gap-1 shadow cursor-pointer active:scale-95 transition-all"
                   >
                     <UserPlus className="w-3.5 h-3.5 stroke-[2.5]" /> Add Friend
                   </button>
@@ -2709,7 +2608,7 @@ export const ChatWindow: React.FC = () => {
                     onClick={() => openCameraModal('user')}
                     className="flex flex-col items-center gap-1.5 p-2 text-xs hover:opacity-80 transition-opacity cursor-pointer"
                   >
-                    <div className="w-12 h-12 rounded-full bg-sky-500/20 text-[#00a8ff] flex items-center justify-center border border-sky-500/30 shadow">
+                    <div className="w-12 h-12 rounded-full bg-[#ff2e93]/20 text-[#ff2e93] flex items-center justify-center border border-[#ff2e93]/30 shadow">
                       <Camera className="w-6 h-6" />
                     </div>
                     <span className={isDark ? 'text-gray-300 font-medium' : 'text-gray-700 font-medium'}>Camera</span>
@@ -2745,7 +2644,7 @@ export const ChatWindow: React.FC = () => {
               }`}>
                 <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-500/20 px-1">
                   <div className="flex items-center gap-2">
-                    <Smile className="w-4 h-4 text-[#00a8ff]" />
+                    <Smile className="w-4 h-4 text-[#ff2e93]" />
                     <span className="font-bold text-xs text-slate-700 dark:text-slate-200">
                       Select Emoji ({EMOJI_LIST.length})
                     </span>
@@ -2825,7 +2724,7 @@ export const ChatWindow: React.FC = () => {
                     }}
                     className={`p-1.5 transition-colors ${
                       showEmojiPicker 
-                        ? 'text-[#00a8ff]' 
+                        ? 'text-[#ff2e93]' 
                         : (isDark ? 'text-[#8596a0] hover:text-[#e9edef]' : 'text-gray-500 hover:text-gray-800')
                     }`}
                     title="Emojis"
@@ -2855,7 +2754,7 @@ export const ChatWindow: React.FC = () => {
                     }}
                     className={`p-1.5 transition-colors -rotate-45 ${
                       showAttachModal 
-                        ? 'text-[#00a8ff]' 
+                        ? 'text-[#ff2e93]' 
                         : (isDark ? 'text-[#8596a0] hover:text-[#e9edef]' : 'text-gray-500 hover:text-gray-800')
                     }`}
                     title="Attach"
@@ -2884,7 +2783,7 @@ export const ChatWindow: React.FC = () => {
                 {inputText.trim() ? (
                   <button
                     type="submit"
-                    className="bg-[#00a8ff] hover:bg-[#0088cc] active:scale-95 text-[#0b141a] w-11 h-11 rounded-full font-bold transition-all shadow-md flex items-center justify-center shrink-0 cursor-pointer"
+                    className="bg-[#ff2e93] hover:bg-[#ff1e85] active:scale-95 text-[#0b141a] w-11 h-11 rounded-full font-bold transition-all shadow-md flex items-center justify-center shrink-0 cursor-pointer"
                     title="Send"
                   >
                     <Send className="w-5 h-5 ml-0.5" />
@@ -2899,7 +2798,7 @@ export const ChatWindow: React.FC = () => {
                       }
                       handleStartRecording();
                     }}
-                    className="bg-[#00a8ff] hover:bg-[#0088cc] active:scale-95 text-[#0b141a] w-11 h-11 rounded-full font-bold transition-all shadow-md flex items-center justify-center shrink-0 cursor-pointer"
+                    className="bg-[#ff2e93] hover:bg-[#ff1e85] active:scale-95 text-[#0b141a] w-11 h-11 rounded-full font-bold transition-all shadow-md flex items-center justify-center shrink-0 cursor-pointer"
                     title="Hold to Record Voice Message"
                   >
                     <Mic className="w-5 h-5" />
@@ -2939,13 +2838,13 @@ export const ChatWindow: React.FC = () => {
                 <img
                   src={contact.avatar}
                   alt={contact.name}
-                  className="w-24 h-24 rounded-full object-cover shadow-xl mb-3 border-2 border-[#00a8ff]"
+                  className="w-24 h-24 rounded-full object-cover shadow-xl mb-3 border-2 border-[#ff2e93]"
                 />
                 {contact.isGroup && isGroupCreator && (
                   <button
                     type="button"
                     onClick={() => groupAvatarInputRef.current?.click()}
-                    className="absolute bottom-3 right-0 p-2 bg-[#00a8ff] text-white rounded-full shadow-lg hover:scale-105 transition-all cursor-pointer"
+                    className="absolute bottom-3 right-0 p-2 bg-[#ff2e93] text-white rounded-full shadow-lg hover:scale-105 transition-all cursor-pointer"
                     title="Change Group Photo"
                   >
                     <Camera className="w-4 h-4" />
@@ -2955,7 +2854,7 @@ export const ChatWindow: React.FC = () => {
 
               <h4 className="font-bold text-lg flex items-center justify-center gap-1.5">
                 {getContactDisplayName(contact)}
-                {checkIsAdmin(contact) && <VerifiedBadge className="w-5 h-5 shrink-0 text-[#00a8ff]" />}
+                {checkIsAdmin(contact) && <VerifiedBadge className="w-5 h-5 shrink-0 text-[#ff2e93]" />}
                 {contact.isGroup && isGroupCreator && (
                   <button
                     type="button"
@@ -2963,7 +2862,7 @@ export const ChatWindow: React.FC = () => {
                       setNewGroupNameInput(contact.name);
                       setShowEditGroupNameModal(true);
                     }}
-                    className="p-1 text-[#00a8ff] hover:bg-[#00a8ff]/10 rounded-lg transition-colors cursor-pointer"
+                    className="p-1 text-[#ff2e93] hover:bg-[#ff2e93]/10 rounded-lg transition-colors cursor-pointer"
                     title="Edit Group Name"
                   >
                     <Edit3 className="w-4 h-4" />
@@ -2974,7 +2873,7 @@ export const ChatWindow: React.FC = () => {
               {contact.isGroup ? (
                 <div className="mt-2 w-full flex flex-col items-center gap-1">
                   {isGroupCreator ? (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-bold px-3 py-1 rounded-full bg-[#00a8ff]/15 text-[#00a8ff]">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold px-3 py-1 rounded-full bg-[#ff2e93]/15 text-[#ff2e93]">
                       <ShieldCheck className="w-3.5 h-3.5" /> Group Creator (Admin)
                     </span>
                   ) : (
@@ -2986,10 +2885,10 @@ export const ChatWindow: React.FC = () => {
               ) : (
                 <>
                   {customNicknames[contact.id] && (
-                    <p className="text-xs text-[#00a8ff] font-medium mt-0.5">Original Name: {contact.name}</p>
+                    <p className="text-xs text-[#ff2e93] font-medium mt-0.5">Original Name: {contact.name}</p>
                   )}
                   <p className="text-xs text-[#8596a0] mt-0.5">{contact.email || 'Encrypted User'}</p>
-                  <p className="text-xs text-[#00a8ff] mt-2 font-medium">{contact.isOnline ? 'Online' : formatLastSeen(contact.lastSeen)}</p>
+                  <p className="text-xs text-[#ff2e93] mt-2 font-medium">{contact.isOnline ? 'Online' : formatLastSeen(contact.lastSeen)}</p>
 
                   <button
                     type="button"
@@ -2997,7 +2896,7 @@ export const ChatWindow: React.FC = () => {
                       setShowRightSidebar(false);
                       setShowNicknameModal(true);
                     }}
-                    className="mt-3 px-4 py-2 rounded-xl bg-[#00a8ff]/10 hover:bg-[#00a8ff]/20 text-[#00a8ff] font-semibold text-xs border border-[#00a8ff]/30 transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+                    className="mt-3 px-4 py-2 rounded-xl bg-[#ff2e93]/10 hover:bg-[#ff2e93]/20 text-[#ff2e93] font-semibold text-xs border border-[#ff2e93]/30 transition-all flex items-center gap-2 cursor-pointer active:scale-95"
                   >
                     <Tag className="w-3.5 h-3.5" />
                     <span>{customNicknames[contact.id] ? 'Edit Custom Name' : 'Set Custom Name'}</span>
@@ -3011,7 +2910,7 @@ export const ChatWindow: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => groupAvatarInputRef.current?.click()}
-                    className="w-full py-2 px-3 rounded-xl bg-[#00a8ff]/10 hover:bg-[#00a8ff]/20 text-[#00a8ff] font-semibold text-xs border border-[#00a8ff]/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full py-2 px-3 rounded-xl bg-[#ff2e93]/10 hover:bg-[#ff2e93]/20 text-[#ff2e93] font-semibold text-xs border border-[#ff2e93]/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Camera className="w-4 h-4" />
                     <span>Change Group Photo</span>
@@ -3059,7 +2958,7 @@ export const ChatWindow: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setShowAddMembersModal(true)}
-                        className="px-2.5 py-1 rounded-lg bg-[#00a8ff] hover:bg-[#0088cc] text-[#0b141a] text-[11px] font-extrabold flex items-center gap-1 cursor-pointer transition-all active:scale-95 shadow-sm"
+                        className="px-2.5 py-1 rounded-lg bg-[#ff2e93] hover:bg-[#ff1e85] text-[#0b141a] text-[11px] font-extrabold flex items-center gap-1 cursor-pointer transition-all active:scale-95 shadow-sm"
                         title="Add (+) Members to Group"
                       >
                         <UserPlus className="w-3.5 h-3.5" />
@@ -3070,7 +2969,7 @@ export const ChatWindow: React.FC = () => {
                     <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
                       {groupMembersList.length === 0 ? (
                         <p className="text-xs text-[#8596a0] py-2">
-                          No members added yet. Click <span className="font-bold text-[#00a8ff]">Add (+)</span> to add members!
+                          No members added yet. Click <span className="font-bold text-[#ff2e93]">Add (+)</span> to add members!
                         </p>
                       ) : (
                         groupMembersList.map((m, idx) => (
@@ -3079,9 +2978,9 @@ export const ChatWindow: React.FC = () => {
                           }`}>
                             <div className="flex items-center gap-2.5 min-w-0">
                               {m.avatar ? (
-                                <img src={m.avatar} alt={m.name} className="w-7 h-7 rounded-full object-cover shrink-0 border border-[#00a8ff]/30" />
+                                <img src={m.avatar} alt={m.name} className="w-7 h-7 rounded-full object-cover shrink-0 border border-[#ff2e93]/30" />
                               ) : (
-                                <div className="w-7 h-7 rounded-full bg-[#00a8ff]/20 text-[#00a8ff] flex items-center justify-center font-bold text-xs shrink-0">
+                                <div className="w-7 h-7 rounded-full bg-[#ff2e93]/20 text-[#ff2e93] flex items-center justify-center font-bold text-xs shrink-0">
                                   {m.name.charAt(0).toUpperCase()}
                                 </div>
                               )}
@@ -3089,7 +2988,7 @@ export const ChatWindow: React.FC = () => {
                             </div>
                             <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${
                               m.role === 'Creator'
-                                ? 'bg-[#00a8ff]/20 text-[#00a8ff] border border-[#00a8ff]/30'
+                                ? 'bg-[#ff2e93]/20 text-[#ff2e93] border border-[#ff2e93]/30'
                                 : m.role === 'Admin'
                                   ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
                                   : 'bg-emerald-500/15 text-emerald-400'
@@ -3136,7 +3035,7 @@ export const ChatWindow: React.FC = () => {
           }`}>
             <div className="flex items-center justify-between mb-3 shrink-0">
               <div className="flex items-center gap-2">
-                <Forward className="w-5 h-5 text-[#00a8ff]" />
+                <Forward className="w-5 h-5 text-[#ff2e93]" />
                 <h3 className="font-bold text-base">Forward Message</h3>
               </div>
               <button 
@@ -3155,7 +3054,7 @@ export const ChatWindow: React.FC = () => {
             <div className={`p-3 rounded-2xl mb-3 text-xs shrink-0 border ${
               isDark ? 'bg-[#202c33] border-[#2a3942]/60 text-[#8696a0]' : 'bg-gray-100 border-gray-200 text-gray-600'
             }`}>
-              <span className="font-bold block text-[#00a8ff] mb-0.5">Message Content</span>
+              <span className="font-bold block text-[#ff2e93] mb-0.5">Message Content</span>
               <p className="line-clamp-2 text-xs font-medium text-current">
                 {renderTextWithLinks(forwardingMsg.text) || (forwardingMsg.media ? `[${forwardingMsg.media.type}] ${forwardingMsg.media.name || ''}` : 'Media Attachment')}
               </p>
@@ -3170,8 +3069,8 @@ export const ChatWindow: React.FC = () => {
                 onChange={e => setForwardSearch(e.target.value)}
                 className={`w-full px-3.5 py-2 rounded-xl text-xs focus:outline-none border ${
                   isDark
-                    ? 'bg-[#202c33] border-[#2a3942] text-white placeholder-gray-400 focus:border-[#00a8ff]'
-                    : 'bg-gray-100 border-gray-300 text-gray-900 placeholder-gray-500 focus:border-sky-500'
+                    ? 'bg-[#202c33] border-[#2a3942] text-white placeholder-gray-400 focus:border-[#ff2e93]'
+                    : 'bg-gray-100 border-gray-300 text-gray-900 placeholder-gray-500 focus:border-[#ff2e93]'
                 }`}
               />
             </div>
@@ -3196,7 +3095,7 @@ export const ChatWindow: React.FC = () => {
                       }}
                       className={`p-2.5 rounded-2xl flex items-center justify-between cursor-pointer border transition-colors ${
                         isSelected
-                          ? 'bg-[#00a8ff]/20 border-[#00a8ff]'
+                          ? 'bg-[#ff2e93]/20 border-[#ff2e93]'
                           : (isDark ? 'bg-[#202c33] border-transparent hover:bg-[#2a3942]' : 'bg-gray-100 border-gray-200 hover:bg-gray-200')
                       }`}
                     >
@@ -3205,11 +3104,11 @@ export const ChatWindow: React.FC = () => {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1 min-w-0">
                             <span className="text-xs font-semibold block truncate">{getContactDisplayName(c)}</span>
-                            {checkIsAdmin(c) && <VerifiedBadge className="w-3.5 h-3.5 shrink-0 text-[#00a8ff]" />}
+                            {checkIsAdmin(c) && <VerifiedBadge className="w-3.5 h-3.5 shrink-0 text-[#ff2e93]" />}
                           </div>
                         </div>
                       </div>
-                      {isSelected && <Check className="w-4 h-4 text-[#00a8ff] shrink-0" />}
+                      {isSelected && <Check className="w-4 h-4 text-[#ff2e93] shrink-0" />}
                     </div>
                   );
                 })}
@@ -3225,7 +3124,7 @@ export const ChatWindow: React.FC = () => {
                 setForwardSearch('');
               }}
               disabled={forwardContactIds.length === 0}
-              className="w-full bg-[#00a8ff] text-[#0b141a] font-bold py-3 rounded-xl text-xs hover:bg-[#0091ea] transition-colors disabled:opacity-50 shrink-0 shadow-lg cursor-pointer"
+              className="w-full bg-[#ff2e93] text-[#0b141a] font-bold py-3 rounded-xl text-xs hover:bg-[#ff1e85] transition-colors disabled:opacity-50 shrink-0 shadow-lg cursor-pointer"
             >
               Send Forward ({forwardContactIds.length})
             </button>
@@ -3412,7 +3311,7 @@ export const ChatWindow: React.FC = () => {
 
       {/* Toast Notification Banner */}
       {toastMsg && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-[#233138] border border-[#00a8ff]/40 text-[#00a8ff] px-5 py-2.5 rounded-full text-xs font-semibold shadow-2xl animate-fade-in flex items-center gap-2 pointer-events-none">
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-[#233138] border border-[#ff2e93]/40 text-[#ff2e93] px-5 py-2.5 rounded-full text-xs font-semibold shadow-2xl animate-fade-in flex items-center gap-2 pointer-events-none">
           <CheckCheck className="w-4 h-4" />
           <span>{toastMsg}</span>
         </div>
@@ -3489,15 +3388,15 @@ export const ChatWindow: React.FC = () => {
 
             <ol className="text-xs space-y-2 mb-6 text-gray-300 bg-black/20 p-3.5 rounded-xl border border-white/5">
               <li className="flex items-start gap-2">
-                <span className="font-bold text-[#00a8ff] shrink-0">1.</span>
+                <span className="font-bold text-[#ff2e93] shrink-0">1.</span>
                 <span>Click the lock icon 🔒 or settings icon in your address bar.</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="font-bold text-[#00a8ff] shrink-0">2.</span>
+                <span className="font-bold text-[#ff2e93] shrink-0">2.</span>
                 <span>Find <strong>Microphone</strong> permissions and change it to <strong>Allow</strong>.</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="font-bold text-[#00a8ff] shrink-0">3.</span>
+                <span className="font-bold text-[#ff2e93] shrink-0">3.</span>
                 <span>Click <strong>Try Again</strong> below to start recording.</span>
               </li>
             </ol>
@@ -3518,7 +3417,7 @@ export const ChatWindow: React.FC = () => {
                   setShowMicBlockedModal(false);
                   handleStartRecording();
                 }}
-                className="px-5 py-2 rounded-xl text-xs bg-[#00a8ff] hover:bg-[#0088cc] text-[#0b141a] font-bold shadow-md active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
+                className="px-5 py-2 rounded-xl text-xs bg-[#ff2e93] hover:bg-[#ff1e85] text-[#0b141a] font-bold shadow-md active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
               >
                 <Mic className="w-4 h-4" />
                 <span>Try Again</span>
@@ -3580,7 +3479,7 @@ export const ChatWindow: React.FC = () => {
 
             <div className="font-semibold text-sm text-[#e9edef] flex items-center gap-2">
               <span>Media Preview</span>
-              <span className="px-2.5 py-0.5 rounded-full bg-[#202c33] text-xs font-mono text-[#00a8ff]">
+              <span className="px-2.5 py-0.5 rounded-full bg-[#202c33] text-xs font-mono text-[#ff2e93]">
                 {activeMediaIndex + 1} of {pendingMediaList.length}
               </span>
             </div>
@@ -3679,8 +3578,8 @@ export const ChatWindow: React.FC = () => {
                       }}
                       className={`w-7 h-7 rounded-full flex items-center justify-center font-extrabold text-xs transition-all cursor-pointer shrink-0 border-2 ${
                         activeItem.isViewOnce
-                          ? 'bg-[#00a8ff] text-[#0b141a] border-[#00a8ff] shadow-md scale-105'
-                          : 'border-[#8596a0] text-[#8596a0] hover:border-[#00a8ff] hover:text-[#00a8ff]'
+                          ? 'bg-[#ff2e93] text-[#0b141a] border-[#ff2e93] shadow-md scale-105'
+                          : 'border-[#8596a0] text-[#8596a0] hover:border-[#ff2e93] hover:text-[#ff2e93]'
                       }`}
                       title={activeItem.isViewOnce ? "View once is active (Recipient can view only 1 time)" : "Set to View Once"}
                     >
@@ -3702,7 +3601,7 @@ export const ChatWindow: React.FC = () => {
                     type="button"
                     onClick={() => setActiveMediaIndex(idx)}
                     className={`relative w-14 h-14 rounded-xl overflow-hidden shrink-0 border-2 transition-all cursor-pointer ${
-                      activeMediaIndex === idx ? 'border-[#00a8ff] scale-105 shadow-lg' : 'border-transparent opacity-60 hover:opacity-100'
+                      activeMediaIndex === idx ? 'border-[#ff2e93] scale-105 shadow-lg' : 'border-transparent opacity-60 hover:opacity-100'
                     }`}
                   >
                     {item.type === 'image' ? (
@@ -3712,7 +3611,7 @@ export const ChatWindow: React.FC = () => {
                         {item.thumbnailUrl ? (
                           <img src={item.thumbnailUrl} alt={item.name} className="w-full h-full object-cover" />
                         ) : (
-                          <Video className="w-6 h-6 text-[#00a8ff]" />
+                          <Video className="w-6 h-6 text-[#ff2e93]" />
                         )}
                         {item.durationStr && (
                           <span className="absolute bottom-0.5 right-0.5 bg-black/80 px-1 py-0.2 rounded text-[9px] font-mono font-bold text-white">
@@ -3736,7 +3635,7 @@ export const ChatWindow: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => photoInputRef.current?.click()}
-                  className="w-14 h-14 rounded-xl border-2 border-dashed border-[#2a3942] hover:border-[#00a8ff] flex items-center justify-center text-gray-400 hover:text-[#00a8ff] transition-colors shrink-0 cursor-pointer"
+                  className="w-14 h-14 rounded-xl border-2 border-dashed border-[#2a3942] hover:border-[#ff2e93] flex items-center justify-center text-gray-400 hover:text-[#ff2e93] transition-colors shrink-0 cursor-pointer"
                   title="Add More Files"
                 >
                   <Plus className="w-6 h-6" />
@@ -3748,7 +3647,7 @@ export const ChatWindow: React.FC = () => {
                 type="button"
                 disabled={isUploadingMedia}
                 onClick={sendPendingMediaList}
-                className="w-14 h-14 rounded-full bg-[#00a8ff] hover:bg-[#0088cc] text-[#0b141a] flex items-center justify-center shrink-0 shadow-xl active:scale-95 transition-all font-bold cursor-pointer disabled:opacity-50"
+                className="w-14 h-14 rounded-full bg-[#ff2e93] hover:bg-[#ff1e85] text-[#0b141a] flex items-center justify-center shrink-0 shadow-xl active:scale-95 transition-all font-bold cursor-pointer disabled:opacity-50"
               >
                 {isUploadingMedia ? (
                   <div className="w-6 h-6 border-2 border-[#0b141a] border-t-transparent rounded-full animate-spin" />
@@ -3762,7 +3661,7 @@ export const ChatWindow: React.FC = () => {
             {isUploadingMedia && (
               <div className="w-full bg-[#202c33] h-1.5 rounded-full overflow-hidden">
                 <div
-                  className="bg-[#00a8ff] h-full transition-all duration-300"
+                  className="bg-[#ff2e93] h-full transition-all duration-300"
                   style={{ width: `${uploadProgress}%` }}
                 />
               </div>
@@ -3786,7 +3685,7 @@ export const ChatWindow: React.FC = () => {
             {/* Header */}
             <div className="p-4 border-b border-[#222e35] flex items-center justify-between">
               <div className="flex items-center gap-2 font-bold text-base">
-                <User className="w-5 h-5 text-blue-400" />
+                <User className="w-5 h-5 text-pink-400" />
                 <span>Share Contact</span>
               </div>
               <button
@@ -3827,7 +3726,7 @@ export const ChatWindow: React.FC = () => {
                       {c.avatar ? (
                         <img src={c.avatar} alt={c.name} className="w-10 h-10 rounded-full object-cover" />
                       ) : (
-                        <div className="w-10 h-10 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold">
+                        <div className="w-10 h-10 rounded-full bg-[#ff2e93]/20 text-pink-400 flex items-center justify-center font-bold">
                           {c.name.charAt(0)}
                         </div>
                       )}
@@ -3836,7 +3735,7 @@ export const ChatWindow: React.FC = () => {
                         <p className="text-xs text-[#8596a0]">{c.status || 'Available'}</p>
                       </div>
                     </div>
-                    <span className="text-xs font-semibold text-[#00a8ff]">Share</span>
+                    <span className="text-xs font-semibold text-[#ff2e93]">Share</span>
                   </button>
                 ))}
             </div>
@@ -3864,7 +3763,7 @@ export const ChatWindow: React.FC = () => {
             {/* Header Controls */}
             <div className="w-full max-w-4xl flex items-center justify-between p-2 z-10" onClick={e => e.stopPropagation()}>
               <div className="text-xs text-gray-300 font-mono flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[#00a8ff]" />
+                <span className="w-2 h-2 rounded-full bg-[#ff2e93]" />
                 <span>{isVideo ? 'WhatsApp Video Viewer' : 'WhatsApp Media Viewer'}</span>
               </div>
               <div className="flex items-center gap-3">
@@ -3901,7 +3800,7 @@ export const ChatWindow: React.FC = () => {
                   download={fileName}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-2 rounded-full bg-[#00a8ff] text-[#0b141a] font-bold hover:bg-[#0088cc] transition-colors cursor-pointer flex items-center justify-center"
+                  className="p-2 rounded-full bg-[#ff2e93] text-[#0b141a] font-bold hover:bg-[#ff1e85] transition-colors cursor-pointer flex items-center justify-center"
                   title="Download"
                 >
                   <Download className="w-5 h-5" />
@@ -3953,7 +3852,7 @@ export const ChatWindow: React.FC = () => {
           {/* Header */}
           <div className="w-full max-w-lg flex items-center justify-between text-white z-10 px-2 pt-2">
             <div className="flex items-center gap-2 font-bold text-base">
-              <Camera className="w-5 h-5 text-[#00a8ff]" />
+              <Camera className="w-5 h-5 text-[#ff2e93]" />
               <span>Camera</span>
             </div>
             <div className="flex items-center gap-3">
@@ -4003,14 +3902,14 @@ export const ChatWindow: React.FC = () => {
                     closeCameraModal();
                     photoInputRef.current?.click();
                   }}
-                  className="px-5 py-2.5 bg-[#00a8ff] text-[#0b141a] font-bold text-xs rounded-full shadow hover:bg-[#0088cc] transition-colors cursor-pointer"
+                  className="px-5 py-2.5 bg-[#ff2e93] text-[#0b141a] font-bold text-xs rounded-full shadow hover:bg-[#ff1e85] transition-colors cursor-pointer"
                 >
                   Pick Photo / Open Camera App
                 </button>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-2 text-slate-400 text-xs">
-                <Camera className="w-8 h-8 text-[#00a8ff] animate-pulse" />
+                <Camera className="w-8 h-8 text-[#ff2e93] animate-pulse" />
                 <span>Starting camera...</span>
               </div>
             )}
@@ -4036,8 +3935,8 @@ export const ChatWindow: React.FC = () => {
                   }}
                   className={`w-11 h-11 rounded-full flex items-center justify-center font-extrabold text-sm transition-all cursor-pointer border-2 ${
                     cameraViewOnce
-                      ? 'bg-[#00a8ff] text-[#0b141a] border-[#00a8ff] shadow-lg scale-105'
-                      : 'border-white/40 text-white hover:border-[#00a8ff] hover:text-[#00a8ff]'
+                      ? 'bg-[#ff2e93] text-[#0b141a] border-[#ff2e93] shadow-lg scale-105'
+                      : 'border-white/40 text-white hover:border-[#ff2e93] hover:text-[#ff2e93]'
                   }`}
                   title={cameraViewOnce ? "View once is active" : "Set photo to View Once"}
                 >
@@ -4046,7 +3945,7 @@ export const ChatWindow: React.FC = () => {
                 <button
                   type="button"
                   onClick={sendCapturedPhoto}
-                  className="flex items-center gap-2 px-6 py-3 rounded-full bg-[#00a8ff] hover:bg-[#0088cc] text-[#0b141a] font-bold text-sm shadow-xl active:scale-95 transition-all cursor-pointer"
+                  className="flex items-center gap-2 px-6 py-3 rounded-full bg-[#ff2e93] hover:bg-[#ff1e85] text-[#0b141a] font-bold text-sm shadow-xl active:scale-95 transition-all cursor-pointer"
                 >
                   <span>Send Photo</span>
                   <Send className="w-4 h-4" />
@@ -4056,10 +3955,10 @@ export const ChatWindow: React.FC = () => {
               <button
                 type="button"
                 onClick={capturePhoto}
-                className="w-18 h-18 rounded-full bg-white border-4 border-[#00a8ff] shadow-2xl flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
+                className="w-18 h-18 rounded-full bg-white border-4 border-[#ff2e93] shadow-2xl flex items-center justify-center active:scale-90 transition-transform cursor-pointer"
                 title="Take Photo"
               >
-                <div className="w-14 h-14 rounded-full bg-[#00a8ff] hover:bg-[#0088cc] transition-colors flex items-center justify-center">
+                <div className="w-14 h-14 rounded-full bg-[#ff2e93] hover:bg-[#ff1e85] transition-colors flex items-center justify-center">
                   <Camera className="w-7 h-7 text-[#0b141a]" />
                 </div>
               </button>
@@ -4077,7 +3976,7 @@ export const ChatWindow: React.FC = () => {
           {/* Header */}
           <div className="w-full max-w-3xl mx-auto flex items-center justify-between py-2 px-2" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full border-2 border-[#00a8ff] bg-[#00a8ff]/20 text-[#00a8ff] flex items-center justify-center font-extrabold text-sm shadow">
+              <div className="w-9 h-9 rounded-full border-2 border-[#ff2e93] bg-[#ff2e93]/20 text-[#ff2e93] flex items-center justify-center font-extrabold text-sm shadow">
                 1
               </div>
               <div>
@@ -4123,7 +4022,7 @@ export const ChatWindow: React.FC = () => {
             <button
               type="button"
               onClick={() => setViewOnceActiveMedia(null)}
-              className="w-full py-2.5 rounded-full bg-[#00a8ff] text-[#0b141a] font-bold text-xs hover:bg-[#0088cc] transition-colors cursor-pointer shadow-lg"
+              className="w-full py-2.5 rounded-full bg-[#ff2e93] text-[#0b141a] font-bold text-xs hover:bg-[#ff1e85] transition-colors cursor-pointer shadow-lg"
             >
               Close View Once
             </button>
@@ -4157,7 +4056,7 @@ export const ChatWindow: React.FC = () => {
             }`}
           >
             <h3 className="font-bold text-base mb-3 flex items-center gap-2">
-              <Edit3 className="w-5 h-5 text-[#00a8ff]" />
+              <Edit3 className="w-5 h-5 text-[#ff2e93]" />
               <span>Change Group Name</span>
             </h3>
             <input
@@ -4165,7 +4064,7 @@ export const ChatWindow: React.FC = () => {
               value={newGroupNameInput}
               onChange={(e) => setNewGroupNameInput(e.target.value)}
               placeholder="Enter new group name..."
-              className={`w-full p-3 rounded-xl text-sm font-medium border focus:outline-hidden focus:ring-2 focus:ring-[#00a8ff] mb-4 ${
+              className={`w-full p-3 rounded-xl text-sm font-medium border focus:outline-hidden focus:ring-2 focus:ring-[#ff2e93] mb-4 ${
                 isDark ? 'bg-[#111b21] border-[#2a3942] text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
               }`}
               autoFocus
@@ -4181,7 +4080,7 @@ export const ChatWindow: React.FC = () => {
               <button
                 type="submit"
                 disabled={!newGroupNameInput.trim()}
-                className="px-4 py-2 rounded-xl bg-[#00a8ff] hover:bg-[#0088cc] text-[#0b141a] font-bold text-xs disabled:opacity-50 transition-all cursor-pointer shadow-md"
+                className="px-4 py-2 rounded-xl bg-[#ff2e93] hover:bg-[#ff1e85] text-[#0b141a] font-bold text-xs disabled:opacity-50 transition-all cursor-pointer shadow-md"
               >
                 Save Name
               </button>
@@ -4293,7 +4192,7 @@ export const ChatWindow: React.FC = () => {
       {isLoadingStatus && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center">
           <div className="bg-[#111b21] text-white p-4 rounded-2xl flex items-center gap-3 border border-white/10 shadow-2xl">
-            <Loader2 className="w-6 h-6 text-[#00a8ff] animate-spin" />
+            <Loader2 className="w-6 h-6 text-[#ff2e93] animate-spin" />
             <span className="text-sm font-medium">Opening status...</span>
           </div>
         </div>

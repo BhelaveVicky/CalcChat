@@ -3,7 +3,7 @@ import { MessageSquare, CircleDashed, Phone, User, ArrowRightCircle } from 'luci
 import { useVault } from '../context/VaultContext';
 
 export const WhatsAppBottomBar: React.FC = () => {
-  const { activeTab, setActiveTab, unreadTotal, lockVault, settings: vaultSettings } = useVault();
+  const { activeTab, setActiveTab, unreadTotal, unseenStatusCount, missedCallCount, lockVault, settings: vaultSettings } = useVault();
 
   const isDark = vaultSettings.theme !== 'material-light' && vaultSettings.theme !== 'light';
 
@@ -15,38 +15,42 @@ export const WhatsAppBottomBar: React.FC = () => {
       <button
         onClick={() => setActiveTab('chats')}
         className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all group ${
-          activeTab === 'chats' ? 'text-[#00a8ff] font-semibold' : (isDark ? 'text-[#8596a0] hover:text-[#d1d7db]' : 'text-gray-500 hover:text-gray-800')
+          activeTab === 'chats' ? 'text-[#ff2e93] font-semibold' : (isDark ? 'text-[#8596a0] hover:text-[#d1d7db]' : 'text-gray-500 hover:text-gray-800')
         }`}
       >
         <div className="relative flex items-center justify-center">
           <div className={`px-3.5 sm:px-5 py-1 rounded-full transition-colors ${
-            activeTab === 'chats' ? (isDark ? 'bg-[#0c2b42]' : 'bg-sky-100') : ''
+            activeTab === 'chats' ? (isDark ? 'bg-[#ff2e93]/20' : 'bg-pink-100') : ''
           }`}>
             <MessageSquare className="w-5 h-5 fill-current" />
           </div>
           {unreadTotal > 0 && (
-            <span className="absolute -top-1 right-1 bg-[#00a8ff] text-[#0b141a] font-bold text-[10px] px-1.5 py-0.2 rounded-full">
-              {unreadTotal > 99 ? '99+' : unreadTotal || 13}
+            <span className="absolute -top-1 right-1 bg-[#ff2e93] text-white font-bold text-[10px] px-1.5 py-0.2 rounded-full min-w-[18px] text-center shadow-xs">
+              {unreadTotal > 99 ? '99+' : unreadTotal}
             </span>
           )}
         </div>
         <span className="text-[10px] sm:text-xs">Chats</span>
       </button>
 
-      {/* 2. Updates */}
+      {/* 2. Updates / Stori */}
       <button
         onClick={() => setActiveTab('gallery')}
         className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all group ${
-          activeTab === 'gallery' ? 'text-[#00a8ff] font-semibold' : (isDark ? 'text-[#8596a0] hover:text-[#d1d7db]' : 'text-gray-500 hover:text-gray-800')
+          activeTab === 'gallery' ? 'text-[#ff2e93] font-semibold' : (isDark ? 'text-[#8596a0] hover:text-[#d1d7db]' : 'text-gray-500 hover:text-gray-800')
         }`}
       >
         <div className="relative flex items-center justify-center">
           <div className={`px-3.5 sm:px-5 py-1 rounded-full transition-colors ${
-            activeTab === 'gallery' ? (isDark ? 'bg-[#0c2b42]' : 'bg-sky-100') : ''
+            activeTab === 'gallery' ? (isDark ? 'bg-[#ff2e93]/20' : 'bg-pink-100') : ''
           }`}>
             <CircleDashed className="w-5 h-5 stroke-[2.2]" />
           </div>
-          <span className={`absolute top-0.5 right-2 w-2 h-2 bg-[#00a8ff] rounded-full border ${isDark ? 'border-[#0b141a]' : 'border-white'}`}></span>
+          {unseenStatusCount > 0 && (
+            <span className="absolute -top-1 right-1 bg-[#ff2e93] text-white font-bold text-[10px] px-1.5 py-0.2 rounded-full min-w-[18px] text-center shadow-xs">
+              {unseenStatusCount > 99 ? '99+' : unseenStatusCount}
+            </span>
+          )}
         </div>
         <span className="text-[10px] sm:text-xs">Stori</span>
       </button>
@@ -55,15 +59,20 @@ export const WhatsAppBottomBar: React.FC = () => {
       <button
         onClick={() => setActiveTab('calls')}
         className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all group ${
-          activeTab === 'calls' ? 'text-[#00a8ff] font-semibold' : (isDark ? 'text-[#8596a0] hover:text-[#d1d7db]' : 'text-gray-500 hover:text-gray-800')
+          activeTab === 'calls' ? 'text-[#ff2e93] font-semibold' : (isDark ? 'text-[#8596a0] hover:text-[#d1d7db]' : 'text-gray-500 hover:text-gray-800')
         }`}
       >
         <div className="relative flex items-center justify-center">
           <div className={`px-3.5 sm:px-5 py-1 rounded-full transition-colors ${
-            activeTab === 'calls' ? (isDark ? 'bg-[#0c2b42]' : 'bg-sky-100') : ''
+            activeTab === 'calls' ? (isDark ? 'bg-[#ff2e93]/20' : 'bg-pink-100') : ''
           }`}>
             <Phone className="w-5 h-5" />
           </div>
+          {missedCallCount > 0 && (
+            <span className="absolute -top-1 right-1 bg-red-500 text-white font-bold text-[10px] px-1.5 py-0.2 rounded-full min-w-[18px] text-center shadow-xs animate-pulse">
+              {missedCallCount > 99 ? '99+' : missedCallCount}
+            </span>
+          )}
         </div>
         <span className="text-[10px] sm:text-xs">Calls</span>
       </button>
@@ -72,12 +81,12 @@ export const WhatsAppBottomBar: React.FC = () => {
       <button
         onClick={() => setActiveTab('profile')}
         className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all group ${
-          activeTab === 'profile' ? 'text-[#00a8ff] font-semibold' : (isDark ? 'text-[#8596a0] hover:text-[#d1d7db]' : 'text-gray-500 hover:text-gray-800')
+          activeTab === 'profile' ? 'text-[#ff2e93] font-semibold' : (isDark ? 'text-[#8596a0] hover:text-[#d1d7db]' : 'text-gray-500 hover:text-gray-800')
         }`}
       >
         <div className="relative flex items-center justify-center">
           <div className={`px-3.5 sm:px-5 py-1 rounded-full transition-colors ${
-            activeTab === 'profile' ? (isDark ? 'bg-[#0c2b42]' : 'bg-sky-100') : ''
+            activeTab === 'profile' ? (isDark ? 'bg-[#ff2e93]/20' : 'bg-pink-100') : ''
           }`}>
             <User className="w-5 h-5" />
           </div>

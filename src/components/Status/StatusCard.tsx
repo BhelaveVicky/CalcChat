@@ -54,7 +54,7 @@ export const StatusCard: React.FC<StatusCardProps> = ({
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full bg-blue-500/20 text-blue-500 flex items-center justify-center font-bold text-base">
+                <div className="w-full h-full bg-[#ff2e93]/20 text-[#ff2e93] flex items-center justify-center font-bold text-base">
                   {userName ? userName.charAt(0).toUpperCase() : 'U'}
                 </div>
               )}
@@ -68,7 +68,7 @@ export const StatusCard: React.FC<StatusCardProps> = ({
                 e.stopPropagation();
                 if (onAddStatus) onAddStatus();
               }}
-              className="absolute bottom-0 right-0 p-1 rounded-full bg-blue-500 text-white shadow-lg border-2 border-white dark:border-[#111b21] hover:scale-110 active:scale-95 transition-transform"
+              className="absolute bottom-0 right-0 p-1 rounded-full bg-[#ff2e93] text-white shadow-lg border-2 border-white dark:border-[#111b21] hover:scale-110 active:scale-95 transition-transform"
               title="Add Status Update"
             >
               <Plus className="w-3.5 h-3.5 stroke-[3]" />
@@ -77,10 +77,10 @@ export const StatusCard: React.FC<StatusCardProps> = ({
         </div>
 
         <div className="min-w-0 flex-1">
-          <h4 className="font-bold text-sm text-gray-900 dark:text-[#e9edef] truncate flex items-center gap-2">
+          <h4 className={`font-bold text-sm truncate flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
             <span>{isSelf ? 'My Status' : userName}</span>
           </h4>
-          <p className="text-xs text-gray-500 dark:text-[#8596a0] truncate mt-0.5 font-medium">
+          <p className={`text-xs truncate mt-0.5 font-medium ${isDark ? 'text-gray-300' : 'text-gray-500'}`}>
             {statuses.length === 0
               ? 'Tap to add status update'
               : timeFormatted}
@@ -92,7 +92,7 @@ export const StatusCard: React.FC<StatusCardProps> = ({
         {statuses.length > 0 && (
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-500/10 dark:bg-white/5 text-xs text-gray-500 dark:text-gray-400 font-semibold">
             <span>{statuses.length}</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+            <span className="w-1.5 h-1.5 rounded-full bg-[#ff2e93]" />
           </div>
         )}
       </div>

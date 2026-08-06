@@ -6,7 +6,7 @@ import { CCLogo, CalcChatTitle } from './CalcChatBrand';
 
 export const VaultNavbar: React.FC = () => {
   const { 
-    activeTab, setActiveTab, lockVault, user, 
+    activeTab, setActiveTab, lockVault, user, unreadTotal, unseenStatusCount, missedCallCount,
     pendingFriendRequests, acceptFriendRequest, rejectFriendRequest 
   } = useVault();
   const [isRequestsOpen, setIsRequestsOpen] = useState(false);
@@ -22,7 +22,7 @@ export const VaultNavbar: React.FC = () => {
             <div>
               <div className="flex items-center gap-1.5">
                 <CalcChatTitle size="sm" />
-                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-mono px-1 rounded">SECURE</span>
+                <span className="text-[10px] bg-[#ff2e93]/20 text-[#ff2e93] font-mono px-1 rounded font-bold">SECURE</span>
               </div>
               <p className="text-[10px] text-slate-400 truncate max-w-[120px] sm:max-w-[180px]">
                 {user.username ? `@${user.username}` : (user.status || 'Encrypted 256-bit')}
@@ -33,7 +33,7 @@ export const VaultNavbar: React.FC = () => {
           {activeTab === 'chats' && (
             <button
               onClick={() => setIsRequestsOpen(true)}
-              className="relative p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition-all cursor-pointer active:scale-95 ml-1"
+              className="relative p-1.5 rounded-lg bg-[#ff2e93]/10 hover:bg-[#ff2e93]/20 text-[#ff2e93] border border-[#ff2e93]/30 transition-all cursor-pointer active:scale-95 ml-1"
               title="Friend Requests"
             >
               <UserPlus className="w-4 h-4" />
@@ -52,33 +52,61 @@ export const VaultNavbar: React.FC = () => {
             onClick={() => setActiveTab('chats')}
             className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
               activeTab === 'chats'
-                ? 'bg-emerald-500 text-slate-950 font-semibold shadow'
+                ? 'bg-[#ff2e93] text-white font-semibold shadow'
                 : 'text-slate-400 hover:text-white hover:bg-slate-900'
             }`}
             title="Secret Chats"
           >
             <MessageSquare className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Chats</span>
+            {unreadTotal > 0 && (
+              <span className="bg-white text-[#ff2e93] text-[9px] font-extrabold px-1.5 py-0.2 rounded-full">
+                {unreadTotal}
+              </span>
+            )}
           </button>
 
           <button
             onClick={() => setActiveTab('gallery')}
             className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
               activeTab === 'gallery'
-                ? 'bg-emerald-500 text-slate-950 font-semibold shadow'
+                ? 'bg-[#ff2e93] text-white font-semibold shadow'
                 : 'text-slate-400 hover:text-white hover:bg-slate-900'
             }`}
-            title="Media Storage Gallery"
+            title="Stori Updates & Media"
           >
             <Image className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Media</span>
+            <span className="hidden sm:inline">Stori</span>
+            {unseenStatusCount > 0 && (
+              <span className="bg-white text-[#ff2e93] text-[9px] font-extrabold px-1.5 py-0.2 rounded-full">
+                {unseenStatusCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('calls')}
+            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+              activeTab === 'calls'
+                ? 'bg-[#ff2e93] text-white font-semibold shadow'
+                : 'text-slate-400 hover:text-white hover:bg-slate-900'
+            }`}
+            title="Voice & Video Calls"
+          >
+            <Phone className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Calls</span>
+            {missedCallCount > 0 && (
+              <span className="bg-red-500 text-white text-[9px] font-extrabold px-1.5 py-0.2 rounded-full animate-pulse">
+                {missedCallCount}
+              </span>
+            )}
           </button>
 
           <button
             onClick={() => setActiveTab('profile')}
             className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
               activeTab === 'profile'
-                ? 'bg-emerald-500 text-slate-950 font-semibold shadow'
+                ? 'bg-[#ff2e93] text-white font-semibold shadow'
                 : 'text-slate-400 hover:text-white hover:bg-slate-900'
             }`}
             title="User Profile"
@@ -91,7 +119,7 @@ export const VaultNavbar: React.FC = () => {
             onClick={() => setActiveTab('settings')}
             className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
               activeTab === 'settings'
-                ? 'bg-emerald-500 text-slate-950 font-semibold shadow'
+                ? 'bg-[#ff2e93] text-white font-semibold shadow'
                 : 'text-slate-400 hover:text-white hover:bg-slate-900'
             }`}
             title="Vault Settings"

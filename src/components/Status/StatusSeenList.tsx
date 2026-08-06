@@ -32,15 +32,15 @@ export const StatusSeenList: React.FC<StatusSeenListProps> = ({
 
   return (
     <div className="w-full space-y-3">
-      <div className="flex items-center justify-between pb-2 border-b border-gray-200 dark:border-gray-800">
-        <h4 className="font-bold text-sm flex items-center gap-2 text-cyan-500">
+      <div className={`flex items-center justify-between pb-2 border-b ${isDark ? 'border-gray-800' : 'border-gray-200'}`}>
+        <h4 className="font-bold text-sm flex items-center gap-2 text-cyan-400">
           <Eye className="w-4 h-4" />
           <span>Viewed by ({seenRecords.length})</span>
         </h4>
       </div>
 
       {seenRecords.length === 0 ? (
-        <div className="py-8 text-center text-xs text-gray-400">
+        <div className={`py-8 text-center text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
           No views yet. When friends watch this status, they will appear here.
         </div>
       ) : (
@@ -51,7 +51,7 @@ export const StatusSeenList: React.FC<StatusSeenListProps> = ({
               <div
                 key={record.id || record.userId}
                 className={`flex items-center justify-between p-2.5 rounded-xl transition-colors ${
-                  isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'
+                  isDark ? 'bg-white/10 hover:bg-white/15' : 'bg-gray-100 hover:bg-gray-200'
                 }`}
               >
                 <div className="flex items-center gap-3 min-w-0">
@@ -59,18 +59,18 @@ export const StatusSeenList: React.FC<StatusSeenListProps> = ({
                     <img
                       src={info.avatar}
                       alt={info.name}
-                      className="w-9 h-9 rounded-full object-cover border border-white/20 shrink-0"
+                      className="w-10 h-10 rounded-full object-cover border border-white/20 shrink-0"
                     />
                   ) : (
-                    <div className="w-9 h-9 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-xs shrink-0">
-                      <User className="w-4 h-4" />
+                    <div className="w-10 h-10 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-xs shrink-0">
+                      <User className="w-5 h-5" />
                     </div>
                   )}
                   <div className="min-w-0">
-                    <p className="font-semibold text-xs truncate text-gray-900 dark:text-gray-100">
+                    <p className={`font-bold text-sm truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
                       {info.name}
                     </p>
-                    <p className="text-[11px] text-gray-500 dark:text-gray-400 font-mono">
+                    <p className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-500'} font-mono mt-0.5`}>
                       {record.seenTime || 'Recently'}
                     </p>
                   </div>

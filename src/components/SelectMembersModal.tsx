@@ -264,13 +264,13 @@ export const SelectMembersModal: React.FC<SelectMembersModalProps> = ({
           isDark ? 'bg-[#182229] border-[#202c33]' : 'bg-gray-50 border-gray-100'
         }`}>
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-full bg-[#00a8ff]/15 text-[#00a8ff] flex items-center justify-center">
+            <div className="w-9 h-9 rounded-full bg-[#ff2e93]/15 text-[#ff2e93] flex items-center justify-center">
               <UserPlus className="w-5 h-5" />
             </div>
             <div>
               <h3 className="font-extrabold text-base leading-tight">Select Members</h3>
               <p className={`text-xs ${isDark ? 'text-[#8596a0]' : 'text-gray-500'}`}>
-                Add to <span className="font-semibold text-[#00a8ff]">{groupName}</span>
+                Add to <span className="font-semibold text-[#ff2e93]">{groupName}</span>
               </p>
             </div>
           </div>
@@ -299,8 +299,8 @@ export const SelectMembersModal: React.FC<SelectMembersModalProps> = ({
               onChange={e => setSearchQuery(e.target.value)}
               className={`w-full pl-10 pr-4 py-2.5 rounded-2xl text-xs font-medium focus:outline-none transition-all ${
                 isDark 
-                  ? 'bg-[#1f2c34] text-white placeholder-[#8596a0] border border-[#2a3942] focus:border-[#00a8ff]' 
-                  : 'bg-gray-100 text-gray-900 placeholder-gray-400 border border-gray-200 focus:border-[#00a8ff]'
+                  ? 'bg-[#1f2c34] text-white placeholder-[#8596a0] border border-[#2a3942] focus:border-[#ff2e93]' 
+                  : 'bg-gray-100 text-gray-900 placeholder-gray-400 border border-gray-200 focus:border-[#ff2e93]'
               }`}
             />
             {searchQuery && (
@@ -323,7 +323,7 @@ export const SelectMembersModal: React.FC<SelectMembersModalProps> = ({
               <button
                 type="button"
                 onClick={handleSelectAll}
-                className="text-[#00a8ff] font-bold hover:underline cursor-pointer"
+                className="text-[#ff2e93] font-bold hover:underline cursor-pointer"
               >
                 {selectedUserIds.length >= filteredUsers.filter(u => !isUserInGroup(u)).length ? 'Deselect All' : 'Select All'}
               </button>
@@ -354,7 +354,7 @@ export const SelectMembersModal: React.FC<SelectMembersModalProps> = ({
                     inGroup
                       ? (isDark ? 'bg-[#182229]/60 opacity-60 cursor-not-allowed' : 'bg-gray-100 opacity-60 cursor-not-allowed')
                       : isSelected
-                        ? (isDark ? 'bg-[#00a8ff]/15 border border-[#00a8ff]/40 cursor-pointer' : 'bg-[#00a8ff]/10 border border-[#00a8ff]/30 cursor-pointer')
+                        ? (isDark ? 'bg-[#ff2e93]/15 border border-[#ff2e93]/40 cursor-pointer' : 'bg-[#ff2e93]/10 border border-[#ff2e93]/30 cursor-pointer')
                         : (isDark ? 'hover:bg-[#182229] border border-transparent cursor-pointer' : 'hover:bg-gray-100 border border-transparent cursor-pointer')
                   }`}
                 >
@@ -375,7 +375,7 @@ export const SelectMembersModal: React.FC<SelectMembersModalProps> = ({
                         <span className={`text-sm font-bold truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
                           {u.name}
                         </span>
-                        {checkIsAdmin(u) && <VerifiedBadge className="w-4 h-4 text-[#00a8ff] shrink-0" />}
+                        {checkIsAdmin(u) && <VerifiedBadge className="w-4 h-4 text-[#ff2e93] shrink-0" />}
                       </div>
                       <span className={`text-xs truncate ${isDark ? 'text-[#8596a0]' : 'text-gray-500'}`}>
                         {u.username ? `@${u.username.replace(/^@/, '')}` : (u.email || 'CalChat Member')}
@@ -394,8 +394,8 @@ export const SelectMembersModal: React.FC<SelectMembersModalProps> = ({
                     ) : (
                       <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
                         isSelected
-                          ? 'bg-[#00a8ff] text-[#0b141a] shadow-md scale-105'
-                          : (isDark ? 'border-2 border-[#2a3942] hover:border-[#00a8ff]' : 'border-2 border-gray-300 hover:border-[#00a8ff]')
+                          ? 'bg-[#ff2e93] text-[#0b141a] shadow-md scale-105'
+                          : (isDark ? 'border-2 border-[#2a3942] hover:border-[#ff2e93]' : 'border-2 border-gray-300 hover:border-[#ff2e93]')
                       }`}>
                         {isSelected && <Check className="w-4 h-4 stroke-[3]" />}
                       </div>
@@ -419,15 +419,15 @@ export const SelectMembersModal: React.FC<SelectMembersModalProps> = ({
             onChange={e => setCustomInput(e.target.value)}
             className={`w-full px-3.5 py-2 rounded-xl text-xs font-medium focus:outline-none ${
               isDark 
-                ? 'bg-[#0b141a] text-white border border-[#2a3942] focus:border-[#00a8ff]' 
-                : 'bg-white text-gray-900 border border-gray-300 focus:border-[#00a8ff]'
+                ? 'bg-[#0b141a] text-white border border-[#2a3942] focus:border-[#ff2e93]' 
+                : 'bg-white text-gray-900 border border-gray-300 focus:border-[#ff2e93]'
             }`}
           />
         </div>
 
         {/* Toast Alert Notice */}
         {toastMessage && (
-          <div className="px-4 py-2 bg-[#00a8ff] text-[#0b141a] font-bold text-xs text-center animate-fade-in">
+          <div className="px-4 py-2 bg-[#ff2e93] text-[#0b141a] font-bold text-xs text-center animate-fade-in">
             {toastMessage}
           </div>
         )}
@@ -436,7 +436,7 @@ export const SelectMembersModal: React.FC<SelectMembersModalProps> = ({
         <div className={`p-4 flex items-center justify-between border-t gap-3 ${
           isDark ? 'bg-[#182229] border-[#202c33]' : 'bg-gray-50 border-gray-200'
         }`}>
-          <div className="text-xs font-bold text-[#00a8ff]">
+          <div className="text-xs font-bold text-[#ff2e93]">
             {selectedUserIds.length > 0 && `${selectedUserIds.length} Selected`}
           </div>
 
@@ -456,7 +456,7 @@ export const SelectMembersModal: React.FC<SelectMembersModalProps> = ({
               type="button"
               onClick={() => handleSubmit()}
               disabled={isSubmitting || (selectedUserIds.length === 0 && !customInput.trim())}
-              className="px-5 py-2 rounded-xl text-xs font-bold bg-[#00a8ff] hover:bg-[#0088cc] text-[#0b141a] transition-all shadow-md shadow-sky-500/20 active:scale-95 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+              className="px-5 py-2 rounded-xl text-xs font-bold bg-[#ff2e93] hover:bg-[#ff1e85] text-[#0b141a] transition-all shadow-md shadow-[#ff2e93]/20 active:scale-95 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
             >
               <UserCheck className="w-4 h-4" />
               <span>{isSubmitting ? 'Adding...' : (selectedUserIds.length > 0 ? `Done (${selectedUserIds.length})` : 'Done')}</span>

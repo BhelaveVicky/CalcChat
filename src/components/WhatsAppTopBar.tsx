@@ -62,7 +62,11 @@ export const WhatsAppTopBar: React.FC = () => {
           {activeTab === 'chats' && (
             <button
               onClick={() => setIsRequestsOpen(true)}
-              className="relative p-2 rounded-xl bg-[#202c33]/50 hover:bg-[#202c33] text-[#00a8ff] transition-all cursor-pointer active:scale-95 border border-[#00a8ff]/20"
+              className={`relative p-2 rounded-xl transition-all cursor-pointer active:scale-95 border ${
+                isDark
+                  ? 'bg-[#202c33]/50 hover:bg-[#202c33] text-[#ff2e93] border-[#ff2e93]/30'
+                  : 'bg-pink-50 hover:bg-pink-100 text-[#ff2e93] border-pink-200 shadow-xs'
+              }`}
               title="Friend Requests"
             >
               <UserPlus className="w-5 h-5" />

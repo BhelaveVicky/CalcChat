@@ -133,8 +133,8 @@ export const UsernameModal: React.FC<UsernameModalProps> = ({
           
           {/* Display Name Field Card */}
           <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-[0_4px_15px_-2px_rgba(0,0,0,0.03)]">
-            <div className="flex items-center gap-1.5 mb-2 text-blue-500 text-xs font-bold">
-              <User className="w-4 h-4 fill-blue-500/10" />
+            <div className="flex items-center gap-1.5 mb-2 text-[#ff2e93] text-xs font-bold">
+              <User className="w-4 h-4 fill-[#ff2e93]/10" />
               <span>Display Name</span>
             </div>
             <input
@@ -142,13 +142,13 @@ export const UsernameModal: React.FC<UsernameModalProps> = ({
               value={displayNameInput}
               onChange={(e) => setDisplayNameInput(e.target.value)}
               placeholder="e.g. Vicky Kumar"
-              className="w-full bg-gray-50/80 border border-gray-100 focus:border-blue-500 rounded-xl px-4 py-3 text-sm font-semibold text-gray-900 placeholder-gray-400 focus:outline-none transition-all"
+              className="w-full bg-gray-50/80 border border-gray-100 focus:border-[#ff2e93] rounded-xl px-4 py-3 text-sm font-semibold text-gray-900 placeholder-gray-400 focus:outline-none transition-all"
             />
           </div>
 
           {/* Username Field Card */}
           <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-[0_4px_15px_-2px_rgba(0,0,0,0.03)]">
-            <div className="flex items-center gap-1.5 mb-2 text-blue-500 text-xs font-bold">
+            <div className="flex items-center gap-1.5 mb-2 text-[#ff2e93] text-xs font-bold">
               <AtSign className="w-4 h-4" />
               <span>Username</span>
             </div>
@@ -164,7 +164,7 @@ export const UsernameModal: React.FC<UsernameModalProps> = ({
                     ? 'border-emerald-500 focus:border-emerald-500'
                     : isAvailable === false
                     ? 'border-rose-500 focus:border-rose-500'
-                    : 'border-gray-100 focus:border-blue-500'
+                    : 'border-gray-100 focus:border-[#ff2e93]'
                 }`}
               />
               <div className="absolute right-3.5 flex items-center justify-center">
@@ -202,7 +202,7 @@ export const UsernameModal: React.FC<UsernameModalProps> = ({
           <button
             type="submit"
             disabled={!isAvailable || isSubmitting}
-            className="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-base py-3.5 px-6 rounded-2xl shadow-[0_10px_25px_-5px_rgba(37,99,235,0.4)] flex items-center justify-center gap-2 transition-all cursor-pointer mt-3"
+            className="w-full bg-[#ff2e93] hover:bg-[#ff1e85] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-base py-3.5 px-6 rounded-2xl shadow-[0_10px_25px_-5px_rgba(255,46,147,0.4)] flex items-center justify-center gap-2 transition-all cursor-pointer mt-3"
           >
             {isSubmitting ? (
               <>
@@ -221,15 +221,15 @@ export const UsernameModal: React.FC<UsernameModalProps> = ({
         {/* Feature Badges Grid */}
         <div className="w-full grid grid-cols-3 divide-x divide-gray-200 text-center pt-2 pb-1">
           <div className="flex items-center justify-center gap-1 text-gray-600 font-semibold text-xs px-1">
-            <Shield className="w-4 h-4 text-blue-500 fill-blue-500/20 shrink-0" />
+            <Shield className="w-4 h-4 text-[#ff2e93] fill-[#ff2e93]/20 shrink-0" />
             <span className="truncate">Secure</span>
           </div>
           <div className="flex items-center justify-center gap-1 text-gray-600 font-semibold text-xs px-1">
-            <User className="w-4 h-4 text-blue-500 fill-blue-500/20 shrink-0" />
+            <User className="w-4 h-4 text-[#ff2e93] fill-[#ff2e93]/20 shrink-0" />
             <span className="truncate">Easy to Find</span>
           </div>
           <div className="flex items-center justify-center gap-1 text-gray-600 font-semibold text-xs px-1">
-            <Zap className="w-4 h-4 text-blue-500 fill-blue-500/20 shrink-0" />
+            <Zap className="w-4 h-4 text-[#ff2e93] fill-[#ff2e93]/20 shrink-0" />
             <span className="truncate">Fast Setup</span>
           </div>
         </div>
@@ -237,11 +237,11 @@ export const UsernameModal: React.FC<UsernameModalProps> = ({
         {/* Terms & Privacy Policy Disclaimer */}
         <div className="text-center text-xs text-gray-400 font-medium leading-relaxed max-w-xs mx-auto">
           By continuing, you agree to our{' '}
-          <a href="#" onClick={(e) => e.preventDefault()} className="text-blue-500 hover:underline font-semibold">
+          <a href="#" onClick={(e) => e.preventDefault()} className="text-[#ff2e93] hover:underline font-semibold">
             Terms of Service
           </a>{' '}
           and{' '}
-          <a href="#" onClick={(e) => e.preventDefault()} className="text-blue-500 hover:underline font-semibold">
+          <a href="#" onClick={(e) => e.preventDefault()} className="text-[#ff2e93] hover:underline font-semibold">
             Privacy Policy
           </a>
         </div>

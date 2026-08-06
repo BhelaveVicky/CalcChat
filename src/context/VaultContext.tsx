@@ -1280,20 +1280,30 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const q2 = query(collection(db, 'groups'), where('memberUids', 'array-contains', idVal));
       const q3 = query(collection(db, 'groups'), where('createdBy', '==', idVal));
 
-      const u1 = onSnapshot(q1, (snapshot) => {
-        snapshot.docs.forEach(d => docsGroupMap.set(d.id, d.data()));
+      const handleSnapshotChanges = (snapshot: any) => {
+        snapshot.docChanges().forEach((change: any) => {
+          if (change.type === 'removed') {
+            const removedId = change.doc.id;
+            docsGroupMap.delete(removedId);
+            setGroupContacts(prev => prev.filter(g => g.id !== removedId));
+            setMessages(prev => {
+              const next = { ...prev };
+              delete next[removedId];
+              return next;
+            });
+            if (activeContactId === removedId) {
+              setActiveContactId(null);
+            }
+          } else {
+            docsGroupMap.set(change.doc.id, change.doc.data());
+          }
+        });
         updateGroupContactsFromMaps();
-      }, (err) => handleFirestoreError('Groups snapshot error (members):', err, () => {}));
+      };
 
-      const u2 = onSnapshot(q2, (snapshot) => {
-        snapshot.docs.forEach(d => docsGroupMap.set(d.id, d.data()));
-        updateGroupContactsFromMaps();
-      }, (err) => handleFirestoreError('Groups snapshot error (memberUids):', err, () => {}));
-
-      const u3 = onSnapshot(q3, (snapshot) => {
-        snapshot.docs.forEach(d => docsGroupMap.set(d.id, d.data()));
-        updateGroupContactsFromMaps();
-      }, (err) => handleFirestoreError('Groups snapshot error (createdBy):', err, () => {}));
+      const u1 = onSnapshot(q1, handleSnapshotChanges, (err) => handleFirestoreError('Groups snapshot error (members):', err, () => {}));
+      const u2 = onSnapshot(q2, handleSnapshotChanges, (err) => handleFirestoreError('Groups snapshot error (memberUids):', err, () => {}));
+      const u3 = onSnapshot(q3, handleSnapshotChanges, (err) => handleFirestoreError('Groups snapshot error (createdBy):', err, () => {}));
 
       unsubs.push(u1, u2, u3);
     });
@@ -4063,9 +4073,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         );
 
         if (matched) {
-          if (matched.id) memberUidsSet.add(matched.id);
-          if (matched.uid) memberUidsSet.add(matched.uid);
-          if (matched.username) memberUidsSet.add(matched.username);
+          const userUid = matched.uid || matched.id;
+          if (userUid) memberUidsSet.add(userUid);
           if (matched.name) {
             memberNamesSet.add(matched.name);
             newlyAddedDisplayNames.push(matched.name);
@@ -4335,10 +4344,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const myUid = authUser?.uid || user.id;
 
     const isOwner = group?.ownerId === myUid || group?.createdBy === myUid;
-    const isAdmin = isOwner || (group?.admins && group.admins.includes(myUid));
 
-    if (!isAdmin) {
-      throw new Error('Only group admins can update group permissions.');
+    if (!isOwner) {
+      throw new Error('Only the Group Creator can update group permissions.');
     }
 
     const currentPerms: GroupPermissions = group?.permissions || {
@@ -4780,20 +4788,44 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const isOwner = !group?.ownerId || group?.ownerId === myUid || group?.createdBy === myUid;
 
     if (!isOwner) {
-      throw new Error('Only the Group Owner can delete this group permanently.');
+      throw new Error('Only the Group Creator can delete this group permanently.');
     }
 
-    // Optimistically remove group
+    // Optimistically remove group from local state
     setGroupContacts(prev => prev.filter(g => g.id !== groupId));
+    setMessages(prev => {
+      const next = { ...prev };
+      delete next[groupId];
+      return next;
+    });
     if (activeContactId === groupId) {
       setActiveContactId(null);
     }
 
     if (authUser && db) {
+      // 1. Delete main group doc
       await deleteDoc(doc(db, 'groups', groupId)).catch(err => {
         console.error('Failed to delete group from Firestore:', err);
       });
+
+      // 2. Delete chat doc
       await deleteDoc(doc(db, 'chats', groupId)).catch(() => {});
+
+      // 3. Delete messages in subcollections
+      try {
+        const msgsSnap = await getDocs(collection(db, 'chats', groupId, 'messages')).catch(() => null);
+        if (msgsSnap && !msgsSnap.empty) {
+          const batchPromises = msgsSnap.docs.map(mDoc => deleteDoc(mDoc.ref));
+          await Promise.all(batchPromises).catch(() => {});
+        }
+        const groupMsgsSnap = await getDocs(collection(db, 'groups', groupId, 'messages')).catch(() => null);
+        if (groupMsgsSnap && !groupMsgsSnap.empty) {
+          const batchPromises = groupMsgsSnap.docs.map(mDoc => deleteDoc(mDoc.ref));
+          await Promise.all(batchPromises).catch(() => {});
+        }
+      } catch (err) {
+        console.error('Error cleaning up group messages in Firestore:', err);
+      }
     }
   };
 

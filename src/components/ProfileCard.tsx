@@ -931,7 +931,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
         <SelectMembersModal
           groupId={targetUid}
           groupName={displayName}
-          existingMembers={user.members || user.groupMembers || []}
+          existingMembers={user.members || user.memberUids || []}
           onClose={() => setShowSelectMembersModal(false)}
         />
       )}

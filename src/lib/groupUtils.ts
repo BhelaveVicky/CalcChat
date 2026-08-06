@@ -16,8 +16,7 @@ export function getGroupMembersList(
   const targetId = groupContact.id || groupContact.uid || groupContact.groupId;
   const matchedInContacts = (contacts || []).find(c =>
     (c.id && c.id === targetId) ||
-    (c.groupId && c.groupId === targetId) ||
-    (c.name && c.name.toLowerCase() === (groupContact.name || '').toLowerCase())
+    (c.groupId && c.groupId === targetId)
   );
 
   const uidsSet = new Set<string>();

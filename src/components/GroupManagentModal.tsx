@@ -377,7 +377,7 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
             </button>
           )}
 
-          {isGroupAdmin && (
+          {isOwner && (
             <button
               type="button"
               onClick={() => setActiveTab('permissions')}
@@ -600,7 +600,7 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
               </div>
 
               {/* Privacy & Security Settings Card */}
-              {isGroupAdmin && (
+              {isOwner && (
                 <div className={`p-4 rounded-2xl border space-y-3 ${
                   isDark ? 'bg-[#182229] border-[#202c33]' : 'bg-gray-50 border-gray-200'
                 }`}>
@@ -917,6 +917,15 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
 
           {/* TAB 4: GROUP PERMISSIONS CONFIGURATION */}
           {activeTab === 'permissions' && (
+            !isOwner ? (
+              <div className="text-center py-12 space-y-2">
+                <ShieldCheck className="w-12 h-12 text-rose-500 mx-auto opacity-80" />
+                <p className="font-bold text-sm text-rose-500">Access Restricted</p>
+                <p className={`text-xs ${isDark ? 'text-[#8696a0]' : 'text-gray-500'}`}>
+                  Only the Group Creator has authority to modify group permissions.
+                </p>
+              </div>
+            ) : (
             <div className="space-y-4">
               <div className="flex items-center justify-between mb-2">
                 <div>
@@ -979,7 +988,7 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
                 })}
               </div>
             </div>
-          )}
+          ))}
 
           {/* TAB 5: REAL-TIME ACTIVITY LOG */}
           {activeTab === 'activity' && (
@@ -1075,7 +1084,7 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
         <SelectMembersModal
           groupId={groupId}
           groupName={group.name}
-          existingMembers={memberList.map(m => m.id)}
+          existingMembers={group.members || group.memberUids || []}
           onClose={() => setShowSelectMembersModal(false)}
           onMembersAdded={count => showToast(`${count} member(s) added!`)}
         />

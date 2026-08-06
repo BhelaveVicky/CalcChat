@@ -4169,7 +4169,7 @@ export const ChatWindow: React.FC = () => {
         <SelectMembersModal
           groupId={contact.id}
           groupName={getContactDisplayName(contact)}
-          existingMembers={contact.groupMembers || contact.members || []}
+          existingMembers={contact.members || contact.memberUids || []}
           onClose={() => setShowAddMembersModal(false)}
         />
       )}

@@ -1,5 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Users, UserPlus, UserCheck, Search, X, Check, Shield, Plus, Sparkles } from 'lucide-react';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { useVault } from '../context/VaultContext';
 import { checkIsAdmin, VerifiedBadge } from '../lib/adminUtils';
 
@@ -37,23 +39,106 @@ export const SelectMembersModal: React.FC<SelectMembersModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Normalize existing group members for quick lookup
-  const existingSet = useMemo(() => {
-    const set = new Set<string>();
-    existingMembers.forEach(m => {
-      if (!m) return;
-      set.add(m.toLowerCase());
-      set.add(m);
-    });
-    
-    // Also check if current target group in groupContacts has members
+  // Scoped member UIDs for THIS current group only
+  const [groupDocMembers, setGroupDocMembers] = useState<string[]>([]);
+  const [localAddedUids, setLocalAddedUids] = useState<string[]>([]);
+
+  // Requirement 1 & 6: Fetch current group's document from Firestore and/or groupContacts scoped to groupId
+  useEffect(() => {
+    if (!groupId) return;
+
+    // Read initial member state from local groupContacts for this groupId
     const grp = groupContacts.find(g => g.id === groupId);
     if (grp) {
-      (grp.members || []).forEach(m => { set.add(m.toLowerCase()); set.add(m); });
-      (grp.groupMembers || []).forEach(m => { set.add(m.toLowerCase()); set.add(m); });
+      const uids = Array.isArray(grp.members) && grp.members.length > 0
+        ? grp.members
+        : Array.isArray(grp.memberUids) ? grp.memberUids : [];
+      if (uids.length > 0) {
+        setGroupDocMembers(uids.map(u => String(u)));
+      }
     }
+
+    // Subscribe to Firestore doc for this current group only
+    if (db) {
+      const groupRef = doc(db, 'groups', groupId);
+      const unsubscribe = onSnapshot(
+        groupRef,
+        (snapshot) => {
+          if (snapshot.exists()) {
+            const data = snapshot.data();
+            const uids = data.members || data.memberUids || [];
+            if (Array.isArray(uids)) {
+              setGroupDocMembers(uids.map(u => String(u)));
+            }
+          }
+        },
+        (err) => {
+          console.warn('Snapshot listener for group members error:', err);
+        }
+      );
+      return () => unsubscribe();
+    }
+  }, [groupId, groupContacts]);
+
+  // Requirement 2 & 5: Build a Set of member UIDs for ONLY the current group.
+  const currentGroupMemberUidsSet = useMemo(() => {
+    const set = new Set<string>();
+
+    // 1. Members from current group document
+    groupDocMembers.forEach(uid => {
+      if (uid && typeof uid === 'string') {
+        set.add(uid);
+        set.add(uid.toLowerCase());
+      }
+    });
+
+    // 2. Members from groupContacts for this groupId specifically
+    const grp = groupContacts.find(g => g.id === groupId);
+    if (grp) {
+      if (Array.isArray(grp.members)) {
+        grp.members.forEach(m => {
+          if (m && typeof m === 'string') {
+            set.add(m);
+            set.add(m.toLowerCase());
+          }
+        });
+      }
+      if (Array.isArray(grp.memberUids)) {
+        grp.memberUids.forEach(m => {
+          if (m && typeof m === 'string') {
+            set.add(m);
+            set.add(m.toLowerCase());
+          }
+        });
+      }
+      if (grp.createdBy) {
+        set.add(String(grp.createdBy));
+        set.add(String(grp.createdBy).toLowerCase());
+      }
+      if (grp.ownerId) {
+        set.add(String(grp.ownerId));
+        set.add(String(grp.ownerId).toLowerCase());
+      }
+    }
+
+    // 3. Member UIDs from existingMembers prop (filtered to this group)
+    if (Array.isArray(existingMembers)) {
+      existingMembers.forEach(m => {
+        if (m && typeof m === 'string') {
+          set.add(m);
+          set.add(m.toLowerCase());
+        }
+      });
+    }
+
+    // 4. Locally added UIDs in this session
+    localAddedUids.forEach(u => {
+      set.add(u);
+      set.add(u.toLowerCase());
+    });
+
     return set;
-  }, [existingMembers, groupContacts, groupId]);
+  }, [groupDocMembers, groupContacts, groupId, existingMembers, localAddedUids]);
 
   // Consolidate candidate users list from contacts & allRegisteredUsers
   const availableUsers = useMemo(() => {
@@ -106,14 +191,11 @@ export const SelectMembersModal: React.FC<SelectMembersModalProps> = ({
     );
   }, [availableUsers, searchQuery]);
 
-  // Helper to check if a user is already in the group
+  // Requirement 2 & 3: Compare each user's UID/ID only against currentGroup.members
   const isUserInGroup = (u: any) => {
-    return (
-      existingSet.has(u.id?.toLowerCase()) ||
-      existingSet.has(u.uid?.toLowerCase()) ||
-      existingSet.has(u.name?.toLowerCase()) ||
-      (u.username && existingSet.has(u.username.toLowerCase()))
-    );
+    const userUid = String(u.uid || u.id || '');
+    if (!userUid) return false;
+    return currentGroupMemberUidsSet.has(userUid) || currentGroupMemberUidsSet.has(userUid.toLowerCase());
   };
 
   const toggleUserSelection = (userId: string) => {
@@ -154,6 +236,12 @@ export const SelectMembersModal: React.FC<SelectMembersModalProps> = ({
     try {
       await addMembersToGroup(groupId, membersToAdd);
       setToastMessage(`Added ${membersToAdd.length} member${membersToAdd.length > 1 ? 's' : ''}!`);
+      
+      // Requirement 7: Immediately update local state so added users change to "Already Added"
+      setLocalAddedUids(prev => [...prev, ...membersToAdd]);
+      setSelectedUserIds([]);
+      setCustomInput('');
+
       if (onMembersAdded) onMembersAdded(membersToAdd.length);
       setTimeout(() => {
         setIsSubmitting(false);

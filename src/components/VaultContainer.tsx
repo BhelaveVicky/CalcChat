@@ -12,10 +12,11 @@ import { UserProfile } from './UserProfile';
 import { VaultSettingsView } from './VaultSettingsView';
 import { CallsView } from './CallsView';
 import { CallModal } from './CallModal';
+import { GroupInviteModal } from './GrouplnviteModal';
 import { SplashScreen } from './SplashScreen';
 
 export const VaultContainer: React.FC = () => {
-  const { isUnlocked, activeTab, activeContactId, settings: vaultSettings } = useVault();
+  const { isUnlocked, activeTab, activeContactId, setActiveContactId, settings: vaultSettings } = useVault();
 
   const [showUnlockSplash, setShowUnlockSplash] = useState<boolean>(true);
   const [isFadingOut, setIsFadingOut] = useState<boolean>(false);
@@ -61,10 +62,9 @@ export const VaultContainer: React.FC = () => {
   const isChatOpenOnMobile = activeTab === 'chats' && activeContactId;
 
   return (
-    <div className={`flex-1 flex flex-col w-full h-full ${
-      vaultSettings.showAndroidFrame ? 'max-w-md mx-auto shadow-2xl' : 'max-w-full'
-    } overflow-hidden relative transition-colors duration-300 ${themeBg}`}>
-      
+    <div className={`flex-1 flex flex-col w-full h-full ${vaultSettings.showAndroidFrame ? 'max-w-md mx-auto shadow-2xl' : 'max-w-full'
+      } overflow-hidden relative transition-colors duration-300 ${themeBg}`}>
+
       {/* Splash Screen overlay when unlocking the Hidden Chat / Vault */}
       {showUnlockSplash && <SplashScreen isFadingOut={isFadingOut} />}
 
@@ -87,25 +87,22 @@ export const VaultContainer: React.FC = () => {
                     /* Fullscreen / Desktop view: Split layout on md+ screens, single pane on mobile screens */
                     <div className="flex-1 flex w-full h-full overflow-hidden">
                       {/* Chat List column: visible on mobile if no active contact, or on md+ screens always */}
-                      <div className={`h-full border-r ${isDark ? 'border-[#202c33]' : 'border-gray-200'} ${
-                        activeContactId ? 'hidden md:flex md:w-80 lg:w-96 shrink-0' : 'flex flex-1 md:flex-none md:w-80 lg:w-96'
-                      } flex-col overflow-hidden`}>
+                      <div className={`h-full border-r ${isDark ? 'border-[#202c33]' : 'border-gray-200'} ${activeContactId ? 'hidden md:flex md:w-80 lg:w-96 shrink-0' : 'flex flex-1 md:flex-none md:w-80 lg:w-96'
+                        } flex-col overflow-hidden`}>
                         <ChatList />
                       </div>
 
                       {/* Chat Window column: visible on mobile if active contact, or on md+ screens always */}
-                      <div className={`h-full flex-1 ${
-                        activeContactId ? 'flex' : 'hidden md:flex'
-                      } flex-col overflow-hidden`}>
+                      <div className={`h-full flex-1 ${activeContactId ? 'flex' : 'hidden md:flex'
+                        } flex-col overflow-hidden`}>
                         {activeContactId ? (
                           <ChatWindow />
                         ) : (
-                          <div className={`flex-1 flex flex-col items-center justify-center p-8 text-center select-none ${
-                            isDark ? 'bg-[#111b21] text-[#8596a0]' : 'bg-gray-50 text-gray-500'
-                          }`}>
+                          <div className={`flex-1 flex flex-col items-center justify-center p-8 text-center select-none ${isDark ? 'bg-[#111b21] text-[#8596a0]' : 'bg-gray-50 text-gray-500'
+                            }`}>
                             <div className="w-16 h-16 rounded-full bg-[#00a8ff]/10 flex items-center justify-center mb-4 text-[#00a8ff]">
                               <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M12 2C6.48 2 2 6.48 2 12c0 1.82.49 3.53 1.35 5L2 22l5.12-1.32C8.56 21.52 10.22 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm1 14h-2v-2h2v2zm0-4h-2V7h2v5z"/>
+                                <path d="M12 2C6.48 2 2 6.48 2 12c0 1.82.49 3.53 1.35 5L2 22l5.12-1.32C8.56 21.52 10.22 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm1 14h-2v-2h2v2zm0-4h-2V7h2v5z" />
                               </svg>
                             </div>
                             <h3 className={`text-xl font-bold mb-1 ${isDark ? 'text-[#e9edef]' : 'text-gray-800'}`}>WhatsApp Vault Web</h3>
@@ -135,6 +132,9 @@ export const VaultContainer: React.FC = () => {
 
       {/* Global Call Screen Overlay */}
       <CallModal />
+
+      {/* Global Group Invite Preview & Join Modal */}
+      <GroupInviteModal onSelectGroup={(gId) => setActiveContactId(gId)} />
     </div>
   );
 };

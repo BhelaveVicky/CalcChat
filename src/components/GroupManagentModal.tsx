@@ -830,8 +830,8 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
                               </button>
                             )}
 
-                            {/* Admin or Owner controls: Remove Member */}
-                            {(!isTargetOwner && (isOwner || !isTargetAdmin)) && (
+                            {/* Only Group Creator/Owner can remove members */}
+                            {isOwner && !isTargetOwner && (
                               <button
                                 type="button"
                                 onClick={() => removeMemberFromGroup(groupId, m.id || m.name)}

@@ -9,11 +9,18 @@ export function getGroupMembersList(
   groupContact: any,
   allRegisteredUsers: any[] = [],
   contacts: any[] = [],
-  currentUser?: any
+  currentUser?: any,
+  groupContacts: any[] = []
 ): GroupMemberItem[] {
   if (!groupContact) return [];
 
   const targetId = groupContact.id || groupContact.uid || groupContact.groupId;
+  
+  // Find matching group object in groupContacts or contacts for fresh data
+  const matchedInGroupContacts = (groupContacts || []).find(g =>
+    (g.id && g.id === targetId) ||
+    (g.groupId && g.groupId === targetId)
+  );
   const matchedInContacts = (contacts || []).find(c =>
     (c.id && c.id === targetId) ||
     (c.groupId && c.groupId === targetId)
@@ -30,6 +37,7 @@ export function getGroupMembersList(
     if (Array.isArray(obj.memberNames)) obj.memberNames.forEach((m: any) => m && namesSet.add(String(m)));
     if (Array.isArray(obj.followers)) obj.followers.forEach((m: any) => m && uidsSet.add(String(m)));
     if (obj.createdBy) uidsSet.add(String(obj.createdBy));
+    if (obj.ownerId) uidsSet.add(String(obj.ownerId));
     if (Array.isArray(obj.admins)) obj.admins.forEach((m: any) => m && uidsSet.add(String(m)));
 
     const statusStr = obj.status || obj.bio || obj.about || '';
@@ -45,14 +53,13 @@ export function getGroupMembersList(
   };
 
   collectFrom(groupContact);
-  if (matchedInContacts) {
-    collectFrom(matchedInContacts);
-  }
+  if (matchedInGroupContacts) collectFrom(matchedInGroupContacts);
+  if (matchedInContacts) collectFrom(matchedInContacts);
 
-  const creatorId = groupContact.createdBy || matchedInContacts?.createdBy || '';
+  const creatorId = groupContact.createdBy || matchedInGroupContacts?.createdBy || matchedInContacts?.createdBy || groupContact.ownerId || matchedInGroupContacts?.ownerId || matchedInContacts?.ownerId || '';
   const adminIds: string[] = Array.isArray(groupContact.admins)
     ? groupContact.admins
-    : (Array.isArray(matchedInContacts?.admins) ? matchedInContacts.admins : []);
+    : (Array.isArray(matchedInGroupContacts?.admins) ? matchedInGroupContacts.admins : (Array.isArray(matchedInContacts?.admins) ? matchedInContacts.admins : []));
 
   const memberMap = new Map<string, GroupMemberItem>();
 
@@ -67,6 +74,7 @@ export function getGroupMembersList(
       (u.id && String(u.id) === cleanItem) ||
       (u.username && u.username.toLowerCase() === cleanItem.toLowerCase()) ||
       (u.displayName && u.displayName.toLowerCase() === cleanItem.toLowerCase()) ||
+      (u.name && u.name.toLowerCase() === cleanItem.toLowerCase()) ||
       (u.email && u.email.toLowerCase() === cleanItem.toLowerCase())
     );
 
@@ -76,12 +84,21 @@ export function getGroupMembersList(
       (c.name && c.name.toLowerCase() === cleanItem.toLowerCase())
     );
 
+    const isCurrentUser = Boolean(currentUser && (
+      cleanItem === currentUser.id ||
+      cleanItem === currentUser.firebaseUid ||
+      cleanItem === currentUser.uid ||
+      (currentUser.name && cleanItem.toLowerCase() === currentUser.name.toLowerCase()) ||
+      (currentUser.username && cleanItem.toLowerCase() === currentUser.username.toLowerCase()) ||
+      cleanItem.toLowerCase().includes('(you)')
+    ));
+
     let resolvedName = fallbackName || cleanItem;
     let resolvedAvatar: string | undefined = undefined;
 
-    if (currentUser && (cleanItem === currentUser.id || cleanItem === currentUser.firebaseUid || cleanItem === currentUser.uid)) {
+    if (isCurrentUser) {
       resolvedName = currentUser.name ? `${currentUser.name} (You)` : 'You';
-      resolvedAvatar = currentUser.avatar;
+      resolvedAvatar = currentUser.avatar || currentUser.photoURL;
     } else if (foundUser) {
       resolvedName = foundUser.displayName || foundUser.name || resolvedName;
       resolvedAvatar = foundUser.photoURL || foundUser.avatar;
@@ -96,21 +113,47 @@ export function getGroupMembersList(
       }
     }
 
+    // Role assignment:
+    // Creator should ONLY be assigned if THIS specific cleanItem/member matches creatorId!
     let role: 'Creator' | 'Admin' | 'Member' = 'Member';
-    if (creatorId && (cleanItem === creatorId || (currentUser && (creatorId === currentUser.id || creatorId === currentUser.uid)))) {
+
+    const isThisMemberCreator = Boolean(
+      creatorId && (
+        cleanItem === creatorId ||
+        (foundUser && (foundUser.uid === creatorId || foundUser.id === creatorId || foundUser.username === creatorId)) ||
+        (foundContact && (foundContact.id === creatorId || foundContact.username === creatorId)) ||
+        (isCurrentUser && (creatorId === currentUser.id || creatorId === currentUser.uid || creatorId === currentUser.firebaseUid || creatorId === currentUser.username))
+      )
+    );
+
+    if (isThisMemberCreator) {
       role = 'Creator';
-    } else if (adminIds.includes(cleanItem)) {
+    } else if (adminIds.includes(cleanItem) || (foundUser && (adminIds.includes(foundUser.uid) || adminIds.includes(foundUser.id)))) {
       role = 'Admin';
     }
 
-    const key = resolvedName.toLowerCase();
+    const userIdentifier = foundUser?.uid || foundUser?.id || foundContact?.id || (isCurrentUser ? (currentUser.id || currentUser.uid) : null);
+    const cleanResolvedName = resolvedName.replace(/\s*\(You\)$/i, '').trim().toLowerCase();
+    const key = userIdentifier ? `id_${userIdentifier}` : `name_${cleanResolvedName}`;
+
     if (!memberMap.has(key)) {
       memberMap.set(key, {
-        id: cleanItem,
+        id: userIdentifier || cleanItem,
         name: resolvedName,
         avatar: resolvedAvatar,
         role,
       });
+    } else {
+      // If key exists but the role is 'Creator' or 'Admin', elevate role
+      const existing = memberMap.get(key)!;
+      if (role === 'Creator' || (role === 'Admin' && existing.role === 'Member')) {
+        memberMap.set(key, {
+          ...existing,
+          role,
+          id: existing.id || userIdentifier || cleanItem,
+          avatar: existing.avatar || resolvedAvatar,
+        });
+      }
     }
   };
 

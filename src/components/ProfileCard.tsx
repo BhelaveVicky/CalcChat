@@ -77,7 +77,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
 }) => {
   const targetUid = user.uid || user.id || '';
   const { 
-    allRegisteredUsers = [], contacts = [], user: vaultUser, 
+    allRegisteredUsers = [], contacts = [], groupContacts = [], user: vaultUser, 
     removeMemberFromGroup, leaveGroup, toggleGroupAdmin,
     updateGroupDetails, updateGroupPermissions, transferGroupOwnership,
     toggleGroupMuteMember, toggleGroupBanMember, approveJoinRequest,
@@ -131,7 +131,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   const isGroup = Boolean(user.isGroup || targetUid.startsWith('group_') || user.username === 'group');
 
   const myUid = vaultUser?.id || vaultUser?.firebaseUid || currentUserUid || '';
-  const groupContact = contacts.find(c => c.id === targetUid) || user;
+  const groupContact = groupContacts.find(g => g.id === targetUid) || contacts.find(c => c.id === targetUid) || user;
   const isOwner = isGroup && (groupContact.ownerId === myUid || groupContact.createdBy === myUid || (groupContact.createdBy && groupContact.createdBy.includes(myUid)));
   const isGroupAdmin = isOwner || (isGroup && Array.isArray(groupContact.admins) && groupContact.admins.includes(myUid));
   const canEditGroupInfo = isOwner || isGroupAdmin || groupContact.permissions?.editGroupInfo !== false;
@@ -146,7 +146,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
     ? (rawBio.includes('members:') || rawBio.includes('member:') ? 'Official Group Chat' : (rawBio || 'Official Group Chat'))
     : (rawBio || '"An emptiholic heart with quiet dreams" 🌙 💖 🥀');
 
-  const groupMemberList = getGroupMembersList(user, allRegisteredUsers, contacts, vaultUser);
+  const groupMemberList = getGroupMembersList(groupContact, allRegisteredUsers, contacts, vaultUser, groupContacts);
   const groupMembersCount = isGroup ? groupMemberList.length : 0;
 
   const followersCount = isGroup ? groupMembersCount : (isAdmin ? '2K' : (Array.isArray(user.followers) ? user.followers.length : 0));
@@ -564,7 +564,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                       }`}>
                         {m.role}
                       </span>
-                      {m.role !== 'Creator' && m.id !== currentUserUid && (
+                      {isOwner && m.role !== 'Creator' && m.id !== currentUserUid && (
                         <button
                           type="button"
                           onClick={() => removeMemberFromGroup(targetUid, m.id || m.name)}

@@ -4073,8 +4073,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         );
 
         if (matched) {
-          const userUid = matched.uid || matched.id;
-          if (userUid) memberUidsSet.add(userUid);
+          if (matched.id) memberUidsSet.add(matched.id);
+          if (matched.uid) memberUidsSet.add(matched.uid);
+          if (matched.username) memberUidsSet.add(matched.username);
           if (matched.name) {
             memberNamesSet.add(matched.name);
             newlyAddedDisplayNames.push(matched.name);
@@ -4090,7 +4091,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const updatedNames = Array.from(memberNamesSet);
       const statusStr = `${updatedNames.length} members: ${updatedNames.slice(0, 3).join(', ')}${updatedNames.length > 3 ? '...' : ''}`;
 
-      // Optimistically update groupContacts
+      // Optimistically update groupContacts & contacts
       setGroupContacts(prev => prev.map(g => {
         if (g.id === groupId) {
           return {
@@ -4101,6 +4102,18 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           };
         }
         return g;
+      }));
+
+      setContacts(prev => prev.map(c => {
+        if (c.id === groupId || (c as any).groupId === groupId) {
+          return {
+            ...c,
+            members: updatedUids,
+            groupMembers: updatedNames,
+            status: statusStr,
+          };
+        }
+        return c;
       }));
 
       if (db && authUser) {
@@ -4136,6 +4149,13 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const group = groupContacts.find(g => g.id === groupId) || contacts.find(c => c.id === groupId);
     if (!group) return;
+
+    const myUid = authUser?.uid || user.id || '';
+    const isOwner = group.ownerId === myUid || group.createdBy === myUid || (group.createdBy && group.createdBy.includes(myUid));
+    if (!isOwner) {
+      console.warn('Only the Group Creator can remove members from the group.');
+      return;
+    }
 
     const memberList = getGroupMembersList(group, allRegisteredUsers, contacts, user);
     const resolvedTarget = memberList.find(

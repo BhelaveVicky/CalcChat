@@ -86,7 +86,9 @@ export interface Message {
   text: string;
   timestamp: string;
   createdAt?: any;
-  type?: 'text' | 'voice_call' | 'video_call';
+  type?: 'text' | 'voice_call' | 'video_call' | 'system' | string;
+  systemAction?: 'member_added' | 'member_removed' | 'member_left' | 'group_name_changed' | 'group_photo_changed' | 'admin_added' | 'admin_removed' | string;
+  systemText?: string;
   callInfo?: CallInfo;
   media?: MediaAttachment;
   isSent?: boolean;
@@ -137,6 +139,64 @@ export interface Message {
 export type StatusReplyData = NonNullable<Message['statusReply']>;
 export type StatusReactionData = NonNullable<Message['statusReaction']>;
 
+export interface GroupPermissions {
+  sendMessages: boolean;
+  sendImages: boolean;
+  sendVideos: boolean;
+  sendFiles: boolean;
+  sendVoice: boolean;
+  sendGifs: boolean;
+  editGroupInfo: boolean;
+  addMembers: boolean;
+  shareInviteLink: boolean;
+  startGroupCalls: boolean;
+  onlyAdminsSend: boolean;
+  disableMediaSharing: boolean;
+}
+
+export const DEFAULT_GROUP_PERMISSIONS: GroupPermissions = {
+  sendMessages: true,
+  sendImages: true,
+  sendVideos: true,
+  sendFiles: true,
+  sendVoice: true,
+  sendGifs: true,
+  editGroupInfo: true,
+  addMembers: true,
+  shareInviteLink: true,
+  startGroupCalls: true,
+  onlyAdminsSend: false,
+  disableMediaSharing: false,
+};
+
+export interface GroupJoinRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  userAvatar?: string;
+  requestedAt: any;
+}
+
+export interface GroupActivityLog {
+  id: string;
+  action: string;
+  actorId: string;
+  actorName: string;
+  details: string;
+  timestamp: any;
+}
+
+export interface DeletedMessageLog {
+  id: string;
+  messageId: string;
+  senderName: string;
+  senderId: string;
+  deletedByName: string;
+  deletedById: string;
+  originalText: string;
+  timestamp: any;
+}
+
 export interface Contact {
   id: string;
   name: string;
@@ -145,6 +205,7 @@ export interface Contact {
   avatar: string;
   status: string;
   about?: string;
+  description?: string;
   isOnline: boolean;
   lastSeen?: string;
   isPinned?: boolean;
@@ -154,8 +215,21 @@ export interface Contact {
   isGroup?: boolean;
   groupMembers?: string[];
   members?: string[];
+  memberUids?: string[];
+  memberNames?: string[];
   createdBy?: string;
+  ownerId?: string;
   admins?: string[];
+  bannedMembers?: string[];
+  mutedMembers?: string[];
+  joinRequests?: GroupJoinRequest[];
+  inviteLink?: string;
+  inviteLinkDisabled?: boolean;
+  isPublic?: boolean;
+  joinApprovalRequired?: boolean;
+  permissions?: GroupPermissions;
+  activityLogs?: GroupActivityLog[];
+  deletedMessageLogs?: DeletedMessageLog[];
   wallpaper?: string;
   unreadCount: number;
   isTyping?: boolean;
@@ -281,3 +355,4 @@ export interface VaultSettings {
   notificationsEnabled: boolean;
   chatWallpaper?: string;
 }
+  

@@ -13,7 +13,7 @@ import {
   CallInfo, CallLog, CallType, CallDirection, CallStatus, Contact, MediaAttachment, Message, 
   UserProfile, VaultSettings, FriendRequest, FriendStatus, StatusUpdate,
   StatusSeenRecord, StatusLikeRecord, StatusReactionRecord, StatusReplyData, StatusReactionData,
-  AdminWallpaper
+  AdminWallpaper, GroupPermissions, GroupJoinRequest, GroupActivityLog, DeletedMessageLog, DEFAULT_GROUP_PERMISSIONS
 } from '../types';
 import { DEFAULT_SETTINGS, DEFAULT_USER } from '../data/initialData';
 import { isFirebaseConfigured, firebaseAuth, googleProvider, db } from '../lib/firebase';
@@ -22,6 +22,7 @@ import { saveMediaBlob, getMediaBlob } from '../lib/mediaStorage';
 import { extractVideoMetadata } from '../lib/videoUtils';
 import { playMessageArrivalSound } from '../lib/soundUtils';
 import { formatStatusTime, parseMessageDate, formatLastSeen } from '../lib/dateUtils';
+import { getGroupMembersList } from '../lib/groupUtils';
 
 export interface GroupCallParticipant {
   uid: string;
@@ -156,8 +157,25 @@ interface VaultContextType {
   addContact: (name: string, status: string, isAi: boolean) => void;
   createGroup: (groupName: string, memberNames: string[]) => string;
   addMembersToGroup: (groupId: string, memberNamesOrUids: string[]) => Promise<void>;
+  removeMemberFromGroup: (groupId: string, memberIdOrName: string) => Promise<void>;
+  leaveGroup: (groupId: string) => Promise<void>;
+  toggleGroupAdmin: (groupId: string, memberIdOrName: string) => Promise<void>;
+  sendGroupSystemMessage: (groupId: string, systemAction: any, systemText: string) => Promise<void>;
   joinGroupCall: (groupId: string, type?: CallType) => Promise<void>;
-  updateGroupDetails: (groupId: string, updates: { name?: string; avatar?: string; wallpaper?: string }) => Promise<void>;
+  updateGroupDetails: (groupId: string, updates: { name?: string; avatar?: string; wallpaper?: string; description?: string }) => Promise<void>;
+  updateGroupPermissions: (groupId: string, permissions: Partial<GroupPermissions>) => Promise<void>;
+  transferGroupOwnership: (groupId: string, newOwnerId: string) => Promise<void>;
+  toggleGroupMuteMember: (groupId: string, memberIdOrName: string) => Promise<void>;
+  toggleGroupBanMember: (groupId: string, memberIdOrName: string) => Promise<void>;
+  approveJoinRequest: (groupId: string, userId: string) => Promise<void>;
+  rejectJoinRequest: (groupId: string, userId: string) => Promise<void>;
+  requestToJoinGroup: (groupId: string) => Promise<void>;
+  regenerateGroupInviteLink: (groupId: string) => Promise<string>;
+  toggleGroupInviteLinkDisabled: (groupId: string) => Promise<void>;
+  updateGroupDescription: (groupId: string, description: string) => Promise<void>;
+  updateGroupPrivacy: (groupId: string, isPublic: boolean, joinApprovalRequired: boolean) => Promise<void>;
+  deleteGroupMessageForEveryone: (groupId: string, msgId: string) => Promise<void>;
+  clearGroupChatHistoryForEveryone: (groupId: string) => Promise<void>;
   deleteGroup: (groupId: string) => Promise<void>;
   clearChatHistory: (contactId: string) => void;
   clearAllChatHistory: () => void;
@@ -262,8 +280,25 @@ const fallbackVaultContext: VaultContextType = {
   addContact: () => {},
   createGroup: () => '',
   addMembersToGroup: async () => {},
+  removeMemberFromGroup: async () => {},
+  leaveGroup: async () => {},
+  toggleGroupAdmin: async () => {},
+  sendGroupSystemMessage: async () => {},
   joinGroupCall: async () => {},
   updateGroupDetails: async () => {},
+  updateGroupPermissions: async () => {},
+  transferGroupOwnership: async () => {},
+  toggleGroupMuteMember: async () => {},
+  toggleGroupBanMember: async () => {},
+  approveJoinRequest: async () => {},
+  rejectJoinRequest: async () => {},
+  requestToJoinGroup: async () => {},
+  regenerateGroupInviteLink: async () => '',
+  toggleGroupInviteLinkDisabled: async () => {},
+  updateGroupDescription: async () => {},
+  updateGroupPrivacy: async () => {},
+  deleteGroupMessageForEveryone: async () => {},
+  clearGroupChatHistoryForEveryone: async () => {},
   deleteGroup: async () => {},
   clearChatHistory: () => {},
   clearAllChatHistory: () => {},
@@ -1218,10 +1253,22 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           groupMembers: memberNames,
           members: memberUids,
           createdBy: createdBy,
+          ownerId: data.ownerId || createdBy,
           admins: admins,
           lastMessage: data.lastMessage || '',
           lastMessageTime: data.lastMessageTime || null,
           wallpaper: data.wallpaper || data.chatWallpaper,
+          description: data.description || data.about || '',
+          bannedMembers: Array.isArray(data.bannedMembers) ? data.bannedMembers : [],
+          mutedMembers: Array.isArray(data.mutedMembers) ? data.mutedMembers : [],
+          joinRequests: Array.isArray(data.joinRequests) ? data.joinRequests : [],
+          inviteLink: data.inviteLink || `https://calchat.app/join/${data.groupId || data.id || gId}`,
+          inviteLinkDisabled: !!data.inviteLinkDisabled,
+          isPublic: data.isPublic !== undefined ? data.isPublic : false,
+          joinApprovalRequired: data.joinApprovalRequired !== undefined ? data.joinApprovalRequired : false,
+          permissions: data.permissions ? { ...DEFAULT_GROUP_PERMISSIONS, ...data.permissions } : DEFAULT_GROUP_PERMISSIONS,
+          activityLogs: Array.isArray(data.activityLogs) ? data.activityLogs : [],
+          deletedMessageLogs: Array.isArray(data.deletedMessageLogs) ? data.deletedMessageLogs : [],
         };
       });
 
@@ -1317,6 +1364,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               timestamp: timeStr,
               createdAt: data.createdAt,
               type: data.type || 'text',
+              systemAction: data.systemAction,
+              systemText: data.systemText || data.text || '',
               callInfo: data.callInfo,
               media: data.media,
               isSent: true,
@@ -2329,6 +2378,51 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
     if (!isGroupChat && !isFriend(receiverId)) {
       throw new Error('You must become friends before you can chat.');
+    }
+
+    if (isGroupChat) {
+      const targetGroup = groupContacts.find(g => g.id === receiverId) || contacts.find(c => c.id === receiverId);
+      if (targetGroup) {
+        const myUid = authUser.uid;
+        const myName = user.name || authUser.displayName || 'You';
+
+        if (targetGroup.bannedMembers && (targetGroup.bannedMembers.includes(myUid) || targetGroup.bannedMembers.includes(myName))) {
+          throw new Error('You have been banned from this group.');
+        }
+
+        if (targetGroup.mutedMembers && (targetGroup.mutedMembers.includes(myUid) || targetGroup.mutedMembers.includes(myName))) {
+          throw new Error('You are currently muted in this group.');
+        }
+
+        const isOwner = (targetGroup.ownerId === myUid || targetGroup.createdBy === myUid);
+        const isAdmin = isOwner || (targetGroup.admins && targetGroup.admins.includes(myUid));
+
+        if (!isAdmin) {
+          const perms = targetGroup.permissions;
+          if (perms) {
+            if (perms.onlyAdminsSend || perms.sendMessages === false) {
+              throw new Error('Only group admins can send messages in this group.');
+            }
+            if (media) {
+              if (perms.disableMediaSharing) {
+                throw new Error('Media sharing is disabled in this group.');
+              }
+              if (media.type === 'image' && perms.sendImages === false) {
+                throw new Error('Sending images is disabled in this group.');
+              }
+              if (media.type === 'video' && perms.sendVideos === false) {
+                throw new Error('Sending videos is disabled in this group.');
+              }
+              if (media.type === 'file' && perms.sendFiles === false) {
+                throw new Error('Sending files is disabled in this group.');
+              }
+              if (media.type === 'audio' && perms.sendVoice === false) {
+                throw new Error('Sending voice notes is disabled in this group.');
+              }
+            }
+          }
+        }
+      }
     }
 
     const chatId = getChatIdForContact(receiverId);
@@ -3881,11 +3975,66 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return groupId;
   };
 
+  const sendGroupSystemMessage = async (
+    groupId: string,
+    systemAction: any,
+    systemText: string
+  ) => {
+    if (!groupId) return;
+    try {
+      const myUid = authUser?.uid || user.id || 'system';
+      const myName = user.name || authUser?.displayName || 'Admin';
+
+      const activityLogItem: GroupActivityLog = {
+        id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        action: String(systemAction).toUpperCase(),
+        actorId: myUid,
+        actorName: myName,
+        details: systemText,
+        timestamp: new Date().toISOString(),
+      };
+
+      setGroupContacts(prev => prev.map(g => {
+        if (g.id === groupId) {
+          const logs = g.activityLogs || [];
+          return { ...g, activityLogs: [activityLogItem, ...logs] };
+        }
+        return g;
+      }));
+
+      if (db) {
+        const msgRef = collection(db, 'chats', groupId, 'messages');
+        await addDoc(msgRef, {
+          senderId: myUid,
+          senderName: myName,
+          receiverId: groupId,
+          text: systemText,
+          type: 'system',
+          systemAction: systemAction,
+          systemText: systemText,
+          createdAt: serverTimestamp(),
+        }).catch(() => {});
+
+        const groupRef = doc(db, 'groups', groupId);
+        const groupSnap = await getDoc(groupRef).catch(() => null);
+        if (groupSnap?.exists()) {
+          const existingLogs = Array.isArray(groupSnap.data().activityLogs) ? groupSnap.data().activityLogs : [];
+          await updateDoc(groupRef, {
+            activityLogs: [activityLogItem, ...existingLogs].slice(0, 100),
+          }).catch(() => {});
+        }
+      }
+    } catch (err) {
+      console.error('Error sending group system message:', err);
+    }
+  };
+
   const addMembersToGroup = async (groupId: string, newMemberInputs: string[]): Promise<void> => {
     if (!groupId || newMemberInputs.length === 0) return;
 
     try {
       const myUid = authUser?.uid || user.id;
+      const actorName = user.name || authUser?.displayName || 'Admin';
 
       // Find current target group from local groupContacts or contacts
       const targetGroup = groupContacts.find(g => g.id === groupId) || contacts.find(c => c.id === groupId);
@@ -3962,41 +4111,206 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         });
       }
 
-      // Send system message in chat
+      // WhatsApp-style system message
       if (newlyAddedDisplayNames.length > 0) {
-        const addedMsgStr = `➕ Added ${newlyAddedDisplayNames.join(', ')} to the group`;
-        await sendMessage(groupId, addedMsgStr).catch(() => {});
+        const sysMsgText = `🟢 ${actorName} added ${newlyAddedDisplayNames.join(', ')}`;
+        await sendGroupSystemMessage(groupId, 'member_added', sysMsgText);
       }
     } catch (err) {
       console.error('Failed to add members to group:', err);
     }
   };
 
-  const updateGroupDetails = async (groupId: string, updates: { name?: string; avatar?: string; wallpaper?: string }) => {
+  const removeMemberFromGroup = async (groupId: string, memberIdOrName: string) => {
+    if (!groupId || !memberIdOrName) return;
+    const actorName = user.name || authUser?.displayName || 'Admin';
+
+    const group = groupContacts.find(g => g.id === groupId) || contacts.find(c => c.id === groupId);
+    if (!group) return;
+
+    const memberList = getGroupMembersList(group, allRegisteredUsers, contacts, user);
+    const resolvedTarget = memberList.find(
+      m => m.id === memberIdOrName || m.name.toLowerCase().includes(memberIdOrName.toLowerCase())
+    );
+
+    const targetName = resolvedTarget ? resolvedTarget.name.replace(/\s*\(You\)$/, '') : memberIdOrName;
+    const targetId = resolvedTarget ? resolvedTarget.id : memberIdOrName;
+
+    const existingMembers = group.members || [];
+    const existingNames = group.groupMembers || [];
+    const existingAdmins = group.admins || [];
+
+    const updatedUids = existingMembers.filter(id => id !== targetId && id !== targetName);
+    const updatedNames = existingNames.filter(n => n.toLowerCase() !== targetName.toLowerCase());
+    const updatedAdmins = existingAdmins.filter(a => a !== targetId && a !== targetName);
+    const statusStr = `${updatedNames.length} members: ${updatedNames.slice(0, 3).join(', ')}${updatedNames.length > 3 ? '...' : ''}`;
+
+    setGroupContacts(prev => prev.map(g => {
+      if (g.id === groupId) {
+        return {
+          ...g,
+          members: updatedUids,
+          groupMembers: updatedNames,
+          admins: updatedAdmins,
+          status: statusStr,
+        };
+      }
+      return g;
+    }));
+
+    if (db && authUser) {
+      const groupRef = doc(db, 'groups', groupId);
+      await updateDoc(groupRef, {
+        members: updatedUids,
+        memberUids: updatedUids,
+        memberNames: updatedNames,
+        admins: updatedAdmins,
+        status: statusStr,
+      }).catch(err => console.error('Error removing group member in Firestore:', err));
+    }
+
+    // WhatsApp-style system message
+    const sysMsgText = `🔴 ${actorName} removed ${targetName}`;
+    await sendGroupSystemMessage(groupId, 'member_removed', sysMsgText);
+  };
+
+  const leaveGroup = async (groupId: string) => {
     if (!groupId) return;
-    const group = groupContacts.find(g => g.id === groupId);
+    const myUid = authUser?.uid || user.id;
+    const actorName = user.name || authUser?.displayName || 'Member';
+
+    const group = groupContacts.find(g => g.id === groupId) || contacts.find(c => c.id === groupId);
+
+    if (group) {
+      const existingMembers = group.members || [];
+      const existingNames = group.groupMembers || [];
+      const existingAdmins = group.admins || [];
+
+      const updatedUids = existingMembers.filter(id => id !== myUid && id !== actorName);
+      const updatedNames = existingNames.filter(n => n.toLowerCase() !== actorName.toLowerCase() && !n.includes('(You)'));
+      const updatedAdmins = existingAdmins.filter(a => a !== myUid);
+      const statusStr = `${updatedNames.length} members: ${updatedNames.slice(0, 3).join(', ')}${updatedNames.length > 3 ? '...' : ''}`;
+
+      setGroupContacts(prev => prev.filter(g => g.id !== groupId));
+
+      if (db && authUser) {
+        const groupRef = doc(db, 'groups', groupId);
+        await updateDoc(groupRef, {
+          members: updatedUids,
+          memberUids: updatedUids,
+          memberNames: updatedNames,
+          admins: updatedAdmins,
+          status: statusStr,
+        }).catch(err => console.error('Error updating group leave in Firestore:', err));
+      }
+    }
+
+    // WhatsApp-style system message
+    const sysMsgText = `🚪 ${actorName} left the group.`;
+    await sendGroupSystemMessage(groupId, 'member_left', sysMsgText);
+
+    if (activeContactId === groupId) {
+      setActiveContactId(null);
+    }
+  };
+
+  const toggleGroupAdmin = async (groupId: string, memberIdOrName: string) => {
+    if (!groupId || !memberIdOrName) return;
+    const actorName = user.name || authUser?.displayName || 'Admin';
+
+    const group = groupContacts.find(g => g.id === groupId) || contacts.find(c => c.id === groupId);
+    if (!group) return;
+
+    const memberList = getGroupMembersList(group, allRegisteredUsers, contacts, user);
+    const resolvedTarget = memberList.find(
+      m => m.id === memberIdOrName || m.name.toLowerCase().includes(memberIdOrName.toLowerCase())
+    );
+
+    const targetName = resolvedTarget ? resolvedTarget.name.replace(/\s*\(You\)$/, '') : memberIdOrName;
+    const targetId = resolvedTarget ? resolvedTarget.id : memberIdOrName;
+
+    const currentAdmins = group.admins || [];
+    const isAlreadyAdmin = currentAdmins.includes(targetId) || currentAdmins.includes(targetName);
+
+    let updatedAdmins: string[];
+    let sysMsgText: string;
+    let actionType: 'admin_added' | 'admin_removed';
+
+    if (isAlreadyAdmin) {
+      updatedAdmins = currentAdmins.filter(a => a !== targetId && a !== targetName);
+      sysMsgText = `👑 ${actorName} removed ${targetName} as an admin.`;
+      actionType = 'admin_removed';
+    } else {
+      updatedAdmins = [...currentAdmins, targetId];
+      sysMsgText = `👑 ${actorName} made ${targetName} an admin.`;
+      actionType = 'admin_added';
+    }
+
+    setGroupContacts(prev => prev.map(g => {
+      if (g.id === groupId) {
+        return {
+          ...g,
+          admins: updatedAdmins,
+        };
+      }
+      return g;
+    }));
+
+    if (db && authUser) {
+      const groupRef = doc(db, 'groups', groupId);
+      await updateDoc(groupRef, {
+        admins: updatedAdmins,
+      }).catch(err => console.error('Error toggling admin in Firestore:', err));
+    }
+
+    await sendGroupSystemMessage(groupId, actionType, sysMsgText);
+  };
+
+  const updateGroupDetails = async (groupId: string, updates: { name?: string; avatar?: string; wallpaper?: string; description?: string }) => {
+    if (!groupId) return;
+    const group = groupContacts.find(g => g.id === groupId) || contacts.find(c => c.id === groupId);
     const myUid = authUser?.uid || user.id;
 
-    if (group && group.createdBy && group.createdBy !== myUid) {
-      throw new Error('Only the group creator can update group details (name, photo, wallpaper).');
+    const isOwner = group?.ownerId === myUid || group?.createdBy === myUid;
+    const isAdmin = isOwner || (group?.admins && group.admins.includes(myUid));
+    const canEdit = isOwner || isAdmin || group?.permissions?.editGroupInfo !== false;
+
+    if (!canEdit) {
+      throw new Error('You do not have permission to edit group details.');
     }
 
     const firestoreUpdates: Record<string, any> = {};
-    if (updates.name !== undefined) {
-      firestoreUpdates.name = updates.name.trim();
-      firestoreUpdates.groupName = updates.name.trim();
+    const actorName = user.name || authUser?.displayName || 'Admin';
+
+    if (updates.name !== undefined && updates.name.trim() && updates.name.trim() !== (group?.name || '')) {
+      const newName = updates.name.trim();
+      firestoreUpdates.name = newName;
+      firestoreUpdates.groupName = newName;
+      const sysMsgText = `✏️ ${actorName} changed the group name to "${newName}".`;
+      sendGroupSystemMessage(groupId, 'group_name_changed', sysMsgText).catch(() => {});
     }
-    if (updates.avatar !== undefined) {
+
+    if (updates.avatar !== undefined && updates.avatar !== (group?.avatar || '')) {
       firestoreUpdates.avatar = updates.avatar;
       firestoreUpdates.groupPhoto = updates.avatar;
+      const sysMsgText = `🖼️ ${actorName} changed the group photo.`;
+      sendGroupSystemMessage(groupId, 'group_photo_changed', sysMsgText).catch(() => {});
     }
+
     if (updates.wallpaper !== undefined) {
       firestoreUpdates.wallpaper = updates.wallpaper;
     }
 
+    if (updates.description !== undefined && updates.description !== (group?.description || group?.about || '')) {
+      firestoreUpdates.description = updates.description.trim();
+      firestoreUpdates.about = updates.description.trim();
+      firestoreUpdates.bio = updates.description.trim();
+      const sysMsgText = `📝 ${actorName} updated the group description.`;
+      sendGroupSystemMessage(groupId, 'description_changed', sysMsgText).catch(() => {});
+    }
+
     if (Object.keys(firestoreUpdates).length === 0) return;
 
-    // Optimistically update groupContacts
     setGroupContacts(prev => prev.map(g => {
       if (g.id !== groupId) return g;
       return {
@@ -4004,6 +4318,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         ...(updates.name ? { name: updates.name.trim() } : {}),
         ...(updates.avatar ? { avatar: updates.avatar } : {}),
         ...(updates.wallpaper ? { wallpaper: updates.wallpaper } : {}),
+        ...(updates.description ? { description: updates.description.trim(), about: updates.description.trim() } : {}),
       };
     }));
 
@@ -4014,13 +4329,458 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const updateGroupPermissions = async (groupId: string, newPerms: Partial<GroupPermissions>) => {
+    if (!groupId) return;
+    const group = groupContacts.find(g => g.id === groupId) || contacts.find(c => c.id === groupId);
+    const myUid = authUser?.uid || user.id;
+
+    const isOwner = group?.ownerId === myUid || group?.createdBy === myUid;
+    const isAdmin = isOwner || (group?.admins && group.admins.includes(myUid));
+
+    if (!isAdmin) {
+      throw new Error('Only group admins can update group permissions.');
+    }
+
+    const currentPerms: GroupPermissions = group?.permissions || {
+      sendMessages: true,
+      sendImages: true,
+      sendVideos: true,
+      sendFiles: true,
+      sendVoice: true,
+      sendGifs: true,
+      editGroupInfo: true,
+      addMembers: true,
+      shareInviteLink: true,
+      startGroupCalls: true,
+      onlyAdminsSend: false,
+      disableMediaSharing: false,
+    };
+
+    const updatedPermissions = { ...currentPerms, ...newPerms };
+    const actorName = user.name || authUser?.displayName || 'Admin';
+
+    setGroupContacts(prev => prev.map(g => {
+      if (g.id === groupId) {
+        return { ...g, permissions: updatedPermissions };
+      }
+      return g;
+    }));
+
+    if (authUser && db) {
+      await updateDoc(doc(db, 'groups', groupId), { permissions: updatedPermissions }).catch(err => {
+        console.error('Failed to update group permissions:', err);
+      });
+    }
+
+    const sysMsgText = `⚙️ ${actorName} updated group permission settings.`;
+    await sendGroupSystemMessage(groupId, 'permissions_updated', sysMsgText);
+  };
+
+  const transferGroupOwnership = async (groupId: string, newOwnerId: string) => {
+    if (!groupId || !newOwnerId) return;
+    const group = groupContacts.find(g => g.id === groupId) || contacts.find(c => c.id === groupId);
+    const myUid = authUser?.uid || user.id;
+
+    const isOwner = group?.ownerId === myUid || group?.createdBy === myUid;
+    if (!isOwner) {
+      throw new Error('Only the current Group Owner can transfer ownership.');
+    }
+
+    const memberList = getGroupMembersList(group, allRegisteredUsers, contacts, user);
+    const targetMember = memberList.find(m => m.id === newOwnerId || m.name.toLowerCase().includes(newOwnerId.toLowerCase()));
+    if (!targetMember) throw new Error('Target member not found in group.');
+
+    const targetId = targetMember.id;
+    const targetName = targetMember.name.replace(/\s*\(You\)$/, '');
+    const actorName = user.name || authUser?.displayName || 'Owner';
+
+    const currentAdmins = group?.admins || [];
+    const updatedAdmins = Array.from(new Set([...currentAdmins, myUid, targetId]));
+
+    setGroupContacts(prev => prev.map(g => {
+      if (g.id === groupId) {
+        return {
+          ...g,
+          ownerId: targetId,
+          createdBy: targetId,
+          admins: updatedAdmins,
+        };
+      }
+      return g;
+    }));
+
+    if (authUser && db) {
+      await updateDoc(doc(db, 'groups', groupId), {
+        ownerId: targetId,
+        createdBy: targetId,
+        admins: updatedAdmins,
+      }).catch(err => console.error('Failed to transfer group ownership in Firestore:', err));
+    }
+
+    const sysMsgText = `👑 ${actorName} transferred group ownership to ${targetName}.`;
+    await sendGroupSystemMessage(groupId, 'ownership_transferred', sysMsgText);
+  };
+
+  const toggleGroupMuteMember = async (groupId: string, memberIdOrName: string) => {
+    if (!groupId || !memberIdOrName) return;
+    const group = groupContacts.find(g => g.id === groupId) || contacts.find(c => c.id === groupId);
+    const myUid = authUser?.uid || user.id;
+
+    const isOwner = group?.ownerId === myUid || group?.createdBy === myUid;
+    const isAdmin = isOwner || (group?.admins && group.admins.includes(myUid));
+    if (!isAdmin) throw new Error('Only admins can mute or unmute members.');
+
+    const memberList = getGroupMembersList(group, allRegisteredUsers, contacts, user);
+    const targetMember = memberList.find(m => m.id === memberIdOrName || m.name.toLowerCase().includes(memberIdOrName.toLowerCase()));
+    if (!targetMember) return;
+
+    const targetId = targetMember.id;
+    const targetName = targetMember.name.replace(/\s*\(You\)$/, '');
+    const actorName = user.name || authUser?.displayName || 'Admin';
+
+    const currentMuted = group?.mutedMembers || [];
+    const isMuted = currentMuted.includes(targetId) || currentMuted.includes(targetName);
+
+    let updatedMuted: string[];
+    let sysMsgText: string;
+
+    if (isMuted) {
+      updatedMuted = currentMuted.filter(m => m !== targetId && m !== targetName);
+      sysMsgText = `🔊 ${actorName} unmuted ${targetName}.`;
+    } else {
+      updatedMuted = [...currentMuted, targetId];
+      sysMsgText = `🔇 ${actorName} muted ${targetName}.`;
+    }
+
+    setGroupContacts(prev => prev.map(g => {
+      if (g.id === groupId) {
+        return { ...g, mutedMembers: updatedMuted };
+      }
+      return g;
+    }));
+
+    if (authUser && db) {
+      await updateDoc(doc(db, 'groups', groupId), { mutedMembers: updatedMuted }).catch(() => {});
+    }
+
+    await sendGroupSystemMessage(groupId, isMuted ? 'member_unmuted' : 'member_muted', sysMsgText);
+  };
+
+  const toggleGroupBanMember = async (groupId: string, memberIdOrName: string) => {
+    if (!groupId || !memberIdOrName) return;
+    const group = groupContacts.find(g => g.id === groupId) || contacts.find(c => c.id === groupId);
+    const myUid = authUser?.uid || user.id;
+
+    const isOwner = group?.ownerId === myUid || group?.createdBy === myUid;
+    const isAdmin = isOwner || (group?.admins && group.admins.includes(myUid));
+    if (!isAdmin) throw new Error('Only admins can ban or unban members.');
+
+    const memberList = getGroupMembersList(group, allRegisteredUsers, contacts, user);
+    const targetMember = memberList.find(m => m.id === memberIdOrName || m.name.toLowerCase().includes(memberIdOrName.toLowerCase()));
+
+    const targetId = targetMember ? targetMember.id : memberIdOrName;
+    const targetName = targetMember ? targetMember.name.replace(/\s*\(You\)$/, '') : memberIdOrName;
+    const actorName = user.name || authUser?.displayName || 'Admin';
+
+    const currentBanned = group?.bannedMembers || [];
+    const isBanned = currentBanned.includes(targetId) || currentBanned.includes(targetName);
+
+    let updatedBanned: string[];
+    let sysMsgText: string;
+
+    if (isBanned) {
+      updatedBanned = currentBanned.filter(b => b !== targetId && b !== targetName);
+      sysMsgText = `✅ ${actorName} unbanned ${targetName}.`;
+    } else {
+      updatedBanned = [...currentBanned, targetId];
+      sysMsgText = `🚫 ${actorName} banned ${targetName} from the group.`;
+
+      const existingMembers = group?.members || [];
+      const existingNames = group?.groupMembers || [];
+      const existingAdmins = group?.admins || [];
+
+      const updatedUids = existingMembers.filter(id => id !== targetId && id !== targetName);
+      const updatedNames = existingNames.filter(n => n.toLowerCase() !== targetName.toLowerCase());
+      const updatedAdmins = existingAdmins.filter(a => a !== targetId && a !== targetName);
+
+      setGroupContacts(prev => prev.map(g => {
+        if (g.id === groupId) {
+          return {
+            ...g,
+            members: updatedUids,
+            groupMembers: updatedNames,
+            admins: updatedAdmins,
+            bannedMembers: updatedBanned,
+          };
+        }
+        return g;
+      }));
+
+      if (authUser && db) {
+        await updateDoc(doc(db, 'groups', groupId), {
+          members: updatedUids,
+          memberUids: updatedUids,
+          memberNames: updatedNames,
+          admins: updatedAdmins,
+          bannedMembers: updatedBanned,
+        }).catch(() => {});
+      }
+      await sendGroupSystemMessage(groupId, 'member_banned', sysMsgText);
+      return;
+    }
+
+    setGroupContacts(prev => prev.map(g => {
+      if (g.id === groupId) {
+        return { ...g, bannedMembers: updatedBanned };
+      }
+      return g;
+    }));
+
+    if (authUser && db) {
+      await updateDoc(doc(db, 'groups', groupId), { bannedMembers: updatedBanned }).catch(() => {});
+    }
+
+    await sendGroupSystemMessage(groupId, 'member_unbanned', sysMsgText);
+  };
+
+  const approveJoinRequest = async (groupId: string, userId: string) => {
+    if (!groupId || !userId) return;
+    const group = groupContacts.find(g => g.id === groupId) || contacts.find(c => c.id === groupId);
+    const actorName = user.name || authUser?.displayName || 'Admin';
+
+    const currentRequests = group?.joinRequests || [];
+    const targetReq = currentRequests.find(r => r.userId === userId || r.id === userId);
+    const targetName = targetReq?.userName || userId;
+
+    const updatedRequests = currentRequests.filter(r => r.userId !== userId && r.id !== userId);
+
+    const existingMembers = group?.members || [];
+    const existingNames = group?.groupMembers || [];
+
+    const updatedUids = Array.from(new Set([...existingMembers, userId]));
+    const updatedNames = Array.from(new Set([...existingNames, targetName]));
+
+    setGroupContacts(prev => prev.map(g => {
+      if (g.id === groupId) {
+        return {
+          ...g,
+          members: updatedUids,
+          groupMembers: updatedNames,
+          joinRequests: updatedRequests,
+        };
+      }
+      return g;
+    }));
+
+    if (authUser && db) {
+      await updateDoc(doc(db, 'groups', groupId), {
+        members: updatedUids,
+        memberUids: updatedUids,
+        memberNames: updatedNames,
+        joinRequests: updatedRequests,
+      }).catch(() => {});
+    }
+
+    const sysMsgText = `🟢 ${actorName} approved join request for ${targetName}.`;
+    await sendGroupSystemMessage(groupId, 'join_request_approved', sysMsgText);
+  };
+
+  const rejectJoinRequest = async (groupId: string, userId: string) => {
+    if (!groupId || !userId) return;
+    const group = groupContacts.find(g => g.id === groupId) || contacts.find(c => c.id === groupId);
+    const currentRequests = group?.joinRequests || [];
+    const updatedRequests = currentRequests.filter(r => r.userId !== userId && r.id !== userId);
+
+    setGroupContacts(prev => prev.map(g => {
+      if (g.id === groupId) {
+        return { ...g, joinRequests: updatedRequests };
+      }
+      return g;
+    }));
+
+    if (authUser && db) {
+      await updateDoc(doc(db, 'groups', groupId), { joinRequests: updatedRequests }).catch(() => {});
+    }
+  };
+
+  const requestToJoinGroup = async (groupId: string) => {
+    if (!groupId || !authUser) return;
+    const group = groupContacts.find(g => g.id === groupId) || contacts.find(c => c.id === groupId);
+    const myUid = authUser.uid;
+    const myName = user.name || authUser.displayName || 'User';
+
+    const reqObj: GroupJoinRequest = {
+      id: `req_${myUid}_${Date.now()}`,
+      userId: myUid,
+      userName: myName,
+      userAvatar: user.avatar || authUser.photoURL || '',
+      requestedAt: new Date().toISOString(),
+    };
+
+    const existingRequests = group?.joinRequests || [];
+    if (existingRequests.some(r => r.userId === myUid)) return;
+
+    const updatedRequests = [...existingRequests, reqObj];
+
+    setGroupContacts(prev => prev.map(g => {
+      if (g.id === groupId) {
+        return { ...g, joinRequests: updatedRequests };
+      }
+      return g;
+    }));
+
+    if (db) {
+      await updateDoc(doc(db, 'groups', groupId), { joinRequests: updatedRequests }).catch(() => {});
+    }
+  };
+
+  const regenerateGroupInviteLink = async (groupId: string): Promise<string> => {
+    const newCode = `https://vault.chat/join/g_${groupId}_${Math.random().toString(36).substring(2, 9)}`;
+    const actorName = user.name || authUser?.displayName || 'Admin';
+
+    setGroupContacts(prev => prev.map(g => {
+      if (g.id === groupId) {
+        return { ...g, inviteLink: newCode, inviteLinkDisabled: false };
+      }
+      return g;
+    }));
+
+    if (authUser && db) {
+      await updateDoc(doc(db, 'groups', groupId), { inviteLink: newCode, inviteLinkDisabled: false }).catch(() => {});
+    }
+
+    const sysMsgText = `🔗 ${actorName} regenerated the group invite link.`;
+    await sendGroupSystemMessage(groupId, 'invite_link_regenerated', sysMsgText);
+    return newCode;
+  };
+
+  const toggleGroupInviteLinkDisabled = async (groupId: string) => {
+    const group = groupContacts.find(g => g.id === groupId) || contacts.find(c => c.id === groupId);
+    const nextDisabled = !group?.inviteLinkDisabled;
+    const actorName = user.name || authUser?.displayName || 'Admin';
+
+    setGroupContacts(prev => prev.map(g => {
+      if (g.id === groupId) {
+        return { ...g, inviteLinkDisabled: nextDisabled };
+      }
+      return g;
+    }));
+
+    if (authUser && db) {
+      await updateDoc(doc(db, 'groups', groupId), { inviteLinkDisabled: nextDisabled }).catch(() => {});
+    }
+
+    const sysMsgText = `🔗 ${actorName} ${nextDisabled ? 'disabled' : 'enabled'} group invite links.`;
+    await sendGroupSystemMessage(groupId, 'invite_link_toggled', sysMsgText);
+  };
+
+  const updateGroupDescription = async (groupId: string, description: string) => {
+    await updateGroupDetails(groupId, { description });
+  };
+
+  const updateGroupPrivacy = async (groupId: string, isPublic: boolean, joinApprovalRequired: boolean) => {
+    const actorName = user.name || authUser?.displayName || 'Admin';
+
+    setGroupContacts(prev => prev.map(g => {
+      if (g.id === groupId) {
+        return { ...g, isPublic, joinApprovalRequired };
+      }
+      return g;
+    }));
+
+    if (authUser && db) {
+      await updateDoc(doc(db, 'groups', groupId), { isPublic, joinApprovalRequired }).catch(() => {});
+    }
+
+    const sysMsgText = `🔒 ${actorName} changed group to ${isPublic ? 'Public' : 'Private'} (Join Approval: ${joinApprovalRequired ? 'Required' : 'Disabled'}).`;
+    await sendGroupSystemMessage(groupId, 'privacy_changed', sysMsgText);
+  };
+
+  const deleteGroupMessageForEveryone = async (groupId: string, msgId: string) => {
+    if (!authUser || !groupId || !msgId) return;
+    const group = groupContacts.find(g => g.id === groupId) || contacts.find(c => c.id === groupId);
+    const myUid = authUser.uid;
+    const actorName = user.name || authUser.displayName || 'Admin';
+
+    const isOwner = group?.ownerId === myUid || group?.createdBy === myUid;
+    const isAdmin = isOwner || (group?.admins && group.admins.includes(myUid));
+
+    const chatId = getChatIdForContact(groupId);
+    const msgRef = doc(db, 'chats', chatId, 'messages', msgId);
+
+    const msgSnap = await getDoc(msgRef).catch(() => null);
+    const msgData = msgSnap?.data();
+    const origText = msgData?.text || 'Media Message';
+    const senderName = msgData?.senderName || 'Member';
+    const senderId = msgData?.senderId || 'unknown';
+
+    if (!isAdmin && senderId !== myUid) {
+      throw new Error('Only admins can delete messages from other members.');
+    }
+
+    await updateDoc(msgRef, {
+      text: 'This message was deleted by an admin',
+      media: null,
+      callInfo: null,
+      deletedForEveryone: true,
+      isStarred: false,
+      deletedBy: actorName,
+    }).catch(() => {});
+
+    if (isAdmin && senderId !== myUid) {
+      const logEntry = {
+        id: `del_${Date.now()}`,
+        messageId: msgId,
+        senderName,
+        senderId,
+        deletedByName: actorName,
+        deletedById: myUid,
+        originalText: origText,
+        timestamp: new Date().toISOString(),
+      };
+
+      const existingLogs = group?.deletedMessageLogs || [];
+      const updatedLogs = [logEntry, ...existingLogs];
+
+      setGroupContacts(prev => prev.map(g => g.id === groupId ? { ...g, deletedMessageLogs: updatedLogs } : g));
+      if (db) {
+        await updateDoc(doc(db, 'groups', groupId), { deletedMessageLogs: updatedLogs }).catch(() => {});
+      }
+    }
+  };
+
+  const clearGroupChatHistoryForEveryone = async (groupId: string) => {
+    if (!authUser || !groupId) return;
+    const group = groupContacts.find(g => g.id === groupId) || contacts.find(c => c.id === groupId);
+    const myUid = authUser.uid;
+
+    const isOwner = group?.ownerId === myUid || group?.createdBy === myUid;
+    const isAdmin = isOwner || (group?.admins && group.admins.includes(myUid));
+    if (!isAdmin) throw new Error('Only admins can clear group chat history.');
+
+    const chatId = getChatIdForContact(groupId);
+    const msgsSnap = await getDocs(collection(db, 'chats', chatId, 'messages')).catch(() => null);
+    if (msgsSnap) {
+      const batch = writeBatch(db);
+      msgsSnap.docs.forEach(d => {
+        batch.delete(d.ref);
+      });
+      await batch.commit().catch(() => {});
+    }
+
+    const actorName = user.name || authUser.displayName || 'Admin';
+    await sendGroupSystemMessage(groupId, 'chat_cleared', `🧹 ${actorName} cleared the group chat history.`);
+  };
+
   const deleteGroup = async (groupId: string) => {
     if (!groupId) return;
     const group = groupContacts.find(g => g.id === groupId);
     const myUid = authUser?.uid || user.id;
 
-    if (group && group.createdBy && group.createdBy !== myUid) {
-      throw new Error('Only the group creator can delete this group.');
+    const isOwner = !group?.ownerId || group?.ownerId === myUid || group?.createdBy === myUid;
+
+    if (!isOwner) {
+      throw new Error('Only the Group Owner can delete this group permanently.');
     }
 
     // Optimistically remove group
@@ -4300,8 +5060,25 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       addContact,
       createGroup,
       addMembersToGroup,
+      removeMemberFromGroup,
+      leaveGroup,
+      toggleGroupAdmin,
+      sendGroupSystemMessage,
       joinGroupCall,
       updateGroupDetails,
+      updateGroupPermissions,
+      transferGroupOwnership,
+      toggleGroupMuteMember,
+      toggleGroupBanMember,
+      approveJoinRequest,
+      rejectJoinRequest,
+      requestToJoinGroup,
+      regenerateGroupInviteLink,
+      toggleGroupInviteLinkDisabled,
+      updateGroupDescription,
+      updateGroupPrivacy,
+      deleteGroupMessageForEveryone,
+      clearGroupChatHistoryForEveryone,
       deleteGroup,
       clearChatHistory,
       clearAllChatHistory,

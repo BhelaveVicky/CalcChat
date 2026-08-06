@@ -1738,6 +1738,33 @@ export const ChatWindow: React.FC = () => {
                 const speed = audioPlaybackSpeeds[msg.id] || 1;
                 const formattedTime = formatMessageTime(rawTimestamp, msg.timestamp);
 
+                if (msg.type === 'system' || msg.systemAction) {
+                  const displayText = msg.systemText || msg.text;
+                  return (
+                    <React.Fragment key={msg.id}>
+                      {showSeparator && (
+                        <DateSeparator dateLabel={dateLabel} isDark={isDark} />
+                      )}
+                      <div id={`msg_${msg.id}`} className="w-full flex justify-center items-center my-2.5 px-4 select-none">
+                        <div className={`px-4 py-1.5 rounded-xl text-xs font-semibold text-center max-w-[90%] sm:max-w-[75%] shadow-xs border flex items-center justify-center gap-2 flex-wrap transition-all ${
+                          isDark 
+                            ? 'bg-[#182229]/90 border-[#202c33] text-[#8696a0]' 
+                            : 'bg-[#f0f2f5] border-gray-200 text-gray-600'
+                        }`}>
+                          <span className="leading-relaxed">{displayText}</span>
+                          {formattedTime && (
+                            <span className={`text-[10px] font-normal opacity-75 shrink-0 ${
+                              isDark ? 'text-[#8696a0]' : 'text-gray-500'
+                            }`}>
+                              • {formattedTime}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </React.Fragment>
+                  );
+                }
+
                 return (
                   <React.Fragment key={msg.id}>
                     {showSeparator && (

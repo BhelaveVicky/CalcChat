@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  MessageSquare, UserCheck, UserPlus, Edit3, ArrowLeft, Shield, Lock, X, 
-  Images, Bell, BellOff, Phone, PhoneOff, ChevronRight, Download, Play, FileText, Video, Link as LinkIcon, Users
+  MessageSquare, UserCheck, UserPlus, Edit3, ArrowLeft, Shield, ShieldCheck, Lock, X, 
+  Images, Bell, BellOff, Phone, PhoneOff, ChevronRight, Download, Play, FileText, Video, Link as LinkIcon, Users,
+  Crown, VolumeX, Volume2, ShieldAlert, Sliders, QrCode, Globe, Trash2, Check, Copy, RefreshCw, Settings, UserX
 } from 'lucide-react';
 import { checkIsAdmin, VerifiedBadge } from '../lib/adminUtils';
 import { getContactNotificationSettings, setContactNotificationSettings } from '../lib/contactSettings';
-import { Message } from '../types';
+import { Message, GroupPermissions, GroupJoinRequest, GroupActivityLog, DeletedMessageLog } from '../types';
 import { WhatsAppProfileViewer } from './WhatsAppProfileViewer';
 import { SelectMembersModal } from './SelectMembersModal';
+import { GroupManagementModal } from './GroupManagentModal';
 import { useVault } from '../context/VaultContext';
 import { getGroupMembersList } from '../lib/groupUtils';
 
@@ -21,6 +23,7 @@ export interface ProfileData {
   bio?: string;
   status?: string;
   about?: string;
+  description?: string;
   followers?: string[];
   following?: string[];
   isOnline?: boolean;
@@ -31,7 +34,18 @@ export interface ProfileData {
   memberNames?: string[];
   memberUids?: string[];
   createdBy?: string;
+  ownerId?: string;
   admins?: string[];
+  bannedMembers?: string[];
+  mutedMembers?: string[];
+  joinRequests?: GroupJoinRequest[];
+  inviteLink?: string;
+  inviteLinkDisabled?: boolean;
+  isPublic?: boolean;
+  joinApprovalRequired?: boolean;
+  permissions?: GroupPermissions;
+  activityLogs?: GroupActivityLog[];
+  deletedMessageLogs?: DeletedMessageLog[];
 }
 
 interface ProfileCardProps {
@@ -62,13 +76,28 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   isDark = true,
 }) => {
   const targetUid = user.uid || user.id || '';
-  const { allRegisteredUsers = [], contacts = [], user: vaultUser } = useVault();
+  const { 
+    allRegisteredUsers = [], contacts = [], user: vaultUser, 
+    removeMemberFromGroup, leaveGroup, toggleGroupAdmin,
+    updateGroupDetails, updateGroupPermissions, transferGroupOwnership,
+    toggleGroupMuteMember, toggleGroupBanMember, approveJoinRequest,
+    rejectJoinRequest, regenerateGroupInviteLink, toggleGroupInviteLinkDisabled,
+    updateGroupPrivacy, deleteGroup
+  } = useVault();
 
   const [showPrivateNotice, setShowPrivateNotice] = useState(false);
   const [showUnfriendConfirm, setShowUnfriendConfirm] = useState(false);
   const [showMediaModal, setShowMediaModal] = useState(false);
   const [showSelectMembersModal, setShowSelectMembersModal] = useState(false);
   const [showFullPhotoViewer, setShowFullPhotoViewer] = useState(false);
+  const [showGroupSettingsModal, setShowGroupSettingsModal] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [selectedTransferTarget, setSelectedTransferTarget] = useState<string | null>(null);
+  const [copiedInvite, setCopiedInvite] = useState(false);
+  const [editingDesc, setEditingDesc] = useState(false);
+  const [descInput, setDescInput] = useState('');
   const [activeMediaTab, setActiveMediaTab] = useState<'photos' | 'videos' | 'links'>('photos');
   const [selectedPreviewItem, setSelectedPreviewItem] = useState<any | null>(null);
 
@@ -100,11 +129,19 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   const isSelf = currentUserUid ? (targetUid === currentUserUid) : false;
   const isAdmin = checkIsAdmin(user);
   const isGroup = Boolean(user.isGroup || targetUid.startsWith('group_') || user.username === 'group');
+
+  const myUid = vaultUser?.id || vaultUser?.firebaseUid || currentUserUid || '';
+  const groupContact = contacts.find(c => c.id === targetUid) || user;
+  const isOwner = isGroup && (groupContact.ownerId === myUid || groupContact.createdBy === myUid || (groupContact.createdBy && groupContact.createdBy.includes(myUid)));
+  const isGroupAdmin = isOwner || (isGroup && Array.isArray(groupContact.admins) && groupContact.admins.includes(myUid));
+  const canEditGroupInfo = isOwner || isGroupAdmin || groupContact.permissions?.editGroupInfo !== false;
+  const canAddMembers = isOwner || isGroupAdmin || groupContact.permissions?.addMembers !== false;
+
   const avatarUrl = user.photoURL || user.avatar;
   const displayName = user.name || 'CalChat User';
   const usernameStr = isGroup ? '@group' : (user.username ? `@${user.username.replace(/^@/, '')}` : '@username');
   
-  const rawBio = user.bio || user.status || user.about || '';
+  const rawBio = user.description || user.bio || user.status || user.about || '';
   const bioText = isGroup
     ? (rawBio.includes('members:') || rawBio.includes('member:') ? 'Official Group Chat' : (rawBio || 'Official Group Chat'))
     : (rawBio || '"An emptiholic heart with quiet dreams" 🌙 💖 🥀');
@@ -264,10 +301,24 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
               <button
                 type="button"
                 onClick={() => setShowSelectMembersModal(true)}
-                className="flex-1 py-2.5 px-4 rounded-xl font-bold text-sm bg-[#00a8ff] hover:bg-[#0088cc] text-[#0b141a] border border-[#00a8ff] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-95"
+                className="flex-1 py-2.5 px-3 rounded-xl font-bold text-xs bg-[#00a8ff] hover:bg-[#0088cc] text-[#0b141a] border border-[#00a8ff] transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md active:scale-95"
               >
                 <UserPlus className="w-4 h-4" />
                 <span>+ Add Member</span>
+              </button>
+
+              {/* Group Permissions & Settings Button */}
+              <button
+                type="button"
+                onClick={() => setShowGroupSettingsModal(true)}
+                className={`flex-1 py-2.5 px-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm ${
+                  isDark
+                    ? 'bg-[#1f2c34] hover:bg-[#2a3942] text-white border border-[#2a3942]'
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-900 border border-gray-300'
+                }`}
+              >
+                <ShieldCheck className="w-4 h-4 text-purple-400" />
+                <span>Group Permissions</span>
               </button>
 
               {/* Message Button */}
@@ -275,14 +326,14 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                 <button
                   type="button"
                   onClick={onMessageClick}
-                  className={`flex-1 py-2.5 px-4 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm ${
+                  className={`py-2.5 px-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm ${
                     isDark 
                       ? 'bg-[#1f2c34] hover:bg-[#2a3942] text-white border border-[#2a3942]' 
                       : 'bg-gray-100 hover:bg-gray-200 text-gray-900 border border-gray-300'
                   }`}
                 >
                   <MessageSquare className="w-4 h-4 text-[#00a8ff]" />
-                  <span>Message</span>
+                  <span>Chat</span>
                 </button>
               )}
             </>
@@ -391,6 +442,74 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
           )}
         </div>
 
+        {/* Group Pending Join Requests Card for Group Owner/Admins */}
+        {isGroup && isGroupAdmin && Array.isArray(groupContact.joinRequests) && groupContact.joinRequests.length > 0 && (
+          <div className={`w-full mt-4 rounded-2xl p-4 border border-amber-500/30 transition-all ${
+            isDark ? 'bg-amber-500/10' : 'bg-amber-50'
+          }`}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <UserCheck className="w-5 h-5 text-amber-400" />
+                <span className={`text-sm font-extrabold ${isDark ? 'text-amber-300' : 'text-amber-900'}`}>
+                  Pending Join Requests ({groupContact.joinRequests.length})
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowGroupSettingsModal(true)}
+                className="text-xs font-bold text-[#00a8ff] hover:underline cursor-pointer"
+              >
+                Manage All
+              </button>
+            </div>
+
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+              {groupContact.joinRequests.map((req: GroupJoinRequest) => (
+                <div
+                  key={req.id || req.userId}
+                  className={`p-2.5 rounded-xl border flex items-center justify-between text-xs ${
+                    isDark ? 'bg-[#111b21] border-[#202c33] text-white' : 'bg-white border-gray-200 text-gray-800'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <img
+                      src={req.userAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}
+                      alt={req.userName}
+                      className="w-8 h-8 rounded-full object-cover border border-[#00a8ff]"
+                    />
+                    <div className="min-w-0">
+                      <p className="font-bold truncate">{req.userName}</p>
+                      <p className={`text-[10px] ${isDark ? 'text-[#8696a0]' : 'text-gray-500'}`}>
+                        Requested to join
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => approveJoinRequest(targetUid, req.userId)}
+                      className="px-2.5 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs shadow-xs transition-all active:scale-95 cursor-pointer flex items-center gap-1"
+                      title="Approve Request"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Accept</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => rejectJoinRequest(targetUid, req.userId)}
+                      className="px-2.5 py-1 rounded-lg bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs shadow-xs transition-all active:scale-95 cursor-pointer flex items-center gap-1"
+                      title="Reject Request"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Group Members Card for Group Info Screen */}
         {isGroup && (
           <div className={`w-full mt-5 rounded-2xl p-4 border transition-all ${
@@ -435,19 +554,44 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                       )}
                       <span className="truncate">{m.name}</span>
                     </div>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${
-                      m.role === 'Creator'
-                        ? 'bg-[#00a8ff]/20 text-[#00a8ff] border border-[#00a8ff]/30'
-                        : m.role === 'Admin'
-                          ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
-                          : 'bg-emerald-500/15 text-emerald-400'
-                    }`}>
-                      {m.role}
-                    </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                        m.role === 'Creator'
+                          ? 'bg-[#00a8ff]/20 text-[#00a8ff] border border-[#00a8ff]/30'
+                          : m.role === 'Admin'
+                            ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                            : 'bg-emerald-500/15 text-emerald-400'
+                      }`}>
+                        {m.role}
+                      </span>
+                      {m.role !== 'Creator' && m.id !== currentUserUid && (
+                        <button
+                          type="button"
+                          onClick={() => removeMemberFromGroup(targetUid, m.id || m.name)}
+                          className="p-1 rounded-md text-rose-500 hover:bg-rose-500/10 cursor-pointer transition-colors"
+                          title={`Remove ${m.name}`}
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))
               )}
             </div>
+
+            {/* Leave Group Button */}
+            <button
+              type="button"
+              onClick={() => {
+                leaveGroup(targetUid);
+                if (onBackClick) onBackClick();
+              }}
+              className="w-full mt-3 py-2.5 rounded-xl bg-rose-600/10 hover:bg-rose-600/20 border border-rose-500/30 text-rose-500 font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
+            >
+              <X className="w-4 h-4" />
+              <span>Leave Group</span>
+            </button>
           </div>
         )}
 
@@ -789,6 +933,14 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
           groupName={displayName}
           existingMembers={user.members || user.groupMembers || []}
           onClose={() => setShowSelectMembersModal(false)}
+        />
+      )}
+
+      {/* Group Owner Permission Management System Modal */}
+      {showGroupSettingsModal && (
+        <GroupManagementModal
+          groupId={targetUid}
+          onClose={() => setShowGroupSettingsModal(false)}
         />
       )}
 

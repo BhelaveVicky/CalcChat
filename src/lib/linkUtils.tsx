@@ -61,6 +61,18 @@ export function renderTextWithLinks(text: string | undefined | null): React.Reac
         className="text-blue-400 hover:text-blue-300 underline font-medium break-all transition-colors duration-150 inline cursor-pointer"
         onClick={(e) => {
           e.stopPropagation(); // Stop propagation so message selection or bubble actions aren't triggered
+          
+          // Check if link is a group invite link containing /join/
+          const joinMatch = href.match(/\/join\/([^/\s?#]+)/i);
+          if (joinMatch && joinMatch[1]) {
+            e.preventDefault();
+            let rawId = joinMatch[1];
+            if (rawId.startsWith('g_')) {
+              rawId = rawId.replace(/^g_/, '');
+            }
+            const groupId = rawId.startsWith('group_') ? rawId : (rawId.includes('_') ? rawId : `group_${rawId}`);
+            window.dispatchEvent(new CustomEvent('openGroupInvite', { detail: { groupId } }));
+          }
         }}
       >
         {fullMatch}

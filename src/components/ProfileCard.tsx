@@ -8,6 +8,8 @@ import { getContactNotificationSettings, setContactNotificationSettings } from '
 import { Message } from '../types';
 import { WhatsAppProfileViewer } from './WhatsAppProfileViewer';
 import { SelectMembersModal } from './SelectMembersModal';
+import { useVault } from '../context/VaultContext';
+import { getGroupMembersList } from '../lib/groupUtils';
 
 export interface ProfileData {
   uid: string;
@@ -26,6 +28,10 @@ export interface ProfileData {
   isGroup?: boolean;
   groupMembers?: string[];
   members?: string[];
+  memberNames?: string[];
+  memberUids?: string[];
+  createdBy?: string;
+  admins?: string[];
 }
 
 interface ProfileCardProps {
@@ -56,6 +62,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   isDark = true,
 }) => {
   const targetUid = user.uid || user.id || '';
+  const { allRegisteredUsers = [], contacts = [], user: vaultUser } = useVault();
 
   const [showPrivateNotice, setShowPrivateNotice] = useState(false);
   const [showUnfriendConfirm, setShowUnfriendConfirm] = useState(false);
@@ -102,9 +109,8 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
     ? (rawBio.includes('members:') || rawBio.includes('member:') ? 'Official Group Chat' : (rawBio || 'Official Group Chat'))
     : (rawBio || '"An emptiholic heart with quiet dreams" 🌙 💖 🥀');
 
-  const groupMembersCount = Array.isArray(user.followers) && user.followers.length > 0 
-    ? user.followers.length 
-    : (user.groupMembers?.length || user.members?.length || 0);
+  const groupMemberList = getGroupMembersList(user, allRegisteredUsers, contacts, vaultUser);
+  const groupMembersCount = isGroup ? groupMemberList.length : 0;
 
   const followersCount = isGroup ? groupMembersCount : (isAdmin ? '2K' : (Array.isArray(user.followers) ? user.followers.length : 0));
   const followingCount = isGroup ? 0 : (Array.isArray(user.following) ? user.following.length : 0);
@@ -210,7 +216,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
           </div>
         </div>
 
-        {/* User Statistics Row: Clickable Followers & Following */}
+        {/* User Statistics Row: Clickable Followers / Members & Following */}
         <div className="flex items-center gap-2 text-sm sm:text-base font-bold my-2 text-left">
           <button
             type="button"
@@ -219,22 +225,28 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
               isDark ? 'text-white hover:text-[#00a8ff]' : 'text-gray-900 hover:text-[#00a8ff]'
             }`}
           >
-            <span>{followersCount}</span>{' '}
-            <span className={isDark ? 'text-[#e9edef]' : 'text-gray-800'}>followers</span>
+            <span>{isGroup ? groupMembersCount : followersCount}</span>{' '}
+            <span className={isDark ? 'text-[#e9edef]' : 'text-gray-800'}>
+              {isGroup ? 'members' : 'followers'}
+            </span>
           </button>
 
-          <span className={`mx-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>•</span>
+          {!isGroup && (
+            <>
+              <span className={`mx-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>•</span>
 
-          <button
-            type="button"
-            onClick={onFollowingClick}
-            className={`hover:underline cursor-pointer transition-colors ${
-              isDark ? 'text-white hover:text-[#00a8ff]' : 'text-gray-900 hover:text-[#00a8ff]'
-            }`}
-          >
-            <span>{followingCount}</span>{' '}
-            <span className={isDark ? 'text-[#e9edef]' : 'text-gray-800'}>following</span>
-          </button>
+              <button
+                type="button"
+                onClick={onFollowingClick}
+                className={`hover:underline cursor-pointer transition-colors ${
+                  isDark ? 'text-white hover:text-[#00a8ff]' : 'text-gray-900 hover:text-[#00a8ff]'
+                }`}
+              >
+                <span>{followingCount}</span>{' '}
+                <span className={isDark ? 'text-[#e9edef]' : 'text-gray-800'}>following</span>
+              </button>
+            </>
+          )}
         </div>
 
         {/* Bio / About Section */}
@@ -388,7 +400,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
               <div className="flex items-center gap-2">
                 <Users className="w-5 h-5 text-[#00a8ff]" />
                 <span className={`text-sm sm:text-base font-bold ${isDark ? 'text-[#e9edef]' : 'text-gray-900'}`}>
-                  Group Members ({(user.groupMembers || user.members || []).length})
+                  Group Members ({groupMemberList.length})
                 </span>
               </div>
 
@@ -404,23 +416,33 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
             </div>
 
             <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
-              {(user.groupMembers || user.members || []).length === 0 ? (
+              {groupMemberList.length === 0 ? (
                 <p className={`text-xs py-2 ${isDark ? 'text-[#8596a0]' : 'text-gray-500'}`}>
                   No members added yet. Click <span className="text-[#00a8ff] font-bold">Add (+)</span> to add members!
                 </p>
               ) : (
-                (user.groupMembers || user.members || []).map((m, idx) => (
-                  <div key={idx} className={`p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between border ${
+                groupMemberList.map((m, idx) => (
+                  <div key={idx} className={`p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between border transition-all ${
                     isDark ? 'bg-[#182229] border-[#202c33] text-white' : 'bg-white border-gray-200 text-gray-800'
                   }`}>
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-7 h-7 rounded-full bg-[#00a8ff]/20 text-[#00a8ff] flex items-center justify-center font-bold text-xs shrink-0">
-                        {m.charAt(0).toUpperCase()}
-                      </div>
-                      <span className="truncate">{m}</span>
+                      {m.avatar ? (
+                        <img src={m.avatar} alt={m.name} className="w-7 h-7 rounded-full object-cover shrink-0 border border-[#00a8ff]/30" />
+                      ) : (
+                        <div className="w-7 h-7 rounded-full bg-[#00a8ff]/20 text-[#00a8ff] flex items-center justify-center font-bold text-xs shrink-0">
+                          {m.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <span className="truncate">{m.name}</span>
                     </div>
-                    <span className="text-[10px] text-[#00a8ff] bg-[#00a8ff]/10 px-2 py-0.5 rounded-full font-bold">
-                      Member
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${
+                      m.role === 'Creator'
+                        ? 'bg-[#00a8ff]/20 text-[#00a8ff] border border-[#00a8ff]/30'
+                        : m.role === 'Admin'
+                          ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                          : 'bg-emerald-500/15 text-emerald-400'
+                    }`}>
+                      {m.role}
                     </span>
                   </div>
                 ))

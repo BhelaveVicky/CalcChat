@@ -27,6 +27,7 @@ import { WhatsAppProfileViewer } from './WhatsAppProfileViewer';
 import { SetChatWallpaperModal } from './SetChatWallpaperModal';
 import { SelectMembersModal } from './SelectMembersModal';
 import { renderTextWithLinks } from '../lib/linkUtils';
+import { getGroupMembersList } from '../lib/groupUtils';
 
 const EMOJI_LIST: string[] = [
   '😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','😘','😗','😚','😙',
@@ -90,7 +91,7 @@ export const ChatWindow: React.FC = () => {
     addReactionMessage, removeReactionMessage, deleteMultipleMessages, authUser,
     updateGroupDetails, deleteGroup, adminWallpapers,
     statusUpdates, likeStatusUpdate, markStatusAsSeen, replyToStatus, reactToStatus,
-    deleteStatusUpdate, getSeenRecords, getLikeRecords
+    deleteStatusUpdate, getSeenRecords, getLikeRecords, allRegisteredUsers
   } = useVault();
 
   // Status Viewer from Chat Reply / Reaction State
@@ -1354,6 +1355,18 @@ export const ChatWindow: React.FC = () => {
                     return (
                       <p className={`text-xs truncate ${isDark ? 'text-[#8596a0]' : 'text-gray-500'}`}>
                         Message yourself • Personal Notes
+                      </p>
+                    );
+                  }
+
+                  // Group Chat Subtitle
+                  if (contact.isGroup) {
+                    const memberList = getGroupMembersList(contact, allRegisteredUsers, contacts, user);
+                    const memberCount = memberList.length;
+                    const namesStr = memberList.map(m => m.name).join(', ');
+                    return (
+                      <p className={`text-xs truncate ${isDark ? 'text-[#8596a0]' : 'text-gray-500'}`}>
+                        {memberCount} member{memberCount !== 1 ? 's' : ''}{namesStr ? `: ${namesStr}` : ''}
                       </p>
                     );
                   }
@@ -2901,46 +2914,61 @@ export const ChatWindow: React.FC = () => {
             </div>
 
             <div className="space-y-4 text-xs">
-              {contact.isGroup && (
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-[#8596a0] font-semibold uppercase tracking-wider text-[10px]">
-                      Group Members ({(contact.groupMembers || contact.members || []).length})
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setShowAddMembersModal(true)}
-                      className="px-2.5 py-1 rounded-lg bg-[#00a8ff] hover:bg-[#0088cc] text-[#0b141a] text-[11px] font-extrabold flex items-center gap-1 cursor-pointer transition-all active:scale-95 shadow-sm"
-                      title="Add (+) Members to Group"
-                    >
-                      <UserPlus className="w-3.5 h-3.5" />
-                      <span>Add (+)</span>
-                    </button>
-                  </div>
-
-                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                    {(contact.groupMembers || contact.members || []).length === 0 ? (
-                      <p className="text-xs text-[#8596a0] py-1">
-                        No members added yet.
+              {contact.isGroup && (() => {
+                const groupMembersList = getGroupMembersList(contact, allRegisteredUsers, contacts, user);
+                return (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-[#8596a0] font-semibold uppercase tracking-wider text-[10px]">
+                        Group Members ({groupMembersList.length})
                       </p>
-                    ) : (
-                      (contact.groupMembers || contact.members || []).map((m, idx) => (
-                        <div key={idx} className={`p-2 rounded-xl text-xs flex items-center justify-between border ${
-                          isDark ? 'bg-[#182229] border-[#202c33]' : 'bg-gray-50 border-gray-200'
-                        }`}>
-                          <div className="flex items-center gap-2 min-w-0">
-                            <User className="w-3.5 h-3.5 text-[#00a8ff] shrink-0" />
-                            <span className="font-medium truncate">{m}</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddMembersModal(true)}
+                        className="px-2.5 py-1 rounded-lg bg-[#00a8ff] hover:bg-[#0088cc] text-[#0b141a] text-[11px] font-extrabold flex items-center gap-1 cursor-pointer transition-all active:scale-95 shadow-sm"
+                        title="Add (+) Members to Group"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        <span>Add (+)</span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                      {groupMembersList.length === 0 ? (
+                        <p className="text-xs text-[#8596a0] py-2">
+                          No members added yet. Click <span className="font-bold text-[#00a8ff]">Add (+)</span> to add members!
+                        </p>
+                      ) : (
+                        groupMembersList.map((m, idx) => (
+                          <div key={idx} className={`p-2.5 rounded-xl text-xs flex items-center justify-between border transition-all ${
+                            isDark ? 'bg-[#182229] border-[#202c33]' : 'bg-gray-50 border-gray-200'
+                          }`}>
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              {m.avatar ? (
+                                <img src={m.avatar} alt={m.name} className="w-7 h-7 rounded-full object-cover shrink-0 border border-[#00a8ff]/30" />
+                              ) : (
+                                <div className="w-7 h-7 rounded-full bg-[#00a8ff]/20 text-[#00a8ff] flex items-center justify-center font-bold text-xs shrink-0">
+                                  {m.name.charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                              <span className="font-semibold text-xs truncate">{m.name}</span>
+                            </div>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${
+                              m.role === 'Creator'
+                                ? 'bg-[#00a8ff]/20 text-[#00a8ff] border border-[#00a8ff]/30'
+                                : m.role === 'Admin'
+                                  ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                                  : 'bg-emerald-500/15 text-emerald-400'
+                            }`}>
+                              {m.role}
+                            </span>
                           </div>
-                          <span className="text-[10px] text-[#00a8ff] bg-[#00a8ff]/10 px-2 py-0.5 rounded-full font-bold">
-                            Member
-                          </span>
-                        </div>
-                      ))
-                    )}
+                        ))
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               <div>
                 <p className="text-[#8596a0] font-semibold mb-1 uppercase tracking-wider text-[10px]">About / Status</p>

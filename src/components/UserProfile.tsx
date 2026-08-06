@@ -24,6 +24,7 @@ export const UserProfile: React.FC<UserProfileProps> = ({ targetUserId, onBack }
     setActiveContactId, 
     setActiveTab, 
     contacts, 
+    groupContacts = [],
     messages,
     sendFriendRequest,
     acceptFriendRequest,
@@ -87,42 +88,79 @@ export const UserProfile: React.FC<UserProfileProps> = ({ targetUserId, onBack }
               isOnline: true,
             });
           }
-        } else if (db && effectiveUserId && effectiveUserId !== 'me') {
-          const userDocRef = doc(db, 'users', effectiveUserId);
-          const snap = await getDoc(userDocRef);
+        } else if (effectiveUserId && effectiveUserId !== 'me') {
+          // 1. Check in local contacts and groupContacts first
+          const matchContact: any = (contacts || []).find((c: any) => c.id === effectiveUserId || c.uid === effectiveUserId) ||
+                                    (groupContacts || []).find((g: any) => g.id === effectiveUserId || g.uid === effectiveUserId);
 
-          if (snap.exists()) {
-            const data = snap.data();
-            if (isMounted) {
-              setProfileData({
-                uid: snap.id,
-                id: snap.id,
-                name: data.displayName || data.name || 'CalChat User',
-                username: data.username || 'user',
-                photoURL: data.photoURL || data.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-                bio: data.bio || data.status || data.about || '"An emptiholic heart with quiet dreams" 🌙 💖 🥀',
-                status: data.status,
-                followers: Array.isArray(data.followers) ? data.followers : [],
-                following: Array.isArray(data.following) ? data.following : [],
-                isOnline: data.online || false,
-              });
+          if (matchContact && isMounted) {
+            setProfileData({
+              uid: matchContact.id,
+              id: matchContact.id,
+              name: matchContact.name,
+              username: matchContact.username || (matchContact.isGroup ? '@group' : matchContact.name.toLowerCase().replace(/\s+/g, '_')),
+              photoURL: matchContact.avatar,
+              bio: matchContact.status || matchContact.about || (matchContact.isGroup ? 'Official Group Chat' : '"An emptiholic heart with quiet dreams" 🌙 💖 🥀'),
+              status: matchContact.status,
+              followers: [],
+              following: [],
+              isOnline: matchContact.isOnline,
+              isGroup: Boolean(matchContact.isGroup || matchContact.id?.startsWith('group_')),
+              groupMembers: matchContact.groupMembers || matchContact.memberNames || [],
+              members: matchContact.members || matchContact.memberUids || [],
+              createdBy: matchContact.createdBy,
+              admins: matchContact.admins,
+            });
+            setLoading(false);
+          }
+
+          // 2. If it's a group ID, check 'groups' collection in Firestore
+          if (db && effectiveUserId.startsWith('group_')) {
+            const groupDocRef = doc(db, 'groups', effectiveUserId);
+            const gSnap = await getDoc(groupDocRef);
+            if (gSnap.exists()) {
+              const gData = gSnap.data();
+              if (isMounted) {
+                setProfileData({
+                  uid: gSnap.id,
+                  id: gSnap.id,
+                  name: gData.groupName || gData.name || 'Group',
+                  username: '@group',
+                  photoURL: gData.groupPhoto || gData.avatar || 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=150&auto=format&fit=crop&q=80',
+                  bio: gData.status || 'Official Group Chat',
+                  followers: [],
+                  following: [],
+                  isOnline: true,
+                  isGroup: true,
+                  groupMembers: gData.memberNames || gData.groupMembers || [],
+                  members: gData.members || gData.memberUids || [],
+                  createdBy: gData.createdBy,
+                  admins: gData.admins || [],
+                });
+              }
             }
-          } else {
-            // Check in contacts fallback
-            const matchContact = contacts.find(c => c.id === effectiveUserId);
-            if (matchContact && isMounted) {
-              setProfileData({
-                uid: matchContact.id,
-                id: matchContact.id,
-                name: matchContact.name,
-                username: matchContact.username || matchContact.name.toLowerCase().replace(/\s+/g, '_'),
-                photoURL: matchContact.avatar,
-                bio: matchContact.status || matchContact.about || '"An emptiholic heart with quiet dreams" 🌙 💖 🥀',
-                followers: [],
-                following: [],
-                isOnline: matchContact.isOnline,
-              });
-            } else if (isMounted) {
+          } else if (db) {
+            // 3. User doc in 'users' collection
+            const userDocRef = doc(db, 'users', effectiveUserId);
+            const snap = await getDoc(userDocRef);
+
+            if (snap.exists()) {
+              const data = snap.data();
+              if (isMounted) {
+                setProfileData({
+                  uid: snap.id,
+                  id: snap.id,
+                  name: data.displayName || data.name || 'CalChat User',
+                  username: data.username || 'user',
+                  photoURL: data.photoURL || data.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+                  bio: data.bio || data.status || data.about || '"An emptiholic heart with quiet dreams" 🌙 💖 🥀',
+                  status: data.status,
+                  followers: Array.isArray(data.followers) ? data.followers : [],
+                  following: Array.isArray(data.following) ? data.following : [],
+                  isOnline: data.online || false,
+                });
+              }
+            } else if (isMounted && !matchContact) {
               // Create default view
               setProfileData({
                 uid: effectiveUserId,

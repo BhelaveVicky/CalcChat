@@ -9,7 +9,7 @@ import {
 import { useVault, WELCOME_MESSAGE_TEXT } from '../context/VaultContext';
 import { Contact, Message } from '../types';
 import { NicknameModal } from './NicknameModal';
-import { formatChatDate, formatMessageTime } from '../lib/dateUtils.ts';
+import { formatChatDate, formatMessageTime, formatLastSeen } from '../lib/dateUtils.ts';
 import { WhatsAppProfileViewer } from './WhatsAppProfileViewer';
 import { checkIsAdmin, VerifiedBadge } from '../lib/adminUtils';
 
@@ -867,7 +867,13 @@ export const ChatList: React.FC = () => {
                             : dateLabel;
                         })()
                       ) : (
-                        contact.lastSeen || 'Yesterday'
+                        (() => {
+                          const ls: any = contact.lastSeen;
+                          if (ls && typeof ls === 'object' && typeof ls.seconds === 'number') {
+                            return formatLastSeen(ls);
+                          }
+                          return (typeof ls === 'string' ? ls : null) || 'Yesterday';
+                        })()
                       )}
                     </span>
                   </div>

@@ -467,9 +467,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const pMap: Record<string, any> = {};
         snapshot.docs.forEach(docSnap => {
           const data = docSnap.data();
+          const rawLastSeen = data.lastSeen || data.lastActiveAt || null;
           pMap[docSnap.id] = {
             isOnline: Boolean(data.isOnline ?? data.online),
-            lastSeen: data.lastSeen || data.lastActiveAt || null,
+            lastSeen: (rawLastSeen && typeof rawLastSeen === 'object' && typeof rawLastSeen.seconds === 'number') ? formatLastSeen(rawLastSeen) : (rawLastSeen || null),
             isTyping: Boolean(data.isTyping),
             typingTo: data.typingTo || null,
           };
@@ -1334,7 +1335,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           status: data.status || data.about || 'Available on CalcChat',
           online: Boolean(data.online),
           isOnline: Boolean(data.online),
-          lastSeen: data.lastSeen || 'Offline',
+          lastSeen: (data.lastSeen && typeof data.lastSeen === 'object' && typeof data.lastSeen.seconds === 'number') ? formatLastSeen(data.lastSeen) : (data.lastSeen || 'Offline'),
           friends: Array.isArray(data.friends) ? data.friends : [],
         });
       });
@@ -1436,7 +1437,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               avatar: data.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
               status: data.status || 'Available on Secret Vault',
               isOnline: false,
-              lastSeen: data.lastSeen || 'Offline',
+              lastSeen: (data.lastSeen && typeof data.lastSeen === 'object' && typeof data.lastSeen.seconds === 'number') ? formatLastSeen(data.lastSeen) : (data.lastSeen || 'Offline'),
               unreadCount: 0,
             });
           }

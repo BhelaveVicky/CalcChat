@@ -4166,7 +4166,7 @@ export const ChatWindow: React.FC = () => {
                 console.warn('Group wallpaper sync warning:', e);
               }
             }
-            setWallpaperSuccessMsg('Wallpaper Set Successfully!');
+            setWallpaperSuccessMsg('Wallpaper Set!');
             setTimeout(() => setWallpaperSuccessMsg(null), 2200);
           }}
           onResetWallpaper={async () => {
@@ -4190,7 +4190,7 @@ export const ChatWindow: React.FC = () => {
                 console.warn('Group reset wallpaper warning:', e);
               }
             }
-            setWallpaperSuccessMsg('Wallpaper Reset Successfully!');
+            setWallpaperSuccessMsg('Wallpaper Reset!');
             setTimeout(() => setWallpaperSuccessMsg(null), 2200);
           }}
         />

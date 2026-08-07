@@ -17,6 +17,7 @@ import { FollowersList } from './FollowersList';
 import { FollowingList } from './FollowingList';
 import { WhatsAppProfileViewer } from './WhatsAppProfileViewer';
 import { GET_PRESET_WALLPAPERS } from '../data/presetWalpapers';
+import { WallpaperSuccessOverlay } from './WallpaperSuccessOverlay';
 
 export const UserProfileView: React.FC = () => {
   const { 
@@ -34,6 +35,14 @@ export const UserProfileView: React.FC = () => {
   const [adminWpTitle, setAdminWpTitle] = useState('');
   const [adminWpUrl, setAdminWpUrl] = useState('');
   const [isAddingAdminWp, setIsAddingAdminWp] = useState(false);
+  const [fullScreenSuccessMsg, setFullScreenSuccessMsg] = useState<string | null>(null);
+
+  const triggerSuccessOverlay = (msg: string = 'Wallpaper Set!') => {
+    setFullScreenSuccessMsg(msg);
+    setTimeout(() => {
+      setFullScreenSuccessMsg(null);
+    }, 2200);
+  };
   
   const wallpaperInputRef = useRef<HTMLInputElement>(null);
   const adminWpInputRef = useRef<HTMLInputElement>(null);
@@ -1610,7 +1619,7 @@ export const UserProfileView: React.FC = () => {
                         title={swatch.name}
                         onClick={() => {
                           updateVaultSettings({ chatWallpaper: swatch.bg });
-                          showSnack(`Wallpaper set to ${swatch.name}`);
+                          triggerSuccessOverlay('Wallpaper Set!');
                         }}
                         className={`w-full aspect-[9/16] rounded-[22px] border-2 transition-all cursor-pointer relative overflow-hidden shadow-md group ${
                           isSelected 
@@ -1710,7 +1719,7 @@ export const UserProfileView: React.FC = () => {
                             const raw = event.target.result as string;
                             const compressed = await compressImage(raw, 800, 200000);
                             updateVaultSettings({ chatWallpaper: compressed || raw });
-                            showSnack('Custom wallpaper uploaded & applied!');
+                            triggerSuccessOverlay('Wallpaper Set!');
                           }
                         };
                         reader.readAsDataURL(file);
@@ -1751,7 +1760,7 @@ export const UserProfileView: React.FC = () => {
                         onClick={() => {
                           if (customWallpaperUrl.trim()) {
                             updateVaultSettings({ chatWallpaper: customWallpaperUrl.trim() });
-                            showSnack('Custom wallpaper URL applied!');
+                            triggerSuccessOverlay('Wallpaper Set!');
                             setCustomWallpaperUrl('');
                           }
                         }}
@@ -2467,6 +2476,13 @@ export const UserProfileView: React.FC = () => {
         subText={`@${userUsername}`}
         isSelf={true}
         onEditPhoto={handleOpenEditModal}
+      />
+
+      {/* Full Screen Wallpaper Success Overlay */}
+      <WallpaperSuccessOverlay
+        show={Boolean(fullScreenSuccessMsg)}
+        message={fullScreenSuccessMsg || undefined}
+        onClose={() => setFullScreenSuccessMsg(null)}
       />
 
     </div>

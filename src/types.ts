@@ -142,10 +142,23 @@ export interface Message {
     statusCreatedAt?: any;
     emoji: string;
   };
+  statusMention?: {
+    statusId: string;
+    statusOwnerId?: string;
+    statusType?: 'image' | 'video' | 'text';
+    statusThumbnail?: string;
+    statusMediaUrl?: string;
+    statusText?: string;
+    statusMediaType?: 'image' | 'video' | 'text';
+    statusOwnerName?: string;
+    statusCreatedAt?: any;
+    mentionedUsername?: string;
+  };
 }
 
 export type StatusReplyData = NonNullable<Message['statusReply']>;
 export type StatusReactionData = NonNullable<Message['statusReaction']>;
+export type StatusMentionData = NonNullable<Message['statusMention']>;
 
 export interface GroupPermissions {
   sendMessages: boolean;

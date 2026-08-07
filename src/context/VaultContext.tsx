@@ -12,7 +12,7 @@ import {
 import { 
   CallInfo, CallLog, CallType, CallDirection, CallStatus, Contact, MediaAttachment, Message, 
   UserProfile, VaultSettings, FriendRequest, FriendStatus, StatusUpdate,
-  StatusSeenRecord, StatusLikeRecord, StatusReactionRecord, StatusReplyData, StatusReactionData, AppNotification,
+  StatusSeenRecord, StatusLikeRecord, StatusReactionRecord, StatusReplyData, StatusReactionData, StatusMentionData, AppNotification,
   AdminWallpaper, GroupPermissions, GroupJoinRequest, GroupActivityLog, DeletedMessageLog, DEFAULT_GROUP_PERMISSIONS
 } from '../types';
 import { DEFAULT_SETTINGS, DEFAULT_USER } from '../data/initialData';
@@ -147,6 +147,7 @@ interface VaultContextType {
     originalCreatorUsername?: string,
     originalCreatorName?: string
   ) => Promise<void>;
+  reshareStatus: (status: StatusUpdate) => Promise<{ success: boolean; message: string }>;
   deleteStatusUpdate: (statusId: string) => Promise<void>;
   likeStatusUpdate: (statusId: string) => Promise<void>;
   markStatusAsSeen: (statusId: string) => Promise<void>;
@@ -165,7 +166,7 @@ interface VaultContextType {
   signOutGoogle: () => Promise<void>;
   setActiveContactId: (id: string | null) => void;
   setActiveTab: (tab: 'chats' | 'gallery' | 'profile' | 'settings' | 'calls') => void;
-  sendMessage: (receiverId: string, text: string, media?: MediaAttachment, replyTo?: Message['replyTo'], statusReply?: StatusReplyData, statusReaction?: StatusReactionData, isForwarded?: boolean) => Promise<void>;
+  sendMessage: (receiverId: string, text: string, media?: MediaAttachment, replyTo?: Message['replyTo'], statusReply?: StatusReplyData, statusReaction?: StatusReactionData, isForwarded?: boolean, statusMention?: StatusMentionData) => Promise<void>;
   editMessage: (contactId: string, msgId: string, newText: string) => Promise<void>;
   deleteMessage: (contactId: string, msgId: string) => Promise<void>;
   deleteForEveryone: (contactId: string, msgId: string) => Promise<void>;
@@ -2529,11 +2530,25 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         seenUserIds: [],
       });
 
-      // Instantly dispatch realtime notifications to all mentioned users
+      // Instantly dispatch realtime notifications & chat messages to all mentioned users
       if (Array.isArray(mentionedUserIds) && mentionedUserIds.length > 0) {
-        const notifPromises = mentionedUserIds.map((targetUid) => {
-          if (!targetUid || targetUid === currentAuthUser.uid) return Promise.resolve();
-          return addDoc(collection(db, 'notifications'), {
+        const statusMentionData: StatusMentionData = {
+          statusId: docRef.id,
+          statusOwnerId: currentAuthUser.uid,
+          statusOwnerName: ownerName,
+          statusType: mediaType || (processedMediaUrl ? 'image' : 'text'),
+          statusThumbnail: processedMediaUrl || '',
+          statusMediaUrl: processedMediaUrl || '',
+          statusText: text || caption || '',
+          statusMediaType: mediaType || (processedMediaUrl ? 'image' : 'text'),
+          statusCreatedAt: Date.now(),
+        };
+
+        const notifPromises = mentionedUserIds.map(async (targetUid) => {
+          if (!targetUid || targetUid === currentAuthUser.uid) return;
+
+          // 1. Write realtime notification document to Firestore
+          await addDoc(collection(db, 'notifications'), {
             userId: targetUid,
             type: 'status_mention',
             title: 'Status Mention',
@@ -2545,12 +2560,91 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             read: false,
             createdAt: serverTimestamp(),
           }).catch((err) => console.warn('Notification send failed for:', targetUid, err));
+
+          // 2. Send direct chat message with Status Mention card!
+          await sendMessage(
+            targetUid,
+            `Mentioned you in a status`,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            false,
+            statusMentionData
+          ).catch((err) => console.warn('Status mention message send failed for:', targetUid, err));
         });
         await Promise.all(notifPromises).catch(() => {});
       }
     } catch (err: any) {
       console.error('Failed to post status:', err);
       handleFirestoreError('postStatusUpdate', err);
+    }
+  };
+
+  // Reshare a Status (Add to My Status)
+  const reshareStatus = async (originalStatus: StatusUpdate) => {
+    if (!authUser || !originalStatus) {
+      return { success: false, message: 'Invalid status update.' };
+    }
+
+    const currentAuthUser = authUser;
+    const nowMs = Date.now();
+
+    // Verify 24-hour expiration
+    let createdMs = nowMs;
+    if (originalStatus.createdAt?.toMillis) {
+      createdMs = originalStatus.createdAt.toMillis();
+    } else if (originalStatus.createdAt?.seconds) {
+      createdMs = originalStatus.createdAt.seconds * 1000;
+    } else if (typeof originalStatus.createdAt === 'number') {
+      createdMs = originalStatus.createdAt;
+    }
+
+    if (nowMs - createdMs > 24 * 60 * 60 * 1000) {
+      return { success: false, message: 'This status is no longer available.' };
+    }
+
+    const originalCreatorName = originalStatus.userName || 'User';
+    const originalCreatorUsername = originalStatus.originalCreatorUsername || originalStatus.userName?.toLowerCase().replace(/\s+/g, '') || 'user';
+    const originalCreatorId = originalStatus.userId;
+
+    const reshareCaption = `Shared from @${originalCreatorUsername}`;
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    const ownerName = user.name || currentAuthUser.displayName || user.username || 'User';
+    const ownerAvatar = user.avatar || currentAuthUser.photoURL || '';
+
+    try {
+      await addDoc(collection(db, 'status'), {
+        userId: currentAuthUser.uid,
+        userName: ownerName,
+        userAvatar: ownerAvatar,
+        text: originalStatus.text || '',
+        mediaUrl: originalStatus.mediaUrl || '',
+        mediaType: originalStatus.mediaType || (originalStatus.mediaUrl ? 'image' : 'text'),
+        caption: originalStatus.caption || '',
+        bgColor: originalStatus.bgColor || '#ff2e93',
+        privacyMode: 'contacts',
+        allowedUserIds: [],
+        mentions: [`@${originalCreatorUsername}`],
+        mentionedUserIds: [originalCreatorId],
+        originalStatusId: originalStatus.id,
+        originalCreatorId: originalCreatorId,
+        originalCreatorUsername: originalCreatorUsername,
+        originalCreatorName: originalCreatorName,
+        createdAt: serverTimestamp(),
+        expiresAt: expiresAt.toISOString(),
+        likesCount: 0,
+        seenCount: 0,
+        repliesCount: 0,
+        likes: [],
+        seenUserIds: [],
+      });
+
+      return { success: true, message: 'Added to your Status! 🎉' };
+    } catch (err: any) {
+      console.error('Failed to reshare status:', err);
+      return { success: false, message: err?.message || 'Failed to reshare status.' };
     }
   };
 
@@ -2921,7 +3015,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     replyTo?: Message['replyTo'],
     statusReply?: StatusReplyData,
     statusReaction?: StatusReactionData,
-    isForwarded?: boolean
+    isForwarded?: boolean,
+    statusMention?: StatusMentionData
   ) => {
     const isGroupChat = contacts.some(c => c.id === receiverId && c.isGroup) || groupContacts.some(g => g.id === receiverId) || receiverId.startsWith('group_');
 
@@ -3036,7 +3131,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     try {
-      const messageType = statusReply
+      const messageType = statusMention
+        ? 'status_mention'
+        : statusReply
         ? 'status_reply'
         : statusReaction
         ? 'status_reaction'
@@ -3055,6 +3152,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         replyTo: replyTo || null,
         statusReply: statusReply || null,
         statusReaction: statusReaction || null,
+        statusMention: statusMention || null,
         isForwarded: Boolean(isForwarded),
         seen: isSelfChat ? true : false,
         isRead: isSelfChat ? true : false,
@@ -5769,6 +5867,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       isFriend,
       searchFirebaseUsers,
       postStatusUpdate,
+      reshareStatus,
       deleteStatusUpdate,
       likeStatusUpdate,
       markStatusAsSeen,

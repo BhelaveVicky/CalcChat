@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Heart, Eye, ChevronLeft, ChevronRight, MoreVertical, Trash2, Volume2, VolumeX, Play, Pause } from 'lucide-react';
+import { X, Heart, Eye, ChevronLeft, ChevronRight, MoreVertical, Trash2, Volume2, VolumeX, Play, Pause, Sparkles, Share2 } from 'lucide-react';
 import { StatusUpdate, StatusSeenRecord, StatusLikeRecord } from '../../types';
 import { StatusProgressBar } from './StatusProgressBar';
 import { StatusReply } from './StatusReply';
@@ -26,6 +26,7 @@ interface StatusViewerProps {
   onSendReply: (status: StatusUpdate, replyText: string) => Promise<void>;
   onSendReaction: (status: StatusUpdate, emoji: string) => Promise<void>;
   onDeleteStatus: (statusId: string) => Promise<void>;
+  onReshareStatus?: (status: StatusUpdate) => Promise<{ success: boolean; message: string }>;
   getSeenRecords?: (statusId: string) => StatusSeenRecord[];
   getLikeRecords?: (statusId: string) => StatusLikeRecord[];
   isDark?: boolean;
@@ -46,6 +47,7 @@ export const StatusViewer: React.FC<StatusViewerProps> = ({
   onSendReply,
   onSendReaction,
   onDeleteStatus,
+  onReshareStatus,
   getSeenRecords = () => [],
   getLikeRecords = () => [],
   isDark = true,
@@ -58,6 +60,8 @@ export const StatusViewer: React.FC<StatusViewerProps> = ({
   const [isVideoPlaying, setIsVideoPlaying] = useState(true);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [likeAnim, setLikeAnim] = useState(false);
+  const [isResharing, setIsResharing] = useState(false);
+  const [reshareToast, setReshareToast] = useState<string | null>(null);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -67,6 +71,49 @@ export const StatusViewer: React.FC<StatusViewerProps> = ({
   const currentStatus = currentGroup?.statuses[statusIndex];
   const isOwner = currentStatus?.userId === currentUserId;
   const isLiked = currentStatus?.likes?.includes(currentUserId);
+
+  const isMentioned = Boolean(
+    currentStatus && 
+    !isOwner && 
+    (
+      (Array.isArray(currentStatus.mentionedUserIds) && currentStatus.mentionedUserIds.includes(currentUserId)) ||
+      (Array.isArray(currentStatus.mentions) && currentStatus.mentions.some(m => m.toLowerCase().replace('@', '') === (currentUserName || '').toLowerCase().replace(/\s+/g, '')))
+    )
+  );
+
+  const handleReshareStatus = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!currentStatus || isResharing || !onReshareStatus) return;
+
+    // Verify 24 hour expiration
+    const nowMs = Date.now();
+    let createdMs = nowMs;
+    if (currentStatus.createdAt?.toMillis) {
+      createdMs = currentStatus.createdAt.toMillis();
+    } else if (currentStatus.createdAt?.seconds) {
+      createdMs = currentStatus.createdAt.seconds * 1000;
+    } else if (typeof currentStatus.createdAt === 'number') {
+      createdMs = currentStatus.createdAt;
+    }
+
+    if (nowMs - createdMs > 24 * 60 * 60 * 1000) {
+      setReshareToast('This status is no longer available.');
+      setTimeout(() => setReshareToast(null), 3500);
+      return;
+    }
+
+    setIsResharing(true);
+    try {
+      const res = await onReshareStatus(currentStatus);
+      setReshareToast(res?.message || 'Added to your Status! 🎉');
+      setTimeout(() => setReshareToast(null), 3500);
+    } catch (err: any) {
+      setReshareToast(err?.message || 'Failed to reshare status.');
+      setTimeout(() => setReshareToast(null), 3500);
+    } finally {
+      setIsResharing(false);
+    }
+  };
 
   // Mark status as seen when slide changes & reset slide progress
   useEffect(() => {
@@ -214,9 +261,17 @@ export const StatusViewer: React.FC<StatusViewerProps> = ({
               <h4 className="font-bold text-sm truncate flex items-center gap-1.5 drop-shadow-md">
                 <span>{currentGroup.userName}</span>
               </h4>
-              <p className="text-[11px] text-white/80 font-mono drop-shadow">
-                {formatStatusTime(currentStatus.createdAt)}
-              </p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <p className="text-[11px] text-white/80 font-mono drop-shadow">
+                  {formatStatusTime(currentStatus.createdAt)}
+                </p>
+                {currentStatus.originalCreatorUsername && (
+                  <span className="px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-[10px] text-emerald-400 font-bold border border-emerald-500/30 shadow flex items-center gap-1">
+                    <Share2 className="w-3 h-3 text-emerald-400" />
+                    Original by @{currentStatus.originalCreatorUsername}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -241,6 +296,16 @@ export const StatusViewer: React.FC<StatusViewerProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Reshare Toast Notification */}
+      {reshareToast && (
+        <div className="absolute top-20 inset-x-0 z-50 flex justify-center px-4 animate-bounce-subtle pointer-events-none">
+          <div className="bg-emerald-500/90 text-white font-bold text-xs px-4 py-2 rounded-full shadow-2xl backdrop-blur-md border border-white/30 flex items-center gap-2">
+            <Sparkles className="w-4 h-4 fill-current text-yellow-300" />
+            <span>{reshareToast}</span>
+          </div>
+        </div>
+      )}
 
       {/* Main Status Media Stage */}
       <div
@@ -310,14 +375,28 @@ export const StatusViewer: React.FC<StatusViewerProps> = ({
           </div>
         )}
 
-        {/* Caption Overlay */}
-        {currentStatus.caption && currentStatus.mediaUrl && (
-          <div className="absolute bottom-20 inset-x-0 z-30 px-6 py-3 bg-gradient-to-t from-black/90 via-black/50 to-transparent text-center">
-            <p className="text-white text-sm sm:text-base font-semibold drop-shadow-md">
-              {currentStatus.caption}
-            </p>
-          </div>
-        )}
+
+
+        {/* Caption Overlay (Only shown if caption contains actual text, not just @mentions) */}
+        {(() => {
+          if (!currentStatus.caption || !currentStatus.mediaUrl) return null;
+          
+          const trimmedCaption = currentStatus.caption.trim();
+          if (!trimmedCaption) return null;
+
+          // Check if caption contains ONLY @mention tags (e.g. "@vicky")
+          const words = trimmedCaption.split(/\s+/);
+          const isOnlyMentions = words.length > 0 && words.every(w => w.startsWith('@'));
+          if (isOnlyMentions) return null;
+
+          return (
+            <div className="absolute bottom-20 inset-x-0 z-30 px-6 py-3 bg-gradient-to-t from-black/90 via-black/50 to-transparent text-center">
+              <p className="text-white text-sm sm:text-base font-semibold drop-shadow-md">
+                {currentStatus.caption}
+              </p>
+            </div>
+          );
+        })()}
 
         {/* Big Heart Animation on Double Tap or Like */}
         {likeAnim && (
@@ -328,7 +407,22 @@ export const StatusViewer: React.FC<StatusViewerProps> = ({
       </div>
 
       {/* Bottom Action Footer */}
-      <div className="absolute bottom-0 inset-x-0 z-40 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-3 pt-6">
+      <div className="absolute bottom-0 inset-x-0 z-40 bg-gradient-to-t from-black/95 via-black/70 to-transparent p-3 pt-6">
+        {/* Mentioned User Reshare Button */}
+        {isMentioned && (
+          <div className="flex justify-center mb-3">
+            <button
+              type="button"
+              disabled={isResharing}
+              onClick={handleReshareStatus}
+              className="px-5 py-2.5 rounded-full bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white font-bold text-xs shadow-2xl active:scale-95 transition-all cursor-pointer border border-white/30 flex items-center gap-2"
+            >
+              <Sparkles className="w-4 h-4 text-yellow-300 fill-current animate-pulse" />
+              <span>{isResharing ? 'Adding to Status...' : 'Add to My Status'}</span>
+            </button>
+          </div>
+        )}
+
         {isOwner ? (
           /* Owner View Details Button */
           <div className="flex flex-col items-center gap-1">

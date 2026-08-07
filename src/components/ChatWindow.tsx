@@ -7,7 +7,7 @@ import {
   Search, CheckSquare, Heart, Ban, MinusCircle, Copy, Pin, Archive, Star,
   CornerUpLeft, Play, Pause, Volume2, Edit3, Forward, Share2, Info, ChevronRight, File, PhoneCall, Tag,
   RotateCw, RefreshCw, Music, MapPin, User, ZoomIn, ZoomOut, Download, Clock, UserCheck, UserPlus, Flag, XCircle,
-  AlertCircle, Loader2
+  AlertCircle, Loader2, Sparkles
 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -93,7 +93,7 @@ export const ChatWindow: React.FC = () => {
     addReactionMessage, removeReactionMessage, deleteMultipleMessages, authUser,
     updateGroupDetails, deleteGroup, adminWallpapers,
     statusUpdates, likeStatusUpdate, markStatusAsSeen, replyToStatus, reactToStatus,
-    deleteStatusUpdate, getSeenRecords, getLikeRecords, allRegisteredUsers
+    deleteStatusUpdate, reshareStatus, getSeenRecords, getLikeRecords, allRegisteredUsers
   } = useVault();
 
   // Status Viewer from Chat Reply / Reaction State
@@ -2415,6 +2415,56 @@ export const ChatWindow: React.FC = () => {
                           </div>
                         )}
 
+                        {/* Status Mention Card in Chat */}
+                        {(msg.statusMention || msg.type === 'status_mention' || (msg.text && msg.text.toLowerCase().includes('mentioned you in a status'))) && (
+                          <div 
+                            onClick={() => {
+                              const targetStatusId = msg.statusMention?.statusId;
+                              if (targetStatusId) {
+                                handleOpenStatusFromReply(targetStatusId, msg.statusMention?.statusOwnerId);
+                              }
+                            }}
+                            className="mb-2 p-3 rounded-2xl bg-gradient-to-br from-[#18252d] to-[#0f171d] border border-[#00a8ff]/40 shadow-xl cursor-pointer hover:border-[#00a8ff] transition-all group shrink-0"
+                          >
+                            <div className="flex items-center justify-between gap-2 mb-2 pb-1.5 border-b border-white/10">
+                              <span className="text-xs font-bold text-[#00a8ff] flex items-center gap-1.5">
+                                <Sparkles className="w-3.5 h-3.5 text-yellow-300 fill-current animate-pulse" />
+                                <span>Status Mention</span>
+                              </span>
+                              <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                                Instagram Story Style
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              {msg.statusMention?.statusThumbnail || msg.statusMention?.statusMediaUrl ? (
+                                <img
+                                  src={msg.statusMention.statusThumbnail || msg.statusMention.statusMediaUrl}
+                                  alt="Status Mention"
+                                  className="w-14 h-14 rounded-xl object-cover border border-white/20 shrink-0 shadow-md"
+                                />
+                              ) : (
+                                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-pink-500 via-purple-500 to-cyan-500 flex items-center justify-center text-white font-extrabold text-[11px] shrink-0 p-1 text-center truncate shadow-md">
+                                  {msg.statusMention?.statusText || 'Status'}
+                                </div>
+                              )}
+
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-bold text-white truncate">
+                                  {msg.statusMention?.statusOwnerName || 'User'} mentioned you in Status
+                                </p>
+                                <p className="text-[11px] text-gray-300 line-clamp-1 mt-0.5">
+                                  {msg.statusMention?.statusText || 'Tap to view fullscreen & add to your status'}
+                                </p>
+                                <p className="text-[10px] text-emerald-400 font-bold mt-1 underline group-hover:text-emerald-300 flex items-center gap-1">
+                                  <span>Tap to View & Reshare</span>
+                                  <ChevronRight className="w-3 h-3" />
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
                         {/* Message Text */}
                         {!(msg.callInfo || msg.type === 'voice_call' || msg.type === 'video_call') && (
                           <p className="leading-normal whitespace-pre-wrap break-words text-[15px]">{renderTextWithLinks(msg.text)}</p>
@@ -4360,6 +4410,7 @@ export const ChatWindow: React.FC = () => {
           onSendReply={replyToStatus}
           onSendReaction={reactToStatus}
           onDeleteStatus={deleteStatusUpdate}
+          onReshareStatus={reshareStatus}
           getSeenRecords={getSeenRecords}
           getLikeRecords={getLikeRecords}
           isDark={isDark}

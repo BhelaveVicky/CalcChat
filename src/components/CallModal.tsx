@@ -125,7 +125,7 @@ export const CallModal: React.FC = () => {
             <p className="text-sm text-slate-300 mb-6">{callPermissionError}</p>
 
             <div className="w-full bg-slate-900/60 rounded-2xl p-4 text-left text-xs text-slate-300 space-y-2 mb-6 border border-white/5">
-              <div className="flex items-center gap-2 font-semibold text-sky-400 mb-1">
+              <div className="flex items-center gap-2 font-semibold text-[#ff2e93] mb-1">
                 <Lock className="w-4 h-4" />
                 <span>How to grant permission:</span>
               </div>
@@ -136,7 +136,7 @@ export const CallModal: React.FC = () => {
 
             <button
               onClick={clearCallPermissionError}
-              className="w-full py-3 bg-[#00a8ff] text-[#0b141a] font-bold rounded-2xl hover:bg-[#0091ea] transition-all"
+              className="w-full py-3 bg-[#ff2e93] text-[#0b141a] font-bold rounded-2xl hover:bg-[#ff1e85] transition-all"
             >
               Got It
             </button>
@@ -148,7 +148,7 @@ export const CallModal: React.FC = () => {
 
   if (!activeCall || !contact) return null;
 
-  const userAvatar = user?.photoURL || user?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
+  const userAvatar = (user as any)?.photoURL || user?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
   const contactAvatar = contact.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
 
   const mins = Math.floor(activeCall.durationSeconds / 60);
@@ -177,13 +177,13 @@ export const CallModal: React.FC = () => {
       {/* Top Header Bar */}
       <div className="z-10 w-full max-w-lg flex items-center justify-between px-2 pt-2">
         <div className="flex items-center gap-2">
-          <ShieldCheck className="w-5 h-5 text-[#00a8ff]" />
-          <span className="text-xs font-semibold text-sky-400 tracking-wider uppercase">End-to-End Encrypted</span>
+          <ShieldCheck className="w-5 h-5 text-[#ff2e93]" />
+          <span className="text-xs font-semibold text-[#ff2e93] tracking-wider uppercase">End-to-End Encrypted</span>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 text-xs font-mono text-slate-300 bg-black/40 px-3 py-1 rounded-full backdrop-blur-md border border-white/10">
-            <Wifi className={`w-3.5 h-3.5 ${activeCall.connectionQuality === 'poor' ? 'text-rose-400' : 'text-[#00a8ff]'}`} />
+            <Wifi className={`w-3.5 h-3.5 ${activeCall.connectionQuality === 'poor' ? 'text-rose-400' : 'text-[#ff2e93]'}`} />
             <span>
               {activeCall.connectionQuality === 'reconnecting' ? 'Reconnecting...' : 'HD 1080p'}
             </span>
@@ -237,7 +237,7 @@ export const CallModal: React.FC = () => {
             </div>
 
             {/* PIP Local Self Video Overlay */}
-            <div className="absolute bottom-4 right-4 w-28 h-36 sm:w-32 sm:h-44 rounded-2xl overflow-hidden border-2 border-[#00a8ff] shadow-2xl bg-slate-900 flex items-center justify-center">
+            <div className="absolute bottom-4 right-4 w-28 h-36 sm:w-32 sm:h-44 rounded-2xl overflow-hidden border-2 border-[#ff2e93] shadow-2xl bg-slate-900 flex items-center justify-center">
               <video 
                 ref={localVideoRef} 
                 autoPlay 
@@ -258,7 +258,7 @@ export const CallModal: React.FC = () => {
 
             {/* Remote Contact Name Badge */}
             <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-semibold text-white flex items-center gap-2 border border-white/10">
-              <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-[#ff2e93] animate-pulse" />
               <span>{getContactDisplayName(contact)}</span>
             </div>
           </div>
@@ -269,21 +269,21 @@ export const CallModal: React.FC = () => {
               {/* Ringing Waves Animation */}
               {(activeCall.status === 'ringing' || activeCall.status === 'incoming' || activeCall.status === 'connecting') && (
                 <>
-                  <div className="absolute -inset-4 rounded-full bg-[#00a8ff]/20 animate-ping" />
-                  <div className="absolute -inset-8 rounded-full bg-[#00a8ff]/10 animate-pulse" />
+                  <div className="absolute -inset-4 rounded-full bg-[#ff2e93]/20 animate-ping" />
+                  <div className="absolute -inset-8 rounded-full bg-[#ff2e93]/10 animate-pulse" />
                 </>
               )}
 
               <img 
                 src={contact.avatar} 
                 alt={getContactDisplayName(contact)} 
-                className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-[#00a8ff] shadow-2xl relative z-10" 
+                className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-[#ff2e93] shadow-2xl relative z-10" 
               />
             </div>
 
             <h2 className="text-2xl sm:text-3xl font-bold text-white mb-1">{getContactDisplayName(contact)}</h2>
             
-            <p className="text-sm font-semibold text-[#00a8ff] tracking-wide mb-3">
+            <p className="text-sm font-semibold text-[#ff2e93] tracking-wide mb-3">
               {activeCall.status === 'ringing' && 'Calling...'}
               {activeCall.status === 'incoming' && `Incoming ${activeCall.type === 'video' ? 'Video' : 'Voice'} Call`}
               {activeCall.status === 'connecting' && 'Connecting WebRTC call...'}
@@ -291,7 +291,7 @@ export const CallModal: React.FC = () => {
             </p>
 
             {activeCall.status === 'connected' && (
-              <div className="text-lg font-mono font-bold text-sky-400 bg-black/40 px-5 py-1.5 rounded-full border border-sky-500/30">
+              <div className="text-lg font-mono font-bold text-[#ff2e93] bg-black/40 px-5 py-1.5 rounded-full border border-[#ff2e93]/30">
                 {timerStr}
               </div>
             )}
@@ -322,9 +322,9 @@ export const CallModal: React.FC = () => {
                   acceptCall();
                 }
               }}
-              className="flex flex-col items-center gap-1.5 text-sky-400 group"
+              className="flex flex-col items-center gap-1.5 text-[#ff2e93] group"
             >
-              <div className="w-16 h-16 rounded-full bg-[#00a8ff] text-[#0b141a] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform animate-bounce">
+              <div className="w-16 h-16 rounded-full bg-[#ff2e93] text-[#0b141a] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform animate-bounce">
                 <PhoneCall className="w-8 h-8" />
               </div>
               <span className="text-xs font-semibold">Answer</span>
@@ -368,7 +368,7 @@ export const CallModal: React.FC = () => {
             <button
               onClick={toggleSpeakerCall}
               className={`p-3.5 rounded-2xl transition-all active:scale-95 ${
-                activeCall.isSpeakerOn ? 'bg-[#00a8ff] text-[#0b141a]' : 'bg-[#2a3942] text-white hover:bg-[#344550]'
+                activeCall.isSpeakerOn ? 'bg-[#ff2e93] text-[#0b141a]' : 'bg-[#2a3942] text-white hover:bg-[#344550]'
               }`}
               title="Speaker Mode"
             >

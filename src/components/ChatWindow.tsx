@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { checkIsAdmin, VerifiedBadge } from '../lib/adminUtils';
 import { 
@@ -12,7 +12,7 @@ import {
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useVault } from '../context/VaultContext';
-import { MediaAttachment, Message, Contact, StatusUpdate, GroupPermissions, DEFAULT_GROUP_PERMISSIONS } from '../types';
+import { MediaAttachment, Message, Contact, StatusUpdate, GroupPermissions, DEFAULT_GROUP_PERMISSIONS, MentionData } from '../types';
 import { StatusViewer } from './Status/StatusViewer';
 import { NicknameModal } from './NicknameModal';
 import { compressImage } from '../lib/mediaCompressor';
@@ -267,6 +267,12 @@ export const ChatWindow: React.FC = () => {
 
   // Input & Modal States
   const [inputText, setInputText] = useState('');
+  const [explicitMentions, setExplicitMentions] = useState<MentionData[]>([]);
+  const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionMatchIndex, setMentionMatchIndex] = useState(0);
+  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
+  const chatInputRef = useRef<HTMLInputElement>(null);
   const [showAttachModal, setShowAttachModal] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [previewMedia, setPreviewMedia] = useState<{ url: string; type?: 'image' | 'video'; name?: string } | string | null>(null);
@@ -281,6 +287,137 @@ export const ChatWindow: React.FC = () => {
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [showRightSidebar, setShowRightSidebar] = useState(false);
   const [showNicknameModal, setShowNicknameModal] = useState(false);
+
+  // Mention candidates calculation
+  const mentionCandidates = useMemo(() => {
+    if (!showMentionSuggestions || !contact) return [];
+    const queryLower = mentionQuery.toLowerCase();
+
+    let rawList: { userId: string; displayName: string; username: string; avatar: string }[] = [];
+
+    if (contact.isGroup) {
+      // Group chat: ONLY current group members
+      const memberUids: string[] = contact.members || contact.groupMembers || [];
+      const banned = contact.bannedMembers || [];
+
+      memberUids.forEach((uid) => {
+        if (banned.includes(uid)) return;
+        if (blockedContactIds.includes(uid) || blockedByContactIds.includes(uid)) return;
+
+        const foundUser = allRegisteredUsers.find((u) => u.uid === uid || u.id === uid);
+        const foundContact = contacts.find((c) => c.id === uid);
+
+        const uname = (foundUser?.username || foundContact?.username || foundUser?.name || foundContact?.name || 'user').replace(/^@/, '');
+        const dname = foundContact ? getContactDisplayName(foundContact) : (foundUser?.displayName || foundUser?.name || uname);
+        const avt = foundUser?.avatar || foundContact?.avatar || '';
+
+        if (!rawList.some((item) => item.userId === uid)) {
+          rawList.push({
+            userId: uid,
+            username: uname,
+            displayName: dname,
+            avatar: avt,
+          });
+        }
+      });
+    } else {
+      // Direct message: ONLY the other participant
+      if (!blockedContactIds.includes(contact.id) && !blockedByContactIds.includes(contact.id)) {
+        const uname = (contact.username || contact.name || 'user').replace(/^@/, '');
+        const dname = getContactDisplayName(contact);
+        rawList.push({
+          userId: contact.id,
+          username: uname,
+          displayName: dname,
+          avatar: contact.avatar || '',
+        });
+      }
+    }
+
+    if (!queryLower) return rawList;
+
+    return rawList.filter(
+      (item) =>
+        item.username.toLowerCase().includes(queryLower) ||
+        item.displayName.toLowerCase().includes(queryLower)
+    );
+  }, [
+    showMentionSuggestions,
+    mentionQuery,
+    contact,
+    contacts,
+    allRegisteredUsers,
+    blockedContactIds,
+    blockedByContactIds,
+    getContactDisplayName,
+  ]);
+
+  const handleSelectMentionCandidate = (candidate: {
+    userId: string;
+    username: string;
+    displayName: string;
+  }) => {
+    const beforeAt = inputText.slice(0, mentionMatchIndex);
+    const textAfterMatch = inputText.slice(mentionMatchIndex + 1 + mentionQuery.length);
+
+    const cleanUsername = candidate.username.replace(/^@/, '');
+    const insertedText = `${beforeAt}@${cleanUsername} ${textAfterMatch}`;
+
+    setInputText(insertedText);
+    setShowMentionSuggestions(false);
+
+    setExplicitMentions((prev) => {
+      const filtered = prev.filter((m) => m.username.toLowerCase() !== cleanUsername.toLowerCase());
+      return [...filtered, { userId: candidate.userId, username: cleanUsername, displayName: candidate.displayName }];
+    });
+
+    setTimeout(() => {
+      if (chatInputRef.current) {
+        chatInputRef.current.focus();
+        const newPos = beforeAt.length + cleanUsername.length + 2;
+        chatInputRef.current.setSelectionRange(newPos, newPos);
+      }
+    }, 50);
+  };
+
+  // Event listener for mention profile clicks
+  useEffect(() => {
+    const handleOpenProfile = (e: any) => {
+      const userId = e.detail?.userId;
+      if (userId) {
+        const foundContact = contacts.find((c) => c.id === userId);
+        if (foundContact) {
+          setActiveContactId(userId);
+        } else {
+          setShowRightSidebar(true);
+        }
+      }
+    };
+
+    const handleOpenProfileByUsername = (e: any) => {
+      const uname = (e.detail?.username || '').toLowerCase();
+      if (!uname) return;
+      const foundReg = allRegisteredUsers.find(
+        (u) => (u.username || '').toLowerCase() === uname
+      );
+      if (foundReg) {
+        const uid = foundReg.uid || foundReg.id;
+        const foundContact = contacts.find((c) => c.id === uid);
+        if (foundContact) {
+          setActiveContactId(uid);
+        } else {
+          setShowRightSidebar(true);
+        }
+      }
+    };
+
+    window.addEventListener('openUserProfile', handleOpenProfile);
+    window.addEventListener('openUserProfileByUsername', handleOpenProfileByUsername);
+    return () => {
+      window.removeEventListener('openUserProfile', handleOpenProfile);
+      window.removeEventListener('openUserProfileByUsername', handleOpenProfileByUsername);
+    };
+  }, [contacts, allRegisteredUsers, setActiveContactId]);
 
   // Message Action States
   const [replyingToMsg, setReplyingToMsg] = useState<Message | null>(null);
@@ -335,6 +472,27 @@ export const ChatWindow: React.FC = () => {
     } else {
       setTypingStatus(activeContactId, false);
     }
+
+    // @ Mention Detection
+    const cursorPos = e.target.selectionStart || val.length;
+    const textBeforeCursor = val.slice(0, cursorPos);
+    const lastAtIndex = textBeforeCursor.lastIndexOf('@');
+
+    if (
+      lastAtIndex !== -1 &&
+      (lastAtIndex === 0 || /\s/.test(textBeforeCursor[lastAtIndex - 1]))
+    ) {
+      const queryAfterAt = textBeforeCursor.slice(lastAtIndex + 1);
+      if (!/\s/.test(queryAfterAt)) {
+        setShowMentionSuggestions(true);
+        setMentionQuery(queryAfterAt);
+        setMentionMatchIndex(lastAtIndex);
+        setSelectedMentionIndex(0);
+        return;
+      }
+    }
+
+    setShowMentionSuggestions(false);
   };
 
   // Audio Voice Recording & Playback States
@@ -864,9 +1022,11 @@ export const ChatWindow: React.FC = () => {
         showToast('Editing time limit expired (2 minutes limit)');
         setEditingMsg(null);
         setInputText('');
+        setExplicitMentions([]);
+        setShowMentionSuggestions(false);
         return;
       }
-      editMessage(activeContactId, editingMsg.id, inputText.trim());
+      editMessage(activeContactId, editingMsg.id, inputText.trim(), explicitMentions);
       setEditingMsg(null);
       showToast('Message edited');
     } else {
@@ -876,11 +1036,13 @@ export const ChatWindow: React.FC = () => {
         text: replyingToMsg.text,
       } : undefined;
 
-      sendMessage(activeContactId, inputText.trim(), undefined, replyContext);
+      sendMessage(activeContactId, inputText.trim(), undefined, replyContext, undefined, undefined, undefined, explicitMentions);
       setReplyingToMsg(null);
     }
 
     setInputText('');
+    setExplicitMentions([]);
+    setShowMentionSuggestions(false);
     setShowEmojiPicker(false);
   };
 
@@ -1982,7 +2144,7 @@ export const ChatWindow: React.FC = () => {
                                     <Ban className="w-3 h-3 text-gray-400 inline" /> Deleted message
                                   </span>
                                 ) : (
-                                  renderTextWithLinks(msg.replyTo.text)
+                                  renderTextWithLinks(msg.replyTo.text, { currentUsername: user?.username, currentUserId: user?.id })
                                 )}
                               </p>
                             </div>
@@ -2320,7 +2482,7 @@ export const ChatWindow: React.FC = () => {
 
                         {/* Message Text */}
                         {!(msg.callInfo || msg.type === 'voice_call' || msg.type === 'video_call') && (
-                          <p className="leading-normal whitespace-pre-wrap break-words text-[15px]">{renderTextWithLinks(msg.text)}</p>
+                          <p className="leading-normal whitespace-pre-wrap break-words text-[15px]">{renderTextWithLinks(msg.text, { mentions: msg.mentions, currentUsername: user?.username, currentUserId: user?.id })}</p>
                         )}
                       </>
                     )}
@@ -2456,7 +2618,7 @@ export const ChatWindow: React.FC = () => {
                 <span className="font-semibold text-[#ff2e93] block">
                   Replying to {replyingToMsg.senderId === user.id ? 'yourself' : contact.name}
                 </span>
-                <span className="truncate block opacity-80">{renderTextWithLinks(replyingToMsg.text)}</span>
+                <span className="truncate block opacity-80">{renderTextWithLinks(replyingToMsg.text, { mentions: replyingToMsg.mentions, currentUsername: user?.username, currentUserId: user?.id })}</span>
               </div>
             </div>
             <button onClick={() => setReplyingToMsg(null)} className="p-1 hover:bg-black/10 rounded">
@@ -2710,9 +2872,49 @@ export const ChatWindow: React.FC = () => {
                 </span>
               </div>
             ) : (
-              <form onSubmit={handleSend} className={`p-2 flex items-center gap-2 shrink-0 transition-colors ${
+              <form onSubmit={handleSend} className={`p-2 flex items-center gap-2 shrink-0 transition-colors relative ${
                 isDark ? 'bg-[#0b141a]' : 'bg-gray-100 border-t border-gray-200'
               }`}>
+                {/* Mention Suggestion List Popup */}
+                {showMentionSuggestions && mentionCandidates.length > 0 && (
+                  <div className={`absolute bottom-full left-2 right-2 mb-2 rounded-2xl shadow-2xl border overflow-hidden z-50 backdrop-blur-md max-h-60 overflow-y-auto ${
+                    isDark ? 'bg-[#111b21] border-[#222e35] text-white' : 'bg-white border-gray-200 text-gray-900'
+                  }`}>
+                    <div className={`px-3 py-2 text-[10px] font-bold uppercase tracking-wider border-b ${
+                      isDark ? 'text-slate-400 border-[#222e35] bg-[#1f2c33]/50' : 'text-gray-500 border-gray-100 bg-gray-50'
+                    }`}>
+                      Mention User (@)
+                    </div>
+                    <div className="py-1 divide-y divide-gray-500/10">
+                      {mentionCandidates.map((candidate, idx) => (
+                        <div
+                          key={candidate.userId}
+                          onClick={() => handleSelectMentionCandidate(candidate)}
+                          className={`px-3.5 py-2.5 flex items-center gap-3 cursor-pointer transition-colors ${
+                            idx === selectedMentionIndex
+                              ? (isDark ? 'bg-[#202c33]' : 'bg-pink-50/80')
+                              : (isDark ? 'hover:bg-[#1f2c33]' : 'hover:bg-gray-50')
+                          }`}
+                        >
+                          <img
+                            src={candidate.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
+                            alt={candidate.displayName}
+                            className="w-9 h-9 rounded-full object-cover shrink-0 border border-black/10"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-sm truncate">
+                              {candidate.displayName}
+                            </div>
+                            <div className="text-xs text-sky-400 font-mono font-medium">
+                              @{candidate.username}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className={`flex-1 rounded-full flex items-center px-3 py-1.5 gap-2 border ${
                   isDark ? 'bg-[#202c33] border-transparent' : 'bg-white border-gray-200'
                 }`}>
@@ -2733,6 +2935,7 @@ export const ChatWindow: React.FC = () => {
                   </button>
 
                   <input
+                    ref={chatInputRef}
                     type="text"
                     placeholder="Message"
                     value={inputText}
@@ -3056,7 +3259,7 @@ export const ChatWindow: React.FC = () => {
             }`}>
               <span className="font-bold block text-[#ff2e93] mb-0.5">Message Content</span>
               <p className="line-clamp-2 text-xs font-medium text-current">
-                {renderTextWithLinks(forwardingMsg.text) || (forwardingMsg.media ? `[${forwardingMsg.media.type}] ${forwardingMsg.media.name || ''}` : 'Media Attachment')}
+                {renderTextWithLinks(forwardingMsg.text, { mentions: forwardingMsg.mentions, currentUsername: user?.username, currentUserId: user?.id }) || (forwardingMsg.media ? `[${forwardingMsg.media.type}] ${forwardingMsg.media.name || ''}` : 'Media Attachment')}
               </p>
             </div>
 

@@ -78,6 +78,12 @@ export interface MediaAttachment {
   };
 }
 
+export interface MentionData {
+  userId: string;
+  username: string;
+  displayName: string;
+}
+
 export interface Message {
   id: string;
   senderId: string;
@@ -92,6 +98,7 @@ export interface Message {
   systemText?: string;
   callInfo?: CallInfo;
   media?: MediaAttachment;
+  mentions?: MentionData[];
   isSent?: boolean;
   isDelivered?: boolean;
   isRead?: boolean;
@@ -326,11 +333,14 @@ export interface StatusReactionRecord {
 export interface AppNotification {
   id: string;
   userId: string;
-  type: 'friend_request' | 'friend_accepted' | 'message' | 'call' | 'status';
+  type: 'friend_request' | 'friend_accepted' | 'message' | 'call' | 'status' | 'mention';
   title: string;
   body: string;
   senderId?: string;
   senderName?: string;
+  senderUsername?: string;
+  chatId?: string;
+  messageId?: string;
   read: boolean;
   createdAt: any;
 }

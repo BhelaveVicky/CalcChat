@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MessageSquare, Image, User, Settings, ShieldAlert, Sparkles, UserPlus } from 'lucide-react';
+import { MessageSquare, Image, User, Settings, ShieldAlert, Sparkles, UserPlus, Phone } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 import { FriendRequestsModal } from './FriendRequestsModal';
 import { CCLogo, CalcChatTitle } from './CalcChatBrand';

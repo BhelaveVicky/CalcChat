@@ -11,10 +11,11 @@ import { AndroidFrame } from './components/AndroidFrame';
 import { VaultContainer } from './components/VaultContainer';
 import LoginPage from './components/LoginPage';
 import { UsernameModal } from './components/UsernameModal';
+import { ChatPasswordModal } from './components/ChatPasswordModal';
 import { SplashScreen } from './components/SplashScreen';
 
 const AppContent: React.FC = () => {
-  const { authUser, authReady, needsUsername, completeUsernameSetup } = useVault();
+  const { authUser, authReady, needsUsername, onboardingStep, completeUsernameSetup, completeChatPasswordSetup } = useVault();
   const [showSplash, setShowSplash] = useState<boolean>(true);
   const [isFadingOut, setIsFadingOut] = useState<boolean>(false);
   const prevAuthUserUid = useRef<string | null | undefined>(undefined);
@@ -58,8 +59,19 @@ const AppContent: React.FC = () => {
     return <LoginPage />;
   }
 
-  // First time authenticated user without username -> Create Username Screen
+  // First time authenticated user -> Onboarding Flow
   if (needsUsername) {
+    if (onboardingStep === 'password') {
+      return (
+        <ChatPasswordModal
+          isOpen={true}
+          onComplete={async (passcode) => {
+            await completeChatPasswordSetup(passcode);
+          }}
+        />
+      );
+    }
+
     return (
       <UsernameModal
         isOpen={true}

@@ -1,15 +1,20 @@
 import React, { useState } from 'react';
-import { MessageSquare, Image, User, Settings, ShieldAlert, Sparkles, UserPlus, Phone } from 'lucide-react';
-import { useVault } from '../context/VaultContext';
+import { MessageSquare, Image, User, Settings, ShieldAlert, Sparkles, UserPlus, Phone, Crown } from 'lucide-react';
+import { useVault, SUPER_ADMIN_EMAIL, ADMIN_EMAIL } from '../context/VaultContext';
 import { FriendRequestsModal } from './FriendRequestsModal';
+import { AdminPanelModal } from './AdminPanelModal';
 import { CCLogo, CalcChatTitle } from './CalcChatBrand';
 
 export const VaultNavbar: React.FC = () => {
   const { 
-    activeTab, setActiveTab, lockVault, user, unreadTotal, unseenStatusCount, missedCallCount,
+    activeTab, setActiveTab, lockVault, user, authUser, unreadTotal, unseenStatusCount, missedCallCount,
     pendingFriendRequests, acceptFriendRequest, rejectFriendRequest 
   } = useVault();
   const [isRequestsOpen, setIsRequestsOpen] = useState(false);
+  const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
+
+  const userEmail = (authUser?.email || user.email || '').toLowerCase();
+  const showAdminBtn = userEmail === SUPER_ADMIN_EMAIL || userEmail === ADMIN_EMAIL || user.isAdmin || user.isSuperAdmin;
 
   return (
     <>
@@ -30,20 +35,34 @@ export const VaultNavbar: React.FC = () => {
             </div>
           </div>
 
-          {activeTab === 'chats' && (
-            <button
-              onClick={() => setIsRequestsOpen(true)}
-              className="relative p-1.5 rounded-lg bg-[#ff2e93]/10 hover:bg-[#ff2e93]/20 text-[#ff2e93] border border-[#ff2e93]/30 transition-all cursor-pointer active:scale-95 ml-1"
-              title="Friend Requests"
-            >
-              <UserPlus className="w-4 h-4" />
-              {pendingFriendRequests.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center animate-pulse">
-                  {pendingFriendRequests.length}
-                </span>
-              )}
-            </button>
-          )}
+          <div className="flex items-center gap-1">
+            {activeTab === 'chats' && (
+              <button
+                onClick={() => setIsRequestsOpen(true)}
+                className="relative p-1.5 rounded-lg bg-[#ff2e93]/10 hover:bg-[#ff2e93]/20 text-[#ff2e93] border border-[#ff2e93]/30 transition-all cursor-pointer active:scale-95 ml-1"
+                title="Friend Requests"
+              >
+                <UserPlus className="w-4 h-4" />
+                {pendingFriendRequests.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center animate-pulse">
+                    {pendingFriendRequests.length}
+                  </span>
+                )}
+              </button>
+            )}
+
+            {/* Admin Panel Launcher Button */}
+            {showAdminBtn && (
+              <button
+                onClick={() => setIsAdminPanelOpen(true)}
+                className="relative p-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition-all cursor-pointer active:scale-95 flex items-center gap-1 text-xs font-bold"
+                title="Admin Control Panel"
+              >
+                <Crown className="w-4 h-4 text-amber-400 animate-pulse" />
+                <span className="hidden md:inline">Admin</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Navigation Pill Buttons */}
@@ -152,6 +171,12 @@ export const VaultNavbar: React.FC = () => {
         onReject={async (reqId) => {
           await rejectFriendRequest(reqId);
         }}
+      />
+
+      {/* Admin Panel Modal */}
+      <AdminPanelModal
+        isOpen={isAdminPanelOpen}
+        onClose={() => setIsAdminPanelOpen(false)}
       />
     </>
   );

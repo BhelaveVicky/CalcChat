@@ -519,7 +519,7 @@ export const ChatList: React.FC = () => {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <h5 className="font-bold text-sm text-white truncate">{resUser.name}</h5>
-                          {checkIsAdmin(resUser) && <VerifiedBadge className="w-4 h-4 shrink-0 text-[#00a8ff]" />}
+                          {checkIsAdmin(resUser) && <VerifiedBadge className="w-4 h-4 shrink-0 text-[#ff2e93]" />}
                           {resUser.isOnline && (
                             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">Online</span>
                           )}
@@ -829,14 +829,14 @@ export const ChatList: React.FC = () => {
 
                 {/* Middle: Title & Message Preview */}
                 <div className={`min-w-0 flex-1 border-b pb-3 flex flex-col justify-center ${
-                  isDark ? 'border-[#1f2c34]/60' : 'border-gray-100'
+                  isDark ? 'border-[#ff2e93]/20' : 'border-[#ff2e93]/25'
                 }`}>
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <h3 className={`font-semibold text-[16px] truncate ${
                         isDark ? 'text-[#e9edef]' : 'text-gray-900'
                       }`}>{getContactDisplayName(contact)}</h3>
-                      {checkIsAdmin(contact) && <VerifiedBadge className="w-4 h-4 shrink-0 text-[#00a8ff]" />}
+                      {checkIsAdmin(contact) && <VerifiedBadge className="w-4 h-4 shrink-0 text-[#ff2e93]" />}
                       {contact.isMuted && <BellOff className="w-3.5 h-3.5 text-gray-400 shrink-0 opacity-80" />}
                       {contact.isPinned && <Pin className={`w-3.5 h-3.5 rotate-45 shrink-0 ${isDark ? 'text-[#8596a0]' : 'text-gray-400'}`} />}
                       {contact.isLocked && <Lock className="w-3 h-3 text-amber-400 shrink-0" />}
@@ -1183,7 +1183,7 @@ export const ChatList: React.FC = () => {
                             <img src={m.avatar} alt={m.name} className="w-7 h-7 rounded-full object-cover shrink-0" />
                             <div className="flex items-center gap-1 min-w-0">
                               <span className="text-xs font-medium truncate">{m.name}</span>
-                              {checkIsAdmin(m) && <VerifiedBadge className="w-3.5 h-3.5 shrink-0 text-[#00a8ff]" />}
+                              {checkIsAdmin(m) && <VerifiedBadge className="w-3.5 h-3.5 shrink-0 text-[#ff2e93]" />}
                             </div>
                           </div>
                           {isSelected ? (
@@ -1349,7 +1349,7 @@ export const ChatList: React.FC = () => {
             <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent text-white px-4 py-3 z-10 flex items-center justify-between">
               <div className="flex items-center gap-1 min-w-0">
                 <span className="font-semibold text-[15px] truncate pr-1 shadow-sm">{previewContact.name}</span>
-                {checkIsAdmin(previewContact) && <VerifiedBadge className="w-4 h-4 shrink-0 text-[#00a8ff]" />}
+                {checkIsAdmin(previewContact) && <VerifiedBadge className="w-4 h-4 shrink-0 text-[#ff2e93]" />}
               </div>
             </div>
 

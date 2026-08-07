@@ -1,116 +1,107 @@
 import React from 'react';
-import { MentionData } from '../types';
 
 /**
- * Combined regex to match URLs or @username mentions
+ * Regex to match URLs starting with http://, https://, www., or standard domains
  */
-const COMBINED_REGEX = /(https?:\/\/[^\s<]+|www\.[^\s<]+|[a-zA-Z0-9-]+\.(?:com|org|net|io|co|in|edu|gov|dev|app|me|tech|info|xyz|ai|ca|uk|de|fr|jp|site|live|online|store)(?:\/[^\s<]*)?|@([a-zA-Z0-9_.-]+))/gi;
+const URL_REGEX = /(https?:\/\/[^\s<]+|www\.[^\s<]+|[a-zA-Z0-9-]+\.(?:com|org|net|io|co|in|edu|gov|dev|app|me|tech|info|xyz|ai|ca|uk|de|fr|jp|site|live|online|store)(?:\/[^\s<]*)?)/gi;
 
-export interface RenderTextOptions {
-  mentions?: MentionData[];
-  currentUsername?: string;
-  currentUserId?: string;
-  onMentionClick?: (userId?: string, username?: string) => void;
+/**
+ * Parses markdown inline styles like **bold**, *italic*, ~strikethrough~, _italic_
+ */
+function parseInlineMarkdown(str: string, keyPrefix: string): React.ReactNode[] {
+  if (!str) return [];
+
+  // Match **bold**, *italic*, ~strikethrough~, or _italic_
+  const mdRegex = /(\*\*(.*?)\*\*|\*(.*?)\*|~(.*?)~|_(.*?)_)/g;
+  const nodes: React.ReactNode[] = [];
+  let lastIdx = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = mdRegex.exec(str)) !== null) {
+    if (match.index > lastIdx) {
+      nodes.push(str.substring(lastIdx, match.index));
+    }
+
+    const full = match[0];
+    const key = `${keyPrefix}-md-${match.index}`;
+
+    if (full.startsWith('**') && full.endsWith('**')) {
+      const content = match[2];
+      nodes.push(<strong key={key} className="font-extrabold">{content}</strong>);
+    } else if (full.startsWith('*') && full.endsWith('*')) {
+      const content = match[3];
+      nodes.push(<em key={key} className="italic">{content}</em>);
+    } else if (full.startsWith('~') && full.endsWith('~')) {
+      const content = match[4];
+      nodes.push(<del key={key} className="line-through">{content}</del>);
+    } else if (full.startsWith('_') && full.endsWith('_')) {
+      const content = match[5];
+      nodes.push(<em key={key} className="italic">{content}</em>);
+    } else {
+      nodes.push(full);
+    }
+
+    lastIdx = match.index + full.length;
+  }
+
+  if (lastIdx < str.length) {
+    nodes.push(str.substring(lastIdx));
+  }
+
+  return nodes;
 }
 
 /**
- * Auto-detects URLs and @username mentions in text and renders them appropriately.
+ * Auto-detects URLs in text and renders them as clickable hyperlinks,
+ * while also rendering markdown inline styles like **bold** and *italic*.
  */
-export function renderTextWithLinksAndMentions(
-  text: string | undefined | null,
-  options?: RenderTextOptions
-): React.ReactNode {
+export function renderTextWithLinks(text: string | undefined | null): React.ReactNode {
   if (!text) return null;
 
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
-  COMBINED_REGEX.lastIndex = 0;
+  // Reset regex state
+  URL_REGEX.lastIndex = 0;
 
-  const currentUsernameLower = (options?.currentUsername || '').toLowerCase();
-  const currentUserId = options?.currentUserId;
-
-  while ((match = COMBINED_REGEX.exec(text)) !== null) {
+  while ((match = URL_REGEX.exec(text)) !== null) {
     const matchIndex = match.index;
-    const fullMatch = match[0];
-    const usernameMatch = match[2];
+    let fullMatch = match[0];
 
-    // Add preceding plain text
-    if (matchIndex > lastIndex) {
-      parts.push(text.substring(lastIndex, matchIndex));
-    }
-
-    // Check if this match is an @username mention
-    if (usernameMatch) {
-      const cleanUsername = usernameMatch.toLowerCase();
-      
-      // Look up mention in metadata
-      const foundMention = options?.mentions?.find(
-        (m) => m.username.toLowerCase() === cleanUsername
-      );
-
-      const targetUserId = foundMention?.userId;
-      const isSelfMention = (currentUsernameLower && cleanUsername === currentUsernameLower) || (currentUserId && targetUserId === currentUserId);
-
-      parts.push(
-        <span
-          key={`mention-${matchIndex}-${cleanUsername}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (options?.onMentionClick) {
-              options.onMentionClick(targetUserId, usernameMatch);
-            } else if (targetUserId) {
-              window.dispatchEvent(new CustomEvent('openUserProfile', { detail: { userId: targetUserId, username: usernameMatch } }));
-            } else {
-              window.dispatchEvent(new CustomEvent('openUserProfileByUsername', { detail: { username: usernameMatch } }));
-            }
-          }}
-          className={
-            isSelfMention
-              ? "bg-sky-500/20 text-sky-400 border border-sky-500/30 font-bold px-1.5 py-0.5 rounded cursor-pointer hover:bg-sky-500/30 transition-colors inline-flex items-center gap-0.5 my-0.5 shadow-xs"
-              : "text-sky-400 hover:text-sky-300 font-bold hover:underline cursor-pointer inline transition-colors"
-          }
-          title={isSelfMention ? `You were mentioned (@${usernameMatch})` : `Click to view @${usernameMatch}'s profile`}
-        >
-          @{usernameMatch}
-        </span>
-      );
-
-      lastIndex = matchIndex + fullMatch.length;
-      continue;
-    }
-
-    // Otherwise, handle URL matching
-    let urlMatch = fullMatch;
+    // Trim trailing punctuation
     let trailingPunctuation = '';
-    while (/[.,!?;:)]$/.test(urlMatch)) {
-      if (urlMatch.endsWith(')')) {
-        const openParens = (urlMatch.match(/\(/g) || []).length;
-        const closeParens = (urlMatch.match(/\)/g) || []).length;
+    while (/[.,!?;:)]$/.test(fullMatch)) {
+      if (fullMatch.endsWith(')')) {
+        const openParens = (fullMatch.match(/\(/g) || []).length;
+        const closeParens = (fullMatch.match(/\)/g) || []).length;
         if (openParens >= closeParens) {
           break;
         }
       }
-      trailingPunctuation = urlMatch.slice(-1) + trailingPunctuation;
-      urlMatch = urlMatch.slice(0, -1);
+      trailingPunctuation = fullMatch.slice(-1) + trailingPunctuation;
+      fullMatch = fullMatch.slice(0, -1);
     }
 
-    if (!urlMatch) {
-      lastIndex = matchIndex + fullMatch.length;
-      continue;
+    if (!fullMatch) continue;
+
+    // Add preceding plain text with markdown
+    if (matchIndex > lastIndex) {
+      const plainSegment = text.substring(lastIndex, matchIndex);
+      parts.push(...parseInlineMarkdown(plainSegment, `seg-${matchIndex}`));
     }
 
-    let href = urlMatch;
-    if (urlMatch.toLowerCase().startsWith('www.')) {
-      href = `https://${urlMatch}`;
-    } else if (!/^https?:\/\//i.test(urlMatch)) {
-      href = `https://${urlMatch}`;
+    // Format destination href
+    let href = fullMatch;
+    if (fullMatch.toLowerCase().startsWith('www.')) {
+      href = `https://${fullMatch}`;
+    } else if (!/^https?:\/\//i.test(fullMatch)) {
+      href = `https://${fullMatch}`;
     }
 
     parts.push(
       <a
-        key={`link-${matchIndex}-${urlMatch}`}
+        key={`link-${matchIndex}-${fullMatch}`}
         href={href}
         target="_blank"
         rel="noopener noreferrer"
@@ -129,27 +120,23 @@ export function renderTextWithLinksAndMentions(
           }
         }}
       >
-        {urlMatch}
+        {fullMatch}
       </a>
     );
 
     if (trailingPunctuation) {
-      parts.push(trailingPunctuation);
+      parts.push(...parseInlineMarkdown(trailingPunctuation, `trail-${matchIndex}`));
     }
 
-    lastIndex = matchIndex + fullMatch.length;
+    lastIndex = matchIndex + match[0].length;
   }
 
+  // Add remaining text with markdown
   if (lastIndex < text.length) {
-    parts.push(text.substring(lastIndex));
+    const remainingSegment = text.substring(lastIndex);
+    parts.push(...parseInlineMarkdown(remainingSegment, `rem-${lastIndex}`));
   }
 
   return <>{parts}</>;
 }
 
-export function renderTextWithLinks(
-  text: string | undefined | null,
-  options?: RenderTextOptions
-): React.ReactNode {
-  return renderTextWithLinksAndMentions(text, options);
-}

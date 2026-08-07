@@ -15,6 +15,13 @@ export interface UserProfile {
   friends?: string[];
   followers?: string[];
   following?: string[];
+  isAdmin?: boolean;
+  isSuperAdmin?: boolean;
+  isVerified?: boolean;
+  passcode?: string;
+  hasUsername?: boolean;
+  hasChatPassword?: boolean;
+  isProfileComplete?: boolean;
 }
 
 export type CallType = 'voice' | 'video';
@@ -78,12 +85,6 @@ export interface MediaAttachment {
   };
 }
 
-export interface MentionData {
-  userId: string;
-  username: string;
-  displayName: string;
-}
-
 export interface Message {
   id: string;
   senderId: string;
@@ -98,7 +99,6 @@ export interface Message {
   systemText?: string;
   callInfo?: CallInfo;
   media?: MediaAttachment;
-  mentions?: MentionData[];
   isSent?: boolean;
   isDelivered?: boolean;
   isRead?: boolean;
@@ -248,6 +248,9 @@ export interface Contact {
   lastMessageTime?: any;
   lastMessageSenderId?: string;
   lastActivityTime?: number;
+  isAdmin?: boolean;
+  isSuperAdmin?: boolean;
+  isVerified?: boolean;
 }
 
 export type FriendStatus = 'none' | 'pending_sent' | 'pending_received' | 'friends' | 'self';
@@ -289,6 +292,12 @@ export interface StatusUpdate {
   bgColor?: string;
   privacyMode?: 'contacts' | 'only';
   allowedUserIds?: string[];
+  mentions?: string[];
+  mentionedUserIds?: string[];
+  originalStatusId?: string;
+  originalCreatorId?: string;
+  originalCreatorUsername?: string;
+  originalCreatorName?: string;
   createdAt: any;
   expiresAt: any;
   formattedTime?: string;
@@ -333,14 +342,16 @@ export interface StatusReactionRecord {
 export interface AppNotification {
   id: string;
   userId: string;
-  type: 'friend_request' | 'friend_accepted' | 'message' | 'call' | 'status' | 'mention';
+  type: 'friend_request' | 'friend_accepted' | 'message' | 'call' | 'status' | 'status_mention';
   title: string;
   body: string;
   senderId?: string;
   senderName?: string;
-  senderUsername?: string;
-  chatId?: string;
-  messageId?: string;
+  senderPhoto?: string;
+  statusId?: string;
+  ownerId?: string;
+  ownerName?: string;
+  ownerPhoto?: string;
   read: boolean;
   createdAt: any;
 }

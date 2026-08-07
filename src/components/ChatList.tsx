@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Search, Plus, Pin, Lock, EyeOff, Bot, MoreVertical, Trash2, Sparkles, 
+import {
+  Search, Plus, Pin, Lock, EyeOff, Bot, MoreVertical, Trash2, Sparkles,
   PhoneCall, MessageSquare, ArrowLeft, X, Archive, Bell, BellOff, CheckCheck, Check,
   Heart, ListPlus, MinusCircle, LogOut, ChevronRight, Users, UserPlus, UserCheck,
   MessageSquarePlus, Tag, Video, User, Ban, UserMinus
@@ -85,7 +85,7 @@ export const ChatList: React.FC = () => {
 
   const selectableMembers = React.useMemo(() => {
     const map = new Map<string, { id: string; name: string; avatar: string; username?: string }>();
-    
+
     // Add non-group, non-self contacts
     contacts.forEach(c => {
       if (!c.isGroup && !c.isSelf && c.id !== user.id) {
@@ -208,7 +208,7 @@ export const ChatList: React.FC = () => {
       isLongPressRef.current = true;
       setOpenMenuId(contactId);
       if (navigator.vibrate) {
-        try { navigator.vibrate(40); } catch(e) {}
+        try { navigator.vibrate(40); } catch (e) { }
       }
     }, 450);
   };
@@ -230,9 +230,9 @@ export const ChatList: React.FC = () => {
     const nickname = customNicknames[c.id] || '';
     const displayName = getContactDisplayName(c);
     const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase()) ||
-                          nickname.toLowerCase().includes(search.toLowerCase()) ||
-                          displayName.toLowerCase().includes(search.toLowerCase()) ||
-                          c.status.toLowerCase().includes(search.toLowerCase());
+      nickname.toLowerCase().includes(search.toLowerCase()) ||
+      displayName.toLowerCase().includes(search.toLowerCase()) ||
+      c.status.toLowerCase().includes(search.toLowerCase());
     if (!matchesSearch) return false;
 
     if (showArchivedOnly) {
@@ -330,7 +330,7 @@ export const ChatList: React.FC = () => {
   };
 
   const toggleSelectMember = (contactId: string) => {
-    setSelectedMemberIds(prev => 
+    setSelectedMemberIds(prev =>
       prev.includes(contactId) ? prev.filter(id => id !== contactId) : [...prev, contactId]
     );
   };
@@ -357,24 +357,21 @@ export const ChatList: React.FC = () => {
   };
 
   return (
-    <div className={`flex-1 flex flex-col overflow-hidden relative font-sans select-none h-full min-h-0 transition-colors ${
-      isDark ? 'bg-[#0b141a] text-[#e9edef]' : 'bg-white text-gray-900'
-    }`}>
-      
+    <div className={`flex-1 flex flex-col overflow-hidden relative font-sans select-none h-full min-h-0 transition-colors ${isDark ? 'bg-[#0b141a] text-[#e9edef]' : 'bg-white text-gray-900'
+      }`}>
+
       {/* Search Bar Container */}
       <div className={`px-4 py-2 shrink-0 ${isDark ? 'bg-[#0b141a]' : 'bg-white'}`}>
-        <div className={`relative flex items-center rounded-full px-4 py-2 text-sm ${
-          isDark ? 'bg-[#202c33]' : 'bg-gray-100'
-        }`}>
+        <div className={`relative flex items-center rounded-full px-4 py-2 text-sm ${isDark ? 'bg-[#202c33]' : 'bg-gray-100'
+          }`}>
           <Search className={`w-5 h-5 mr-3 shrink-0 ${isDark ? 'text-[#8596a0]' : 'text-gray-500'}`} />
           <input
             type="text"
             placeholder="Ask Meta AI or Search"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className={`w-full bg-transparent focus:outline-none text-base sm:text-sm ${
-              isDark ? 'text-[#e9edef] placeholder-[#8596a0]' : 'text-gray-900 placeholder-gray-400'
-            }`}
+            className={`w-full bg-transparent focus:outline-none text-base sm:text-sm ${isDark ? 'text-[#e9edef] placeholder-[#8596a0]' : 'text-gray-900 placeholder-gray-400'
+              }`}
           />
         </div>
       </div>
@@ -392,11 +389,10 @@ export const ChatList: React.FC = () => {
             <button
               key={filter.id}
               onClick={() => setActiveFilter(filter.id as any)}
-              className={`flex-1 min-w-[68px] py-1.5 px-3 rounded-full font-medium text-center flex items-center justify-center transition-all whitespace-nowrap cursor-pointer ${
-                isActive
+              className={`flex-1 min-w-[68px] py-1.5 px-3 rounded-full font-medium text-center flex items-center justify-center transition-all whitespace-nowrap cursor-pointer ${isActive
                   ? (isDark ? 'bg-[#ff2e93]/20 text-[#ff2e93] font-bold border border-[#ff2e93]/40' : 'bg-pink-100 text-pink-700 font-bold border border-pink-300')
                   : (isDark ? 'bg-[#202c33] text-[#8596a0] hover:bg-[#2a3942]' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')
-              }`}
+                }`}
             >
               {filter.label}
             </button>
@@ -406,9 +402,8 @@ export const ChatList: React.FC = () => {
 
       {/* Disguise Warning Banner if Hide History active */}
       {settings.hideChatHistory && (
-        <div className={`px-4 py-1.5 flex items-center justify-between text-xs text-amber-500 border-b ${
-          isDark ? 'bg-[#182229] border-[#202c33]' : 'bg-amber-50 border-amber-200'
-        }`}>
+        <div className={`px-4 py-1.5 flex items-center justify-between text-xs text-amber-500 border-b ${isDark ? 'bg-[#182229] border-[#202c33]' : 'bg-amber-50 border-amber-200'
+          }`}>
           <span className="flex items-center gap-1.5 font-mono">
             <EyeOff className="w-3.5 h-3.5" /> Disguised Previews Active
           </span>
@@ -422,16 +417,14 @@ export const ChatList: React.FC = () => {
           <button
             type="button"
             onClick={() => setShowArchivedOnly(true)}
-            className={`w-full py-2.5 px-4 rounded-2xl flex items-center justify-between transition-all font-medium text-sm shadow-xs group cursor-pointer ${
-              isDark 
-                ? 'bg-[#182229] hover:bg-[#202c33] text-[#e9edef] border border-[#2a3942]' 
+            className={`w-full py-2.5 px-4 rounded-2xl flex items-center justify-between transition-all font-medium text-sm shadow-xs group cursor-pointer ${isDark
+                ? 'bg-[#182229] hover:bg-[#202c33] text-[#e9edef] border border-[#2a3942]'
                 : 'bg-gray-100 hover:bg-gray-200 text-gray-900 border border-gray-200'
-            }`}
+              }`}
           >
             <div className="flex items-center gap-3">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold shrink-0 ${
-                isDark ? 'bg-[#202c33] text-[#ff2e93]' : 'bg-pink-100 text-pink-600'
-              }`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold shrink-0 ${isDark ? 'bg-[#202c33] text-[#ff2e93]' : 'bg-pink-100 text-pink-600'
+                }`}>
                 <Archive className="w-4 h-4" />
               </div>
               <div className="text-left">
@@ -448,9 +441,8 @@ export const ChatList: React.FC = () => {
 
       {/* Header bar when viewing Archived list */}
       {showArchivedOnly && (
-        <div className={`px-4 py-2.5 shrink-0 flex items-center justify-between border-b ${
-          isDark ? 'bg-[#182229] border-[#2a3942] text-white' : 'bg-pink-50 border-pink-200 text-gray-900'
-        }`}>
+        <div className={`px-4 py-2.5 shrink-0 flex items-center justify-between border-b ${isDark ? 'bg-[#182229] border-[#2a3942] text-white' : 'bg-pink-50 border-pink-200 text-gray-900'
+          }`}>
           <button
             type="button"
             onClick={() => setShowArchivedOnly(false)}
@@ -482,9 +474,8 @@ export const ChatList: React.FC = () => {
               <p className="text-xs text-gray-400 animate-pulse py-2">Searching users in Firebase...</p>
             ) : searchResults.length === 0 ? (
               <div className="py-8 text-center flex flex-col items-center gap-3">
-                <div className={`w-16 h-16 rounded-3xl flex items-center justify-center border ${
-                  isDark ? 'bg-[#111b21] border-[#202c33] text-[#ff2e93]' : 'bg-pink-50 border-pink-200 text-pink-600'
-                }`}>
+                <div className={`w-16 h-16 rounded-3xl flex items-center justify-center border ${isDark ? 'bg-[#111b21] border-[#202c33] text-[#ff2e93]' : 'bg-pink-50 border-pink-200 text-pink-600'
+                  }`}>
                   <Search className="w-8 h-8" />
                 </div>
                 <div>
@@ -495,22 +486,21 @@ export const ChatList: React.FC = () => {
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 {searchResults.map(resUser => (
-                  <div 
+                  <div
                     key={resUser.id}
                     onClick={() => {
                       navigate(`/profile/${resUser.id}`);
                       setSearch('');
                     }}
-                    className={`group flex items-center justify-between gap-3 p-3.5 rounded-2xl border transition-all duration-300 cursor-pointer hover:-translate-y-0.5 hover:shadow-xl ${
-                      isDark ? 'bg-[#111b21] border-[#202c33] hover:border-[#ff2e93]/40' : 'bg-gray-50 border-gray-200 hover:border-[#ff2e93]/40'
-                    }`}
+                    className={`group flex items-center justify-between gap-3 p-3.5 rounded-2xl border transition-all duration-300 cursor-pointer hover:-translate-y-0.5 hover:shadow-xl ${isDark ? 'bg-[#111b21] border-[#202c33] hover:border-[#ff2e93]/40' : 'bg-gray-50 border-gray-200 hover:border-[#ff2e93]/40'
+                      }`}
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <div className="relative shrink-0">
-                        <img 
-                          src={resUser.avatar} 
-                          alt={resUser.name} 
-                          className="w-12 h-12 rounded-full object-cover ring-2 ring-transparent group-hover:ring-[#ff2e93]/30 transition-all" 
+                        <img
+                          src={resUser.avatar}
+                          alt={resUser.name}
+                          className="w-12 h-12 rounded-full object-cover ring-2 ring-transparent group-hover:ring-[#ff2e93]/30 transition-all"
                         />
                         {resUser.isOnline && (
                           <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-[#0b141a]"></span>
@@ -605,9 +595,8 @@ export const ChatList: React.FC = () => {
         )}
 
         {sortedContacts.length === 0 && activeFilter === 'favourites' && !search.trim() ? (
-          <div className={`p-8 text-center text-sm flex flex-col items-center justify-center gap-3 h-full min-h-[250px] ${
-            isDark ? 'text-[#8596a0]' : 'text-gray-500'
-          }`}>
+          <div className={`p-8 text-center text-sm flex flex-col items-center justify-center gap-3 h-full min-h-[250px] ${isDark ? 'text-[#8596a0]' : 'text-gray-500'
+            }`}>
             <div className="w-16 h-16 rounded-3xl bg-red-500/10 text-red-500 flex items-center justify-center border border-red-500/20 shadow-inner">
               <Heart className="w-8 h-8 fill-red-500" />
             </div>
@@ -617,9 +606,8 @@ export const ChatList: React.FC = () => {
             </p>
           </div>
         ) : sortedContacts.length === 0 && !search.trim() ? (
-          <div className={`p-8 text-center text-sm flex flex-col items-center justify-center gap-3 h-full min-h-[300px] ${
-            isDark ? 'text-[#8596a0]' : 'text-gray-500'
-          }`}>
+          <div className={`p-8 text-center text-sm flex flex-col items-center justify-center gap-3 h-full min-h-[300px] ${isDark ? 'text-[#8596a0]' : 'text-gray-500'
+            }`}>
             <div className="w-16 h-16 rounded-3xl bg-[#ff2e93]/10 text-[#ff2e93] flex items-center justify-center border border-[#ff2e93]/20 shadow-inner">
               <Users className="w-8 h-8" />
             </div>
@@ -629,9 +617,8 @@ export const ChatList: React.FC = () => {
             </p>
           </div>
         ) : sortedContacts.length === 0 ? (
-          <div className={`p-8 text-center text-sm flex flex-col items-center justify-center gap-3 h-full ${
-            isDark ? 'text-[#8596a0]' : 'text-gray-500'
-          }`}>
+          <div className={`p-8 text-center text-sm flex flex-col items-center justify-center gap-3 h-full ${isDark ? 'text-[#8596a0]' : 'text-gray-500'
+            }`}>
             <Search className={`w-10 h-10 ${isDark ? 'text-[#2a3942]' : 'text-gray-300'}`} />
             <p>No existing chats found matching "{search}"</p>
           </div>
@@ -713,7 +700,7 @@ export const ChatList: React.FC = () => {
               if (isCall) {
                 const isVideo = lastMsg.type === 'video_call' || lastMsg.callInfo?.type === 'video' || lastMsg.text?.toLowerCase().includes('video');
                 const isMissed = lastMsg.callInfo?.status === 'missed' || lastMsg.text?.toLowerCase().includes('missed');
-                
+
                 if (isMissed) {
                   text = isVideo ? '📹 Missed Video Call' : '📞 Missed Audio Call';
                 } else if (isOutgoing) {
@@ -806,14 +793,13 @@ export const ChatList: React.FC = () => {
                   }
                   handleContactClick(contact.id, contact.isLocked);
                 }}
-                className={`px-4 py-3 cursor-pointer transition-colors flex items-center justify-between relative group ${
-                  isDark 
-                    ? 'hover:bg-[#202c33]/50 active:bg-[#202c33]' 
+                className={`px-4 py-3 cursor-pointer transition-colors flex items-center justify-between relative group ${isDark
+                    ? 'hover:bg-[#202c33]/50 active:bg-[#202c33]'
                     : 'hover:bg-gray-100 active:bg-gray-200'
-                }`}
+                  }`}
               >
                 {/* Left: Avatar */}
-                <div 
+                <div
                   onClick={(e) => {
                     e.stopPropagation();
                     setPreviewContact(contact);
@@ -823,42 +809,36 @@ export const ChatList: React.FC = () => {
                   <img
                     src={contact.avatar}
                     alt={contact.name}
-                    className={`w-12 h-12 sm:w-13 sm:h-13 rounded-full object-cover ${
-                      isDark ? 'bg-[#202c33]' : 'bg-gray-200'
-                    }`}
+                    className={`w-12 h-12 sm:w-13 sm:h-13 rounded-full object-cover ${isDark ? 'bg-[#202c33]' : 'bg-gray-200'
+                      }`}
                   />
                   {!contact.isGroup && contact.isOnline && (
-                    <span className={`absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 rounded-full ${
-                      isDark ? 'border-[#0b141a]' : 'border-white'
-                    }`}></span>
+                    <span className={`absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 rounded-full ${isDark ? 'border-[#0b141a]' : 'border-white'
+                      }`}></span>
                   )}
                   {contact.isAiBot && (
-                    <span className={`absolute -bottom-1 -left-1 p-0.5 rounded-full border ${
-                      isDark ? 'bg-[#ff2e93]/20 text-[#ff2e93] border-[#0b141a]' : 'bg-pink-100 text-pink-700 border-white'
-                    }`}>
+                    <span className={`absolute -bottom-1 -left-1 p-0.5 rounded-full border ${isDark ? 'bg-[#ff2e93]/20 text-[#ff2e93] border-[#0b141a]' : 'bg-pink-100 text-pink-700 border-white'
+                      }`}>
                       <Sparkles className="w-2.5 h-2.5" />
                     </span>
                   )}
                 </div>
 
                 {/* Middle: Title & Message Preview */}
-                <div className={`min-w-0 flex-1 border-b pb-3 flex flex-col justify-center ${
-                  isDark ? 'border-[#1f2c34]/60' : 'border-gray-100'
-                }`}>
+                <div className={`min-w-0 flex-1 border-b pb-3 flex flex-col justify-center ${isDark ? 'border-[#1f2c34]/60' : 'border-gray-100'
+                  }`}>
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <h3 className={`font-semibold text-[16px] truncate ${
-                        isDark ? 'text-[#e9edef]' : 'text-gray-900'
-                      }`}>{getContactDisplayName(contact)}</h3>
+                      <h3 className={`font-semibold text-[16px] truncate ${isDark ? 'text-[#e9edef]' : 'text-gray-900'
+                        }`}>{getContactDisplayName(contact)}</h3>
                       {checkIsAdmin(contact) && <VerifiedBadge className="w-4 h-4 shrink-0 text-[#00a8ff]" />}
                       {contact.isMuted && <BellOff className="w-3.5 h-3.5 text-gray-400 shrink-0 opacity-80" />}
                       {contact.isPinned && <Pin className={`w-3.5 h-3.5 rotate-45 shrink-0 ${isDark ? 'text-[#8596a0]' : 'text-gray-400'}`} />}
                       {contact.isLocked && <Lock className="w-3 h-3 text-amber-400 shrink-0" />}
                     </div>
-                    
-                    <span className={`text-xs whitespace-nowrap ml-2 ${
-                      unreadBadge > 0 ? 'text-[#ff2e93] font-semibold' : (isDark ? 'text-[#8596a0]' : 'text-gray-400')
-                    }`}>
+
+                    <span className={`text-xs whitespace-nowrap ml-2 ${unreadBadge > 0 ? 'text-[#ff2e93] font-semibold' : (isDark ? 'text-[#8596a0]' : 'text-gray-400')
+                      }`}>
                       {lastMsg ? (
                         (() => {
                           const dateLabel = formatChatDate(lastMsg.createdAt || lastMsg.timestamp);
@@ -879,9 +859,8 @@ export const ChatList: React.FC = () => {
                   </div>
 
                   <div className="flex items-center justify-between gap-2">
-                    <div className={`text-sm truncate flex items-center gap-1.5 ${
-                      contact.isTyping ? 'text-pink-500 font-semibold animate-pulse' : (isDark ? 'text-[#8596a0]' : 'text-gray-500')
-                    }`}>
+                    <div className={`text-sm truncate flex items-center gap-1.5 ${contact.isTyping ? 'text-pink-500 font-semibold animate-pulse' : (isDark ? 'text-[#8596a0]' : 'text-gray-500')
+                      }`}>
                       {contact.isTyping ? (
                         <span className="truncate flex items-center gap-1 text-pink-500 font-semibold">
                           <span className="w-1.5 h-1.5 rounded-full bg-pink-500 animate-ping inline-block"></span>
@@ -932,21 +911,20 @@ export const ChatList: React.FC = () => {
                 {/* Context Action Menu Modal/Popover */}
                 {openMenuId === contact.id && (
                   <>
-                    <div 
-                      className="fixed inset-0 z-40 bg-black/20 md:bg-transparent" 
+                    <div
+                      className="fixed inset-0 z-40 bg-black/20 md:bg-transparent"
                       onClick={(e) => {
                         e.stopPropagation();
                         setOpenMenuId(null);
-                      }} 
+                      }}
                     />
 
                     <div
                       onClick={e => e.stopPropagation()}
-                      className={`absolute right-4 top-12 z-50 rounded-2xl shadow-2xl py-2 w-56 text-sm font-sans select-none animate-scale-in border transition-all ${
-                        isDark 
-                          ? 'bg-[#233138] border-[#2a3942] text-[#e9edef]' 
+                      className={`absolute right-4 top-12 z-50 rounded-2xl shadow-2xl py-2 w-56 text-sm font-sans select-none animate-scale-in border transition-all ${isDark
+                          ? 'bg-[#233138] border-[#2a3942] text-[#e9edef]'
                           : 'bg-white border-gray-200 text-gray-800 shadow-xl'
-                      }`}
+                        }`}
                     >
                       {/* Set Custom Name */}
                       <button
@@ -956,9 +934,8 @@ export const ChatList: React.FC = () => {
                           setNicknameTargetContact(contact);
                           setShowNicknameModal(true);
                         }}
-                        className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${
-                          isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                        }`}
+                        className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                          }`}
                       >
                         <div className="flex items-center gap-3 text-[#ff2e93] font-semibold">
                           <Tag className="w-4.5 h-4.5" />
@@ -974,9 +951,8 @@ export const ChatList: React.FC = () => {
                           setOpenMenuId(null);
                           showToast(contact.isArchived ? `Unarchived ${contact.name}` : `Archived ${contact.name}`);
                         }}
-                        className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${
-                          isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                        }`}
+                        className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                          }`}
                       >
                         <div className="flex items-center gap-3">
                           <Archive className="w-4.5 h-4.5 text-[#ff2e93]" />
@@ -992,9 +968,8 @@ export const ChatList: React.FC = () => {
                           setOpenMenuId(null);
                           showToast(contact.isMuted ? 'Notifications unmuted' : 'Notifications muted');
                         }}
-                        className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${
-                          isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                        }`}
+                        className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                          }`}
                       >
                         <div className="flex items-center gap-3">
                           {contact.isMuted ? (
@@ -1020,9 +995,8 @@ export const ChatList: React.FC = () => {
                           setOpenMenuId(null);
                           showToast(contact.isPinned ? `Unpinned ${contact.name}` : `Pinned ${contact.name}`);
                         }}
-                        className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${
-                          isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                        }`}
+                        className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                          }`}
                       >
                         <div className="flex items-center gap-3">
                           <Pin className="w-4.5 h-4.5 opacity-80" />
@@ -1038,9 +1012,8 @@ export const ChatList: React.FC = () => {
                           setOpenMenuId(null);
                           showToast(contact.isFavorite ? `Removed from favourites` : `Added to favourites`);
                         }}
-                        className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${
-                          isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                        }`}
+                        className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                          }`}
                       >
                         <div className="flex items-center gap-3">
                           <Heart className={`w-4.5 h-4.5 ${contact.isFavorite ? 'fill-red-500 text-red-500' : 'opacity-80'}`} />
@@ -1063,9 +1036,8 @@ export const ChatList: React.FC = () => {
                               showToast(`Blocked ${getContactDisplayName(contact)}`);
                             }
                           }}
-                          className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${
-                            isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                          }`}
+                          className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                            }`}
                         >
                           <div className="flex items-center gap-3 text-amber-500">
                             <Ban className="w-4.5 h-4.5" />
@@ -1084,9 +1056,8 @@ export const ChatList: React.FC = () => {
                             await unfriendContact(contact.id);
                             showToast(`Unfriended ${targetName}`);
                           }}
-                          className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors text-rose-500 ${
-                            isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                          }`}
+                          className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors text-rose-500 ${isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                            }`}
                         >
                           <div className="flex items-center gap-3">
                             <UserMinus className="w-4.5 h-4.5" />
@@ -1106,9 +1077,8 @@ export const ChatList: React.FC = () => {
                           setOpenMenuId(null);
                           showToast(`Chat history cleared`);
                         }}
-                        className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${
-                          isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                        }`}
+                        className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors ${isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                          }`}
                       >
                         <div className="flex items-center gap-3">
                           <MinusCircle className="w-4.5 h-4.5 opacity-80" />
@@ -1124,9 +1094,8 @@ export const ChatList: React.FC = () => {
                           setOpenMenuId(null);
                           showToast(`Chat deleted`);
                         }}
-                        className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors text-rose-500 ${
-                          isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                        }`}
+                        className={`w-full text-left px-4 py-2.5 flex items-center justify-between transition-colors text-rose-500 ${isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                          }`}
                       >
                         <div className="flex items-center gap-3">
                           <LogOut className="w-4.5 h-4.5" />
@@ -1160,8 +1129,8 @@ export const ChatList: React.FC = () => {
               <h2 className="text-lg font-bold text-[#ff2e93] flex items-center gap-2">
                 <Users className="w-5 h-5" /> Create New Group
               </h2>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setShowCreateGroupModal(false)}
                 className="p-1 rounded-full text-gray-400 hover:text-white hover:bg-white/10"
               >
@@ -1195,9 +1164,8 @@ export const ChatList: React.FC = () => {
                         <div
                           key={m.id}
                           onClick={() => toggleSelectMember(m.id)}
-                          className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${
-                            isSelected ? 'bg-[#ff2e93]/20 text-white' : 'hover:bg-[#182229] text-gray-300'
-                          }`}
+                          className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${isSelected ? 'bg-[#ff2e93]/20 text-white' : 'hover:bg-[#182229] text-gray-300'
+                            }`}
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
                             <img src={m.avatar} alt={m.name} className="w-7 h-7 rounded-full object-cover shrink-0" />
@@ -1357,12 +1325,12 @@ export const ChatList: React.FC = () => {
 
       {/* Contact Profile Image Quick Preview Modal */}
       {previewContact && (
-        <div 
-          onClick={() => setPreviewContact(null)} 
+        <div
+          onClick={() => setPreviewContact(null)}
           className="absolute inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-6 animate-fade-in"
         >
-          <div 
-            onClick={e => e.stopPropagation()} 
+          <div
+            onClick={e => e.stopPropagation()}
             className="bg-[#1f2c34] rounded-2xl overflow-hidden shadow-2xl w-full max-w-[250px] animate-scale-in relative border border-[#2a3942]"
           >
             {/* Top header with contact name */}
@@ -1374,7 +1342,7 @@ export const ChatList: React.FC = () => {
             </div>
 
             {/* Profile Image Square */}
-            <div 
+            <div
               onClick={() => {
                 setFullImageContact(previewContact);
                 setPreviewContact(null);
@@ -1382,9 +1350,9 @@ export const ChatList: React.FC = () => {
               className="relative aspect-square w-full cursor-pointer group overflow-hidden"
               title="Click to view full image"
             >
-              <img 
-                src={previewContact.avatar} 
-                alt={previewContact.name} 
+              <img
+                src={previewContact.avatar}
+                alt={previewContact.name}
                 className="w-full h-full object-cover select-none group-hover:scale-105 transition-transform duration-300"
               />
               <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold backdrop-blur-[1px]">
@@ -1394,7 +1362,7 @@ export const ChatList: React.FC = () => {
 
             {/* Bottom action bar */}
             <div className="flex items-center justify-around py-2.5 bg-[#1f2c34] text-[#ff2e93] border-t border-[#2a3942]/60">
-              <button 
+              <button
                 onClick={() => {
                   handleContactClick(previewContact.id, previewContact.isLocked);
                   setPreviewContact(null);
@@ -1404,8 +1372,8 @@ export const ChatList: React.FC = () => {
               >
                 <MessageSquare className="w-5 h-5 stroke-[2.2]" />
               </button>
-              
-              <button 
+
+              <button
                 onClick={() => {
                   alert(`Simulating voice call with ${previewContact.name}... 📞`);
                   setPreviewContact(null);
@@ -1415,8 +1383,8 @@ export const ChatList: React.FC = () => {
               >
                 <PhoneCall className="w-5 h-5 stroke-[2.2]" />
               </button>
-              
-              <button 
+
+              <button
                 onClick={() => {
                   alert(`Simulating video call with ${previewContact.name}... 🎥`);
                   setPreviewContact(null);
@@ -1426,8 +1394,8 @@ export const ChatList: React.FC = () => {
               >
                 <PhoneCall className="w-5 h-5 stroke-[2.2] rotate-90" />
               </button>
-              
-              <button 
+
+              <button
                 onClick={() => {
                   const targetId = previewContact.id;
                   setPreviewContact(null);
@@ -1456,7 +1424,7 @@ export const ChatList: React.FC = () => {
       />
 
       {/* Custom Contact Nickname Modal */}
-      <NicknameModal 
+      <NicknameModal
         contact={nicknameTargetContact}
         isOpen={showNicknameModal}
         onClose={() => {

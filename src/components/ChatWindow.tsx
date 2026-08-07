@@ -205,6 +205,59 @@ export const ChatWindow: React.FC = () => {
     }
   };
 
+  const handleOpenDocument = (media: MediaAttachment) => {
+    if (!media || (!media.url && !media.id)) {
+      showToast('Document not available.');
+      return;
+    }
+
+    try {
+      let fileUrl = media.url || '';
+
+      // Base64 Data URL decoding for reliable PDF / Document viewing
+      if (fileUrl.startsWith('data:')) {
+        const arr = fileUrl.split(',');
+        const match = arr[0].match(/:(.*?);/);
+        const mime = match ? match[1] : 'application/octet-stream';
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        const blob = new Blob([u8arr], { type: mime });
+        const objectUrl = URL.createObjectURL(blob);
+
+        const win = window.open(objectUrl, '_blank');
+        if (!win) {
+          const link = document.createElement('a');
+          link.href = objectUrl;
+          link.download = media.name || 'document';
+          link.target = '_blank';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+        return;
+      }
+
+      // Blob URL or HTTP URL
+      const win = window.open(fileUrl, '_blank');
+      if (!win) {
+        const link = document.createElement('a');
+        link.href = fileUrl;
+        link.download = media.name || 'document';
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } catch (err) {
+      console.error('Error opening document:', err);
+      showToast('Could not open document.');
+    }
+  };
+
   const [showUnfriendConfirmModal, setShowUnfriendConfirmModal] = useState(false);
   const [showEditGroupNameModal, setShowEditGroupNameModal] = useState(false);
   const [newGroupNameInput, setNewGroupNameInput] = useState('');
@@ -217,6 +270,24 @@ export const ChatWindow: React.FC = () => {
   const [perChatWallpapers, setPerChatWallpapers] = useState<Record<string, string>>(() => {
     try {
       const saved = localStorage.getItem('calcchat_per_chat_wallpapers');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const [perChatBlurs, setPerChatBlurs] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem('calcchat_per_chat_wallpaper_blurs');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const [perChatBrightnessMap, setPerChatBrightnessMap] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem('calcchat_per_chat_wallpaper_brightness');
       return saved ? JSON.parse(saved) : {};
     } catch {
       return {};
@@ -256,13 +327,19 @@ export const ChatWindow: React.FC = () => {
     ? contact.wallpaper
     : (settings?.chatWallpaper || 'default');
 
-  const chatWallpaperBlur = settings?.chatWallpaperBlur ?? 0;
-  const chatWallpaperBrightness = settings?.chatWallpaperBrightness ?? 100;
+  const chatWallpaperBlur = (contact?.id && perChatBlurs[contact.id] !== undefined)
+    ? perChatBlurs[contact.id]
+    : (settings?.chatWallpaperBlur ?? 0);
+
+  const chatWallpaperBrightness = (contact?.id && perChatBrightnessMap[contact.id] !== undefined)
+    ? perChatBrightnessMap[contact.id]
+    : (settings?.chatWallpaperBrightness ?? 100);
 
   const isCustomImage = Boolean(
     chatWallpaper && 
     chatWallpaper !== 'default' && 
-    (chatWallpaper.startsWith('data:image/') || chatWallpaper.startsWith('http://') || chatWallpaper.startsWith('https://') || chatWallpaper.startsWith('blob:'))
+    !chatWallpaper.startsWith('#') &&
+    (chatWallpaper.startsWith('data:') || chatWallpaper.startsWith('http') || chatWallpaper.startsWith('blob:') || chatWallpaper.startsWith('/') || chatWallpaper.includes('.'))
   );
   const isCustomColor = Boolean(
     chatWallpaper && 
@@ -1745,16 +1822,19 @@ export const ChatWindow: React.FC = () => {
             style={{
               ...(isCustomImage ? {
                 backgroundImage: `url("${chatWallpaper}")`,
-              } : (!isCustomColor && isDark) ? {
-                backgroundImage: "url('/dark_blocks_bg.jpg')",
               } : {}),
               ...(isCustomColor ? {
                 backgroundColor: chatWallpaper,
+                backgroundImage: "url('/dark_blocks_bg.jpg')",
+                backgroundBlendMode: 'overlay',
+              } : (!isCustomImage && isDark) ? {
+                backgroundImage: "url('/dark_blocks_bg.jpg')",
               } : {
                 backgroundColor: isDark ? '#0b141a' : '#efeae2',
               }),
               filter: `blur(${chatWallpaperBlur}px) brightness(${chatWallpaperBrightness}%)`,
-              transform: chatWallpaperBlur > 0 ? 'scale(1.06)' : 'none',
+              WebkitFilter: `blur(${chatWallpaperBlur}px) brightness(${chatWallpaperBrightness}%)`,
+              transform: chatWallpaperBlur > 0 ? 'scale(1.15)' : 'none',
             }}
           />
 
@@ -2196,25 +2276,38 @@ export const ChatWindow: React.FC = () => {
                             })()}
 
                             {msg.media.type === 'file' && (
-                              <div className="p-3 flex items-center justify-between gap-3 min-w-[220px]">
+                              <div 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenDocument(msg.media!);
+                                }}
+                                className="p-3 flex items-center justify-between gap-3 min-w-[230px] cursor-pointer hover:bg-black/20 rounded-xl transition-all group/doc select-none"
+                                title="Tap to open document"
+                              >
                                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                                  <div className="p-2.5 bg-[#ff2e93]/20 text-[#ff2e93] rounded-xl shrink-0 font-mono text-xs font-bold">
-                                    <File className="w-5 h-5" />
+                                  <div className="p-2.5 bg-[#ff2e93]/20 text-[#ff2e93] rounded-xl shrink-0 font-mono text-xs font-bold group-hover/doc:scale-105 transition-transform">
+                                    <FileText className="w-5 h-5" />
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <p className="font-semibold truncate text-sm text-[#e9edef]">{msg.media.name}</p>
-                                    <p className="text-xs text-[#8596a0] font-mono">{msg.media.size || '1.2 MB'}</p>
+                                    <p className="font-semibold truncate text-sm text-[#e9edef] group-hover/doc:text-[#ff2e93] transition-colors">{msg.media.name}</p>
+                                    <p className="text-xs text-[#8596a0] font-mono flex items-center gap-1 mt-0.5">
+                                      <span>{msg.media.size || 'Document'}</span>
+                                      <span>•</span>
+                                      <span className="text-emerald-400 font-sans text-[11px] underline font-medium">Tap to open</span>
+                                    </p>
                                   </div>
                                 </div>
-                                <a
-                                  href={msg.media.url}
-                                  download={msg.media.name}
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-[#ff2e93] transition-colors shrink-0"
-                                  title="Download File"
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenDocument(msg.media!);
+                                  }}
+                                  className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-[#ff2e93] transition-colors shrink-0 cursor-pointer active:scale-95 shadow-xs"
+                                  title="Open Document"
                                 >
                                   <Download className="w-4 h-4" />
-                                </a>
+                                </button>
                               </div>
                             )}
 
@@ -4135,6 +4228,7 @@ export const ChatWindow: React.FC = () => {
           contactName={getContactDisplayName(contact)}
           contactAvatar={contact.avatar}
           isDark={isDark}
+          isAdmin={checkIsAdmin(user) || checkIsAdmin(authUser?.email)}
           currentWallpaper={chatWallpaper}
           currentBlur={chatWallpaperBlur}
           currentBrightness={chatWallpaperBrightness}
@@ -4144,8 +4238,14 @@ export const ChatWindow: React.FC = () => {
           customWallpapers={settings.chatWallpaperCustomList}
           onApplyWallpaper={async (payload) => {
             const newWp = payload.wallpaper;
-            const updated = { ...perChatWallpapers, [contact.id]: newWp };
-            setPerChatWallpapers(updated);
+            const updatedWp = { ...perChatWallpapers, [contact.id]: newWp };
+            const updatedBlur = { ...perChatBlurs, [contact.id]: payload.blur };
+            const updatedBrightness = { ...perChatBrightnessMap, [contact.id]: payload.brightness };
+
+            setPerChatWallpapers(updatedWp);
+            setPerChatBlurs(updatedBlur);
+            setPerChatBrightnessMap(updatedBrightness);
+
             updateSettings({
               chatWallpaper: newWp,
               chatWallpaperBlur: payload.blur,
@@ -4154,8 +4254,11 @@ export const ChatWindow: React.FC = () => {
               chatWallpaperFavorites: payload.favorites,
               chatWallpaperCustomList: payload.customList,
             });
+
             try {
-              localStorage.setItem('calcchat_per_chat_wallpapers', JSON.stringify(updated));
+              localStorage.setItem('calcchat_per_chat_wallpapers', JSON.stringify(updatedWp));
+              localStorage.setItem('calcchat_per_chat_wallpaper_blurs', JSON.stringify(updatedBlur));
+              localStorage.setItem('calcchat_per_chat_wallpaper_brightness', JSON.stringify(updatedBrightness));
             } catch (e) {
               console.warn('Failed to save chat wallpaper:', e);
             }
@@ -4170,16 +4273,27 @@ export const ChatWindow: React.FC = () => {
             setTimeout(() => setWallpaperSuccessMsg(null), 2200);
           }}
           onResetWallpaper={async () => {
-            const updated = { ...perChatWallpapers };
-            delete updated[contact.id];
-            setPerChatWallpapers(updated);
+            const updatedWp = { ...perChatWallpapers };
+            delete updatedWp[contact.id];
+            const updatedBlur = { ...perChatBlurs };
+            delete updatedBlur[contact.id];
+            const updatedBrightness = { ...perChatBrightnessMap };
+            delete updatedBrightness[contact.id];
+
+            setPerChatWallpapers(updatedWp);
+            setPerChatBlurs(updatedBlur);
+            setPerChatBrightnessMap(updatedBrightness);
+
             updateSettings({
               chatWallpaper: 'default',
               chatWallpaperBlur: 0,
               chatWallpaperBrightness: 100,
             });
+
             try {
-              localStorage.setItem('calcchat_per_chat_wallpapers', JSON.stringify(updated));
+              localStorage.setItem('calcchat_per_chat_wallpapers', JSON.stringify(updatedWp));
+              localStorage.setItem('calcchat_per_chat_wallpaper_blurs', JSON.stringify(updatedBlur));
+              localStorage.setItem('calcchat_per_chat_wallpaper_brightness', JSON.stringify(updatedBrightness));
             } catch (e) {
               console.warn('Failed to reset chat wallpaper:', e);
             }

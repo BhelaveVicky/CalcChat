@@ -18,6 +18,7 @@ import { FollowingList } from './FollowingList';
 import { WhatsAppProfileViewer } from './WhatsAppProfileViewer';
 import { GET_PRESET_WALLPAPERS } from '../data/presetWalpapers';
 import { WallpaperSuccessOverlay } from './WallpaperSuccessOverlay';
+import { SetChatWallpaperModal } from './SetChatWallpaperModal';
 
 export const UserProfileView: React.FC = () => {
   const { 
@@ -36,6 +37,8 @@ export const UserProfileView: React.FC = () => {
   const [adminWpUrl, setAdminWpUrl] = useState('');
   const [isAddingAdminWp, setIsAddingAdminWp] = useState(false);
   const [fullScreenSuccessMsg, setFullScreenSuccessMsg] = useState<string | null>(null);
+  const [showWallpaperModal, setShowWallpaperModal] = useState(false);
+  const [previewWallpaperChoice, setPreviewWallpaperChoice] = useState<string | undefined>(undefined);
 
   const triggerSuccessOverlay = (msg: string = 'Wallpaper Set!') => {
     setFullScreenSuccessMsg(msg);
@@ -1593,6 +1596,19 @@ export const UserProfileView: React.FC = () => {
                 </div>
               )}
 
+              {/* Live Chat Wallpaper Preview Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setPreviewWallpaperChoice(vaultSettings?.chatWallpaper);
+                  setShowWallpaperModal(true);
+                }}
+                className="w-full mb-4 py-3 px-4 rounded-2xl bg-[#00a8ff]/15 hover:bg-[#00a8ff]/25 border border-[#00a8ff]/40 text-[#00a8ff] font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm active:scale-98"
+              >
+                <Palette className="w-4 h-4" />
+                <span>Live Chat Preview & Wallpaper Filters</span>
+              </button>
+
               {/* Vertical Portrait Wallpaper Gallery Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5 mb-4 p-1">
                 {[
@@ -1618,8 +1634,8 @@ export const UserProfileView: React.FC = () => {
                         type="button"
                         title={swatch.name}
                         onClick={() => {
-                          updateVaultSettings({ chatWallpaper: swatch.bg });
-                          triggerSuccessOverlay('Wallpaper Set!');
+                          setPreviewWallpaperChoice(swatch.bg);
+                          setShowWallpaperModal(true);
                         }}
                         className={`w-full aspect-[9/16] rounded-[22px] border-2 transition-all cursor-pointer relative overflow-hidden shadow-md group ${
                           isSelected 
@@ -2483,6 +2499,37 @@ export const UserProfileView: React.FC = () => {
         show={Boolean(fullScreenSuccessMsg)}
         message={fullScreenSuccessMsg || undefined}
         onClose={() => setFullScreenSuccessMsg(null)}
+      />
+
+      {/* Set Chat Wallpaper Live Preview Modal */}
+      <SetChatWallpaperModal
+        isOpen={showWallpaperModal}
+        onClose={() => setShowWallpaperModal(false)}
+        contactName="Live Chat Preview"
+        isDark={isDark}
+        isAdmin={isAdmin}
+        currentWallpaper={previewWallpaperChoice || vaultSettings?.chatWallpaper || 'default'}
+        currentBlur={vaultSettings?.chatWallpaperBlur || 0}
+        currentBrightness={vaultSettings?.chatWallpaperBrightness || 100}
+        adminWallpapers={adminWallpapers?.map(w => ({ id: w.id || '', name: w.name, url: w.url })) || []}
+        onApplyWallpaper={(payload) => {
+          updateVaultSettings({
+            chatWallpaper: payload.wallpaper,
+            chatWallpaperBlur: payload.blur,
+            chatWallpaperBrightness: payload.brightness,
+          });
+          setShowWallpaperModal(false);
+          triggerSuccessOverlay('Wallpaper Set!');
+        }}
+        onResetWallpaper={() => {
+          updateVaultSettings({
+            chatWallpaper: 'default',
+            chatWallpaperBlur: 0,
+            chatWallpaperBrightness: 100,
+          });
+          setShowWallpaperModal(false);
+          triggerSuccessOverlay('Wallpaper Reset!');
+        }}
       />
 
     </div>

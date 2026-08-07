@@ -5,9 +5,9 @@ import { FriendRequestsModal } from './FriendRequestsModal';
 import { CCLogo, CalcChatTitle, StoriTitle, CallsTitle, ProfileTitle } from './CalcChatBrand';
 
 export const WhatsAppTopBar: React.FC = () => {
-  const { 
-    activeTab, setActiveTab, settings: vaultSettings, 
-    pendingFriendRequests, acceptFriendRequest, rejectFriendRequest 
+  const {
+    activeTab, setActiveTab, settings: vaultSettings,
+    pendingFriendRequests, acceptFriendRequest, rejectFriendRequest
   } = useVault();
   const [isRequestsOpen, setIsRequestsOpen] = useState(false);
 
@@ -30,9 +30,8 @@ export const WhatsAppTopBar: React.FC = () => {
 
   return (
     <>
-      <header className={`px-4 py-3 flex items-center justify-between select-none shrink-0 border-b z-30 transition-colors ${
-        isDark ? 'bg-[#0b141a] text-white border-[#1f2c34]/40' : 'bg-white text-gray-900 border-gray-200'
-      }`}>
+      <header className={`px-4 py-3 flex items-center justify-between select-none shrink-0 border-b z-30 transition-colors ${isDark ? 'bg-[#0b141a] text-white border-[#1f2c34]/40' : 'bg-white text-gray-900 border-gray-200'
+        }`}>
         <div className="w-10"></div>
 
         {/* Brand / Tab Title */}
@@ -49,9 +48,8 @@ export const WhatsAppTopBar: React.FC = () => {
           ) : activeTab === 'profile' ? (
             <ProfileTitle size="sm" />
           ) : (
-            <h1 className={`font-bold text-xl sm:text-2xl tracking-normal ${
-              isDark ? 'text-white' : 'text-gray-900'
-            }`}>
+            <h1 className={`font-bold text-xl sm:text-2xl tracking-normal ${isDark ? 'text-white' : 'text-gray-900'
+              }`}>
               {getTitle()}
             </h1>
           )}
@@ -62,11 +60,10 @@ export const WhatsAppTopBar: React.FC = () => {
           {activeTab === 'chats' && (
             <button
               onClick={() => setIsRequestsOpen(true)}
-              className={`relative p-2 rounded-xl transition-all cursor-pointer active:scale-95 border ${
-                isDark
+              className={`relative p-2 rounded-xl transition-all cursor-pointer active:scale-95 border ${isDark
                   ? 'bg-[#202c33]/50 hover:bg-[#202c33] text-[#ff2e93] border-[#ff2e93]/30'
                   : 'bg-pink-50 hover:bg-pink-100 text-[#ff2e93] border-pink-200 shadow-xs'
-              }`}
+                }`}
               title="Friend Requests"
             >
               <UserPlus className="w-5 h-5" />

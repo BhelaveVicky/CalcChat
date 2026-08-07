@@ -29,6 +29,7 @@ interface SetChatWallpaperModalProps {
   contactName?: string;
   contactAvatar?: string;
   isDark?: boolean;
+  isAdmin?: boolean;
   currentWallpaper?: string;
   currentBlur?: number;
   currentBrightness?: number;
@@ -61,6 +62,7 @@ export const SetChatWallpaperModal: React.FC<SetChatWallpaperModalProps> = ({
   contactName = 'Chat Partner',
   contactAvatar,
   isDark = true,
+  isAdmin = false,
   currentWallpaper = 'default',
   currentBlur = 0,
   currentBrightness = 100,
@@ -91,9 +93,10 @@ export const SetChatWallpaperModal: React.FC<SetChatWallpaperModalProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Sync state when modal opens or props change
+  // Sync state ONLY when modal opens (isOpen transitions from false to true)
+  const prevIsOpenRef = useRef(false);
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !prevIsOpenRef.current) {
       setSelectedWallpaper(currentWallpaper || 'default');
       setBlurValue(currentBlur ?? 0);
       setBrightnessValue(currentBrightness ?? 100);
@@ -101,6 +104,7 @@ export const SetChatWallpaperModal: React.FC<SetChatWallpaperModalProps> = ({
       setRecents(recentWallpapers || []);
       setCustomList(customWallpapers || []);
     }
+    prevIsOpenRef.current = isOpen;
   }, [isOpen, currentWallpaper, currentBlur, currentBrightness, favoriteWallpapers, recentWallpapers, customWallpapers]);
 
   // Combine built-in presets and admin wallpapers
@@ -303,20 +307,23 @@ export const SetChatWallpaperModal: React.FC<SetChatWallpaperModalProps> = ({
             
             {/* Wallpaper Background Layer with Blur & Brightness */}
             <div 
-              className="absolute inset-0 transition-all duration-300 bg-cover bg-center bg-no-repeat pointer-events-none"
+              className="absolute inset-0 transition-all duration-200 bg-cover bg-center bg-no-repeat pointer-events-none"
               style={{
                 ...(isCustomImage ? {
                   backgroundImage: `url("${selectedWallpaper}")`,
                 } : {}),
                 ...(isCustomColor ? {
                   backgroundColor: selectedWallpaper,
+                  backgroundImage: "url('/dark_blocks_bg.jpg')",
+                  backgroundBlendMode: 'overlay',
                 } : (!isCustomImage && isDark ? {
                   backgroundImage: "url('/dark_blocks_bg.jpg')",
                 } : {
                   backgroundColor: isDark ? '#0b141a' : '#efeae2',
                 })),
                 filter: `blur(${blurValue}px) brightness(${brightnessValue}%)`,
-                transform: blurValue > 0 ? 'scale(1.06)' : 'none',
+                WebkitFilter: `blur(${blurValue}px) brightness(${brightnessValue}%)`,
+                transform: blurValue > 0 ? 'scale(1.15)' : 'none',
               }}
             />
 
@@ -504,8 +511,8 @@ export const SetChatWallpaperModal: React.FC<SetChatWallpaperModalProps> = ({
                   <input
                     type="range"
                     min="0"
-                    max="10"
-                    step="0.5"
+                    max="25"
+                    step="1"
                     value={blurValue}
                     onChange={(e) => setBlurValue(parseFloat(e.target.value))}
                     className="w-full accent-[#00a8ff] cursor-pointer"
@@ -531,61 +538,63 @@ export const SetChatWallpaperModal: React.FC<SetChatWallpaperModalProps> = ({
               </div>
             </div>
 
-            {/* 4. Custom Upload & URL option */}
-            <div className={`p-3 rounded-xl border space-y-2 ${
-              isDark ? 'bg-[#182229] border-[#2a3942]' : 'bg-gray-50 border-gray-200'
-            }`}>
-              <label className="text-xs font-bold uppercase tracking-wider opacity-70 flex items-center gap-1.5">
-                <Upload className="w-3.5 h-3.5 text-[#00a8ff]" /> Upload Custom Photo
-              </label>
+            {/* 4. Custom Upload & URL option (Admin Only) */}
+            {isAdmin && (
+              <div className={`p-3 rounded-xl border space-y-2 ${
+                isDark ? 'bg-[#182229] border-[#2a3942]' : 'bg-gray-50 border-gray-200'
+              }`}>
+                <label className="text-xs font-bold uppercase tracking-wider opacity-70 flex items-center gap-1.5">
+                  <Upload className="w-3.5 h-3.5 text-[#00a8ff]" /> Upload Custom Photo (Admin)
+                </label>
 
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileUpload}
-                  accept="image/jpeg,image/png,image/webp"
-                  className="hidden"
-                />
-                <button
-                  type="button"
-                  disabled={isCompressing}
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex-1 py-2 px-3 rounded-xl bg-[#00a8ff]/15 hover:bg-[#00a8ff]/25 text-[#00a8ff] border border-[#00a8ff]/30 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
-                >
-                  {isCompressing ? (
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Image className="w-4 h-4" />
-                  )}
-                  <span>{isCompressing ? 'Compressing Image...' : 'Upload Device Image (JPG/PNG/WEBP)'}</span>
-                </button>
-              </div>
-
-              {/* Paste URL */}
-              <div className="flex gap-2 pt-1">
-                <div className={`flex-1 flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs ${
-                  isDark ? 'bg-[#111b21] border-[#2a3942]' : 'bg-white border-gray-300'
-                }`}>
-                  <Link className="w-3.5 h-3.5 opacity-60 shrink-0" />
+                <div className="flex flex-col sm:flex-row gap-2">
                   <input
-                    type="url"
-                    value={urlInput}
-                    onChange={(e) => setUrlInput(e.target.value)}
-                    placeholder="Or paste image URL..."
-                    className="w-full bg-transparent focus:outline-hidden text-xs"
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileUpload}
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
                   />
+                  <button
+                    type="button"
+                    disabled={isCompressing}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex-1 py-2 px-3 rounded-xl bg-[#00a8ff]/15 hover:bg-[#00a8ff]/25 text-[#00a8ff] border border-[#00a8ff]/30 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {isCompressing ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Image className="w-4 h-4" />
+                    )}
+                    <span>{isCompressing ? 'Compressing Image...' : 'Upload Device Image (JPG/PNG/WEBP)'}</span>
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleApplyUrl}
-                  disabled={!urlInput.trim()}
-                  className="px-3 py-1.5 rounded-xl bg-[#00a8ff] text-[#0b141a] font-bold text-xs disabled:opacity-40 transition-all cursor-pointer"
-                >
-                  Load
-                </button>
+
+                {/* Paste URL */}
+                <div className="flex gap-2 pt-1">
+                  <div className={`flex-1 flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs ${
+                    isDark ? 'bg-[#111b21] border-[#2a3942]' : 'bg-white border-gray-300'
+                  }`}>
+                    <Link className="w-3.5 h-3.5 opacity-60 shrink-0" />
+                    <input
+                      type="url"
+                      value={urlInput}
+                      onChange={(e) => setUrlInput(e.target.value)}
+                      placeholder="Or paste image URL..."
+                      className="w-full bg-transparent focus:outline-hidden text-xs"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleApplyUrl}
+                    disabled={!urlInput.trim()}
+                    className="px-3 py-1.5 rounded-xl bg-[#00a8ff] text-[#0b141a] font-bold text-xs disabled:opacity-40 transition-all cursor-pointer"
+                  >
+                    Load
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* 5. Wallpaper Cards Grid */}
             <div>

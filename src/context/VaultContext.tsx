@@ -5621,7 +5621,24 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const clearAllChatHistory = () => {};
+  const clearAllChatHistory = async () => {
+    if (!authUser) return;
+    setMessages({});
+    try {
+      const chatKeys = Object.keys(messages);
+      for (const contactId of chatKeys) {
+        const chatId = getChatIdForContact(contactId);
+        const msgs = messages[contactId] || [];
+        for (const m of msgs) {
+          await updateDoc(doc(db, 'chats', chatId, 'messages', m.id), {
+            deletedFor: arrayUnion(authUser.uid)
+          }).catch(() => {});
+        }
+      }
+    } catch (e) {
+      console.warn('Error clearing all chat history:', e);
+    }
+  };
   const togglePinContact = (contactId: string) => {
     setContacts(prev => prev.map(c => c.id === contactId ? { ...c, isPinned: !c.isPinned } : c));
   };

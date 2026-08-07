@@ -14,6 +14,7 @@ import { CallsView } from './CallsView';
 import { CallModal } from './CallModal';
 import { GroupInviteModal } from './GrouplnviteModal';
 import { SplashScreen } from './SplashScreen';
+import { ErrorBoundary } from './ErrorBoundary';
 
 export const VaultContainer: React.FC = () => {
   const { isUnlocked, activeTab, activeContactId, setActiveContactId, settings: vaultSettings } = useVault();
@@ -82,21 +83,25 @@ export const VaultContainer: React.FC = () => {
               <>
                 {activeTab === 'chats' && (
                   vaultSettings.showAndroidFrame ? (
-                    activeContactId ? <ChatWindow /> : <ChatList />
+                    activeContactId ? (
+                      <ErrorBoundary><ChatWindow /></ErrorBoundary>
+                    ) : (
+                      <ErrorBoundary><ChatList /></ErrorBoundary>
+                    )
                   ) : (
                     /* Fullscreen / Desktop view: Split layout on md+ screens, single pane on mobile screens */
                     <div className="flex-1 flex w-full h-full overflow-hidden">
                       {/* Chat List column: visible on mobile if no active contact, or on md+ screens always */}
                       <div className={`h-full border-r ${isDark ? 'border-[#202c33]' : 'border-gray-200'} ${activeContactId ? 'hidden md:flex md:w-80 lg:w-96 shrink-0' : 'flex flex-1 md:flex-none md:w-80 lg:w-96'
                         } flex-col overflow-hidden`}>
-                        <ChatList />
+                        <ErrorBoundary><ChatList /></ErrorBoundary>
                       </div>
 
                       {/* Chat Window column: visible on mobile if active contact, or on md+ screens always */}
                       <div className={`h-full flex-1 ${activeContactId ? 'flex' : 'hidden md:flex'
                         } flex-col overflow-hidden`}>
                         {activeContactId ? (
-                          <ChatWindow />
+                          <ErrorBoundary><ChatWindow /></ErrorBoundary>
                         ) : (
                           <div className={`flex-1 flex flex-col items-center justify-center p-8 text-center select-none ${isDark ? 'bg-[#111b21] text-[#8596a0]' : 'bg-gray-50 text-gray-500'
                             }`}>

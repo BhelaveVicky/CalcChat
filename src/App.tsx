@@ -13,9 +13,10 @@ import LoginPage from './components/LoginPage';
 import { UsernameModal } from './components/UsernameModal';
 import { ChatPasswordModal } from './components/ChatPasswordModal';
 import { SplashScreen } from './components/SplashScreen';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 const AppContent: React.FC = () => {
-  const { authUser, authReady, needsUsername, onboardingStep, completeUsernameSetup, completeChatPasswordSetup } = useVault();
+  const { authUser, authReady, needsUsername, onboardingStep, completeUsernameSetup, completeChatPasswordSetup, isUnlocked } = useVault();
   const [showSplash, setShowSplash] = useState<boolean>(true);
   const [isFadingOut, setIsFadingOut] = useState<boolean>(false);
   const prevAuthUserUid = useRef<string | null | undefined>(undefined);
@@ -59,8 +60,9 @@ const AppContent: React.FC = () => {
     return <LoginPage />;
   }
 
-  // First time authenticated user -> Onboarding Flow
-  if (needsUsername) {
+  // If vault is already unlocked (passcode entered in calculator), skip onboarding gate
+  // and go straight to the main app for ALL users
+  if (!isUnlocked && needsUsername) {
     if (onboardingStep === 'password') {
       return (
         <ChatPasswordModal
@@ -96,7 +98,9 @@ export default function App() {
     <BrowserRouter>
       <SettingsProvider>
         <VaultProvider>
-          <AppContent />
+          <ErrorBoundary>
+            <AppContent />
+          </ErrorBoundary>
         </VaultProvider>
       </SettingsProvider>
     </BrowserRouter>

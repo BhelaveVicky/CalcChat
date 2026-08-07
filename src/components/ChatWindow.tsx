@@ -1887,17 +1887,15 @@ export const ChatWindow: React.FC = () => {
                             }
                           }}
                           className={`w-full px-4 py-2.5 text-sm relative shadow-md transition-all select-none ${
-                            isMe ? 'rounded-2xl rounded-br-xs border-2 border-[#ff2e93] bg-[#2a1226] text-white shadow-[0_4px_20px_-2px_rgba(255,46,147,0.35)]' : 'rounded-2xl rounded-bl-xs'
+                            isMe
+                              ? 'rounded-2xl rounded-br-xs border-2 border-[#ff2e93] bg-[#2a1226] text-white shadow-[0_4px_20px_-2px_rgba(255,46,147,0.35)]'
+                              : 'rounded-2xl rounded-bl-xs border-2 border-[#3b82f6] bg-[#121630] text-white shadow-[0_4px_20px_-2px_rgba(59,130,246,0.35)]'
                           } ${
                             isSelectMode ? 'cursor-pointer' : ''
                           } ${
                             isSelected ? 'ring-2 ring-pink-500 bg-pink-500/20 scale-[1.01]' : ''
                           } ${
                             highlightedMsgId === msg.id ? 'ring-2 ring-pink-500 bg-pink-500/20 animate-pulse' : ''
-                          } ${
-                            isMe
-                              ? ''
-                              : (isDark ? 'bg-[#202c33] text-[#e9edef]' : 'bg-white text-gray-900 border border-gray-100')
                           }`}
                         >
                     {/* Speech Bubble Tail - Outgoing (Pink corner wedge matching user screenshot) */}
@@ -1910,15 +1908,13 @@ export const ChatWindow: React.FC = () => {
                       </svg>
                     )}
 
-                    {/* Speech Bubble Tail - Incoming (Image 2 style) */}
+                    {/* Speech Bubble Tail - Incoming (Blue corner wedge matching Image 2 screenshot) */}
                     {!isMe && (
                       <svg
-                        className={`absolute -bottom-[1px] -left-[6px] w-3.5 h-3.5 fill-current pointer-events-none drop-shadow-xs ${
-                          isDark ? 'text-[#202c33]' : 'text-white'
-                        }`}
+                        className="absolute -bottom-[2px] -left-[7px] w-3.5 h-3.5 text-[#3b82f6] fill-[#3b82f6] pointer-events-none drop-shadow-xs z-10"
                         viewBox="0 0 10 10"
                       >
-                        <path d="M10 0 L0 0 C4 3 6 7 10 10 Z" />
+                        <path d="M10 0 L10 10 L0 10 Z" />
                       </svg>
                     )}
                     {msg.deletedForEveryone ? (

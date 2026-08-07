@@ -22,7 +22,7 @@ const formatDisplayNumber = (val: string): string => {
 };
 
 export const Calculator: React.FC = () => {
-  const { settings, unlockVault, setActiveTab } = useVault();
+  const { settings, user, unlockVault, setActiveTab } = useVault();
   const { settings: appSettings, addToHistory, t } = useSettings();
   const [display, setDisplay] = useState<string>('0');
   const [equation, setEquation] = useState<string>('');
@@ -64,10 +64,12 @@ export const Calculator: React.FC = () => {
       if (isCalculated) return;
 
       // SECRET CHECK: Check if display matches secret passcode!
-      if (display === settings.passcode || equation + display === settings.passcode) {
+      // Use settings.passcode first, then user.passcode (Firestore), then default '1234'
+      const activePasscode = settings.passcode || user.passcode || '1234';
+      if (display === activePasscode || equation + display === activePasscode) {
         setUnlocking(true);
         setTimeout(() => {
-          unlockVault(settings.passcode);
+          unlockVault(activePasscode);
         }, 500);
         return;
       }

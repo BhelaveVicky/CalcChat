@@ -807,8 +807,9 @@ export const ChatList: React.FC = () => {
                   className="relative shrink-0 mr-3.5 cursor-pointer hover:scale-105 active:scale-95 transition-transform"
                 >
                   <img
-                    src={contact.avatar}
-                    alt={contact.name}
+                    src={contact.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}
+                    alt={contact.name || 'User'}
+                    onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'; }}
                     className={`w-12 h-12 sm:w-13 sm:h-13 rounded-full object-cover ${
                       isDark ? 'bg-[#202c33]' : 'bg-gray-200'
                     }`}
@@ -847,13 +848,18 @@ export const ChatList: React.FC = () => {
                     }`}>
                       {lastMsg ? (
                         (() => {
-                          const dateLabel = formatChatDate(lastMsg.createdAt || lastMsg.timestamp);
-                          return dateLabel === 'Today'
-                            ? formatMessageTime(lastMsg.createdAt || lastMsg.timestamp, lastMsg.timestamp)
-                            : dateLabel;
+                          try {
+                            const ts = lastMsg.createdAt || lastMsg.timestamp;
+                            const dateLabel = formatChatDate(ts);
+                            return dateLabel === 'Today'
+                              ? formatMessageTime(ts, typeof lastMsg.timestamp === 'string' ? lastMsg.timestamp : undefined)
+                              : (dateLabel || '');
+                          } catch (e) {
+                            return '';
+                          }
                         })()
                       ) : (
-                        contact.lastSeen || 'Yesterday'
+                        typeof contact.lastSeen === 'string' ? contact.lastSeen : ''
                       )}
                     </span>
                   </div>

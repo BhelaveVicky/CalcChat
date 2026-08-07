@@ -4190,11 +4190,15 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const unlockVault = (code: string): boolean => {
-    const activePasscode = settings.passcode || '1234';
+    // Check against settings.passcode, user.passcode (Firestore loaded), or default '1234'
+    const activePasscode = settings.passcode || user.passcode || '1234';
     if (code === activePasscode) {
       setActiveTab('chats');
       setActiveContactId(null);
       setIsUnlocked(true);
+      // Ensure any onboarding gate is cleared so vault opens for ALL users
+      setNeedsUsername(false);
+      setOnboardingStep('completed');
       return true;
     }
     return false;

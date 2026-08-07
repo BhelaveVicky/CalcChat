@@ -26,7 +26,8 @@ export const UserProfileView: React.FC = () => {
     contacts, blockedContactIds, blockContact, unblockContact,
     settings: vaultSettings, updateSettings: updateVaultSettings,
     clearAllChatHistory, allRegisteredUsers,
-    adminWallpapers, addAdminWallpaper, deleteAdminWallpaper
+    adminWallpapers, addAdminWallpaper, deleteAdminWallpaper,
+    completeChatPasswordSetup
   } = useVault();
   const { settings, updateSettings: updateGlobalSettings } = useSettings();
   const isDark = vaultSettings.theme !== 'material-light' && vaultSettings.theme !== 'light';
@@ -74,6 +75,15 @@ export const UserProfileView: React.FC = () => {
   const [notifyCalls, setNotifyCalls] = useState(true);
   const [showClearHistoryConfirmModal, setShowClearHistoryConfirmModal] = useState(false);
   const [blockSearch, setBlockSearch] = useState('');
+
+  const [showAccountModal, setShowAccountModal] = useState(false);
+  const [showChangePasscodeModal, setShowChangePasscodeModal] = useState(false);
+  const [newPasscode, setNewPasscode] = useState('');
+  const [confirmPasscode, setConfirmPasscode] = useState('');
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
+  const [passError, setPassError] = useState<string | null>(null);
+  const [isSubmittingPass, setIsSubmittingPass] = useState(false);
 
   // Admin User Search & Blue Tick Management States
   const [adminUserSearch, setAdminUserSearch] = useState('');
@@ -290,8 +300,8 @@ export const UserProfileView: React.FC = () => {
       id: 'account',
       icon: <Key className="w-5 h-5 text-[#8696a0]" />,
       label: 'Account',
-      sub: 'Security notifications, account info',
-      onClick: () => showSnack('Account settings')
+      sub: 'Security notifications, account info & change password',
+      onClick: () => setShowAccountModal(true)
     },
     {
       id: 'privacy',
@@ -1472,6 +1482,251 @@ export const UserProfileView: React.FC = () => {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Account Settings Modal View */}
+      {showAccountModal && (
+        <div className={`fixed inset-0 z-50 flex flex-col h-full w-full overflow-y-auto font-sans animate-fade-in transition-colors ${
+          isDark ? 'bg-[#0b141a] text-[#e9edef]' : 'bg-white text-gray-900'
+        }`}>
+          {/* Header */}
+          <div className={`flex items-center gap-4 px-5 py-4 sticky top-0 z-10 border-b transition-colors ${
+            isDark ? 'bg-[#111b21] border-[#1f2c34]' : 'bg-white border-gray-100'
+          }`}>
+            <button 
+              onClick={() => setShowAccountModal(false)}
+              className={`p-1.5 rounded-full transition-colors ${
+                isDark ? 'text-[#8696a0] hover:bg-[#1f2c34] hover:text-[#e9edef]' : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+            <h1 className="text-xl font-bold">Account</h1>
+          </div>
+
+          <div className="flex-1 px-5 py-6 max-w-md mx-auto w-full space-y-6">
+            {/* Account Info Box */}
+            <div className={`p-4 rounded-2xl border ${
+              isDark ? 'bg-[#111b21] border-[#1f2c34]' : 'bg-gray-50 border-gray-100'
+            }`}>
+              <p className="text-xs font-semibold text-[#0095f6] uppercase tracking-wider mb-2">Account Information</p>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between items-center">
+                  <span className={isDark ? 'text-[#8696a0]' : 'text-gray-500'}>Name:</span>
+                  <span className="font-semibold">{userName}</span>
+                </div>
+                <div className="flex justify-between items-center border-t border-gray-500/10 pt-2">
+                  <span className={isDark ? 'text-[#8696a0]' : 'text-gray-500'}>Username:</span>
+                  <span className="font-semibold text-[#0095f6]">@{userUsername}</span>
+                </div>
+                <div className="flex justify-between items-center border-t border-gray-500/10 pt-2">
+                  <span className={isDark ? 'text-[#8696a0]' : 'text-gray-500'}>Email:</span>
+                  <span className="font-normal text-xs text-gray-400">{userEmail}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Account Security Section */}
+            <div>
+              <h3 className={`text-sm font-semibold mb-3 ${isDark ? 'text-[#8696a0]' : 'text-gray-800'}`}>
+                Security & Passcode
+              </h3>
+
+              <div className="space-y-2">
+                {/* Change Password / PIN Option */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewPasscode('');
+                    setConfirmPasscode('');
+                    setPassError(null);
+                    setShowChangePasscodeModal(true);
+                  }}
+                  className={`w-full flex items-center justify-between p-4 rounded-2xl transition-colors text-left border ${
+                    isDark 
+                      ? 'bg-[#111b21] border-[#1f2c34] hover:bg-[#1f2c34]' 
+                      : 'bg-gray-50 border-gray-100 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="p-2.5 rounded-xl bg-[#0095f6]/10 text-[#0095f6]">
+                      <Key className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className={`text-base font-semibold ${isDark ? 'text-[#e9edef]' : 'text-gray-900'}`}>
+                        Change Password / PIN
+                      </p>
+                      <p className={`text-xs ${isDark ? 'text-[#8696a0]' : 'text-gray-500'}`}>
+                        Update your vault password or secret calculator passcode
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className={`w-5 h-5 shrink-0 ${isDark ? 'text-[#8696a0]' : 'text-gray-400'}`} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Change Password / PIN Sub Modal */}
+      {showChangePasscodeModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in font-sans">
+          <div className={`w-full max-w-sm rounded-3xl p-6 border shadow-2xl transition-colors ${
+            isDark ? 'bg-[#111b21] border-[#2a3942] text-[#e9edef]' : 'bg-white border-gray-200 text-gray-900'
+          }`}>
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-500/10">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-[#0095f6]/10 text-[#0095f6]">
+                  <Key className="w-5 h-5" />
+                </div>
+                <h3 className="font-bold text-lg">Change Password</h3>
+              </div>
+              <button 
+                onClick={() => setShowChangePasscodeModal(false)}
+                className="p-1 rounded-full opacity-70 hover:opacity-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const cleanNew = newPasscode.trim();
+                const cleanConfirm = confirmPasscode.trim();
+
+                if (!cleanNew) {
+                  setPassError('Please enter a new password or PIN');
+                  return;
+                }
+                if (cleanNew.length < 4) {
+                  setPassError('Password must be at least 4 characters');
+                  return;
+                }
+                if (cleanNew !== cleanConfirm) {
+                  setPassError('Passwords do not match');
+                  return;
+                }
+
+                try {
+                  setIsSubmittingPass(true);
+                  setPassError(null);
+                  await completeChatPasswordSetup(cleanNew);
+                  setShowChangePasscodeModal(false);
+                  showSnack('Password updated successfully! Next time log in with your new password.');
+                } catch (err: any) {
+                  setPassError(err.message || 'Failed to update password');
+                } finally {
+                  setIsSubmittingPass(false);
+                }
+              }}
+              className="space-y-4"
+            >
+              {/* New Password Input */}
+              <div>
+                <label className={`block text-xs font-semibold mb-1.5 ${isDark ? 'text-[#8696a0]' : 'text-gray-700'}`}>
+                  Enter New Password / PIN
+                </label>
+                <div className="relative flex items-center">
+                  <input
+                    type={showNewPass ? 'text' : 'password'}
+                    value={newPasscode}
+                    onChange={(e) => {
+                      setNewPasscode(e.target.value);
+                      setPassError(null);
+                    }}
+                    placeholder="Enter new password (min 4 chars)"
+                    className={`w-full rounded-2xl pl-4 pr-10 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#0095f6] font-normal transition-all ${
+                      isDark 
+                        ? 'bg-[#1f2c34] text-[#e9edef] placeholder-[#8696a0] border border-[#2a3942]' 
+                        : 'bg-gray-100 text-gray-900 placeholder-gray-400 border-none'
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPass(!showNewPass)}
+                    className="absolute right-3 text-gray-400 hover:text-gray-200 p-1"
+                  >
+                    {showNewPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Confirm Password Input */}
+              <div>
+                <label className={`block text-xs font-semibold mb-1.5 ${isDark ? 'text-[#8696a0]' : 'text-gray-700'}`}>
+                  Confirm Password / PIN
+                </label>
+                <div className="relative flex items-center">
+                  <input
+                    type={showConfirmPass ? 'text' : 'password'}
+                    value={confirmPasscode}
+                    onChange={(e) => {
+                      setConfirmPasscode(e.target.value);
+                      setPassError(null);
+                    }}
+                    placeholder="Re-enter new password"
+                    className={`w-full rounded-2xl pl-4 pr-10 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#0095f6] font-normal transition-all ${
+                      newPasscode && confirmPasscode && newPasscode === confirmPasscode
+                        ? 'border-2 border-emerald-500'
+                        : isDark 
+                        ? 'bg-[#1f2c34] text-[#e9edef] placeholder-[#8696a0] border border-[#2a3942]' 
+                        : 'bg-gray-100 text-gray-900 placeholder-gray-400 border-none'
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPass(!showConfirmPass)}
+                    className="absolute right-3 text-gray-400 hover:text-gray-200 p-1"
+                  >
+                    {showConfirmPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+
+                {newPasscode.length >= 4 && confirmPasscode.length >= 4 && newPasscode === confirmPasscode && (
+                  <p className="mt-1.5 text-xs text-emerald-500 font-semibold flex items-center gap-1">
+                    <Check className="w-3.5 h-3.5 stroke-[3]" />
+                    <span>Passwords match</span>
+                  </p>
+                )}
+              </div>
+
+              {/* Error Message */}
+              {passError && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 text-xs font-medium flex items-center gap-2">
+                  <ShieldAlert className="w-4 h-4 shrink-0" />
+                  <span>{passError}</span>
+                </div>
+              )}
+
+              {/* Save & Apply Button */}
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowChangePasscodeModal(false)}
+                  className="flex-1 py-3 rounded-2xl font-semibold text-sm bg-gray-500/10 hover:bg-gray-500/20 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!newPasscode || newPasscode.length < 4 || newPasscode !== confirmPasscode || isSubmittingPass}
+                  className="flex-1 py-3 rounded-2xl font-semibold text-sm bg-[#0095f6] hover:bg-[#0081d6] text-white disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-colors flex items-center justify-center gap-1.5"
+                >
+                  {isSubmittingPass ? (
+                    <span>Saving...</span>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Save Password</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

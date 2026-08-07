@@ -3,7 +3,7 @@ import {
   Plus, Camera, Eye, Download, Shield, Upload, FileText, Video, Image as ImageIcon, X, Send, Lock, 
   ChevronLeft, ChevronRight, Pause, Play, Volume2, VolumeX, MoreVertical, Pencil, Type, Palette, 
   Smile, Trash2, ShieldCheck, Check, ChevronDown, Share2, Sparkles, Heart, EyeOff, RotateCw,
-  Move, ZoomIn, ZoomOut, Sliders, RefreshCw, Maximize2, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Loader2, Search
+  Move, ZoomIn, ZoomOut, Sliders, RefreshCw, Maximize2, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Loader2
 } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 import { StatusUpdate } from '../types';
@@ -60,7 +60,6 @@ export const MediaGallery: React.FC = () => {
   const [mentionedUserIds, setMentionedUserIds] = useState<string[]>([]);
   const [mentionedUsernames, setMentionedUsernames] = useState<string[]>([]);
   const [isPublishing, setIsPublishing] = useState(false);
-  const [statusSearchQuery, setStatusSearchQuery] = useState('');
 
   const isDark = vaultSettings.theme !== 'material-light' && vaultSettings.theme !== 'light';
 
@@ -678,36 +677,30 @@ export const MediaGallery: React.FC = () => {
     } select-none relative`}>
       
       {/* Top Title Bar */}
-      <div className={`px-4 py-3.5 flex items-center justify-between border-b ${
+      <div className={`px-4 py-3 flex items-center justify-between border-b ${
         isDark ? 'border-[#202c33] bg-[#111b21]' : 'border-gray-200 bg-white'
       } sticky top-0 z-20`}>
-        <h2 className="text-xl font-extrabold tracking-tight">Status</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-xl font-bold tracking-tight">Status</h2>
+          <span className="bg-[#00a8ff]/20 text-[#00a8ff] text-xs font-semibold px-2 py-0.5 rounded-full">
+            Encrypted
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowPrivacyModal(true)}
+            className={`p-2 rounded-full transition-colors ${
+              isDark ? 'hover:bg-[#202c33] text-[#8596a0]' : 'hover:bg-gray-100 text-gray-600'
+            }`}
+            title="Status Privacy"
+          >
+            <ShieldCheck className="w-5 h-5 text-[#00a8ff]" />
+          </button>
+        </div>
       </div>
 
       <div className="p-3 sm:p-4 space-y-4 max-w-2xl mx-auto w-full">
-        {/* Status Search Bar */}
-        <div className={`flex items-center gap-2.5 px-4 py-2.5 rounded-2xl border transition-all ${
-          isDark ? 'bg-[#202c33] border-[#2a3942] text-white' : 'bg-white border-gray-200 text-gray-900 shadow-sm'
-        }`}>
-          <Search className="w-4.5 h-4.5 text-[#00a8ff] shrink-0" />
-          <input
-            type="text"
-            placeholder="Search status updates by name..."
-            value={statusSearchQuery}
-            onChange={(e) => setStatusSearchQuery(e.target.value)}
-            className="w-full bg-transparent focus:outline-none text-sm placeholder-gray-400 font-medium"
-          />
-          {statusSearchQuery && (
-            <button
-              type="button"
-              onClick={() => setStatusSearchQuery('')}
-              className="text-gray-400 hover:text-white shrink-0 cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
-        </div>
-
         {/* My Status Card */}
         <StatusCard
           statusGroup={myGroup}
@@ -728,57 +721,53 @@ export const MediaGallery: React.FC = () => {
         />
 
         {/* Section: Recent Updates */}
-        {recentFriendGroups.filter(g => !statusSearchQuery.trim() || g.userName.toLowerCase().includes(statusSearchQuery.toLowerCase().trim())).length > 0 && (
+        {recentFriendGroups.length > 0 && (
           <div className="space-y-2">
             <h4 className={`text-xs font-bold uppercase tracking-wider px-1 ${
               isDark ? 'text-[#8596a0]' : 'text-gray-500'
             }`}>
-              Recent updates ({recentFriendGroups.filter(g => !statusSearchQuery.trim() || g.userName.toLowerCase().includes(statusSearchQuery.toLowerCase().trim())).length})
+              Recent updates ({recentFriendGroups.length})
             </h4>
             <div className="space-y-1">
-              {recentFriendGroups
-                .filter(g => !statusSearchQuery.trim() || g.userName.toLowerCase().includes(statusSearchQuery.toLowerCase().trim()))
-                .map((group) => {
-                  const groupIdx = allViewerGroups.findIndex(g => g.userId === group.userId);
-                  return (
-                    <StatusCard
-                      key={group.userId}
-                      statusGroup={group}
-                      isDark={isDark}
-                      onClick={() => {
-                        if (groupIdx !== -1) setSelectedGroupIndex(groupIdx);
-                      }}
-                    />
-                  );
-                })}
+              {recentFriendGroups.map((group) => {
+                const groupIdx = allViewerGroups.findIndex(g => g.userId === group.userId);
+                return (
+                  <StatusCard
+                    key={group.userId}
+                    statusGroup={group}
+                    isDark={isDark}
+                    onClick={() => {
+                      if (groupIdx !== -1) setSelectedGroupIndex(groupIdx);
+                    }}
+                  />
+                );
+              })}
             </div>
           </div>
         )}
 
         {/* Section: Viewed Updates */}
-        {viewedFriendGroups.filter(g => !statusSearchQuery.trim() || g.userName.toLowerCase().includes(statusSearchQuery.toLowerCase().trim())).length > 0 && (
+        {viewedFriendGroups.length > 0 && (
           <div className="space-y-2 pt-2">
             <h4 className={`text-xs font-bold uppercase tracking-wider px-1 ${
               isDark ? 'text-[#8596a0]' : 'text-gray-500'
             }`}>
-              Viewed updates ({viewedFriendGroups.filter(g => !statusSearchQuery.trim() || g.userName.toLowerCase().includes(statusSearchQuery.toLowerCase().trim())).length})
+              Viewed updates ({viewedFriendGroups.length})
             </h4>
             <div className="space-y-1">
-              {viewedFriendGroups
-                .filter(g => !statusSearchQuery.trim() || g.userName.toLowerCase().includes(statusSearchQuery.toLowerCase().trim()))
-                .map((group) => {
-                  const groupIdx = allViewerGroups.findIndex(g => g.userId === group.userId);
-                  return (
-                    <StatusCard
-                      key={group.userId}
-                      statusGroup={group}
-                      isDark={isDark}
-                      onClick={() => {
-                        if (groupIdx !== -1) setSelectedGroupIndex(groupIdx);
-                      }}
-                    />
-                  );
-                })}
+              {viewedFriendGroups.map((group) => {
+                const groupIdx = allViewerGroups.findIndex(g => g.userId === group.userId);
+                return (
+                  <StatusCard
+                    key={group.userId}
+                    statusGroup={group}
+                    isDark={isDark}
+                    onClick={() => {
+                      if (groupIdx !== -1) setSelectedGroupIndex(groupIdx);
+                    }}
+                  />
+                );
+              })}
             </div>
           </div>
         )}

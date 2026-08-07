@@ -462,7 +462,7 @@ export const SetChatWallpaperModal: React.FC<SetChatWallpaperModalProps> = ({
                 { id: 'bright', label: 'Bright' },
                 { id: 'dark', label: 'Dark' },
                 { id: 'solid', label: 'Solid Colors' },
-                ...(isAdmin ? [{ id: 'custom', label: `Custom (${customList.length})` }] : []),
+                { id: 'custom', label: `Custom (${customList.length})` },
                 { id: 'favorites', label: `Starred (${favorites.length})` },
                 { id: 'recent', label: `Recent (${recents.length})` },
               ].map((tab) => {
@@ -538,7 +538,63 @@ export const SetChatWallpaperModal: React.FC<SetChatWallpaperModalProps> = ({
               </div>
             </div>
 
+            {/* 4. Custom Upload & URL option (Admin Only) */}
+            {isAdmin && (
+              <div className={`p-3 rounded-xl border space-y-2 ${
+                isDark ? 'bg-[#182229] border-[#2a3942]' : 'bg-gray-50 border-gray-200'
+              }`}>
+                <label className="text-xs font-bold uppercase tracking-wider opacity-70 flex items-center gap-1.5">
+                  <Upload className="w-3.5 h-3.5 text-[#00a8ff]" /> Upload Custom Photo (Admin)
+                </label>
 
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileUpload}
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    disabled={isCompressing}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex-1 py-2 px-3 rounded-xl bg-[#00a8ff]/15 hover:bg-[#00a8ff]/25 text-[#00a8ff] border border-[#00a8ff]/30 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {isCompressing ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Image className="w-4 h-4" />
+                    )}
+                    <span>{isCompressing ? 'Compressing Image...' : 'Upload Device Image (JPG/PNG/WEBP)'}</span>
+                  </button>
+                </div>
+
+                {/* Paste URL */}
+                <div className="flex gap-2 pt-1">
+                  <div className={`flex-1 flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs ${
+                    isDark ? 'bg-[#111b21] border-[#2a3942]' : 'bg-white border-gray-300'
+                  }`}>
+                    <Link className="w-3.5 h-3.5 opacity-60 shrink-0" />
+                    <input
+                      type="url"
+                      value={urlInput}
+                      onChange={(e) => setUrlInput(e.target.value)}
+                      placeholder="Or paste image URL..."
+                      className="w-full bg-transparent focus:outline-hidden text-xs"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleApplyUrl}
+                    disabled={!urlInput.trim()}
+                    className="px-3 py-1.5 rounded-xl bg-[#00a8ff] text-[#0b141a] font-bold text-xs disabled:opacity-40 transition-all cursor-pointer"
+                  >
+                    Load
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* 5. Wallpaper Cards Grid */}
             <div>

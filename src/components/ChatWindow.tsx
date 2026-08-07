@@ -2415,13 +2415,15 @@ export const ChatWindow: React.FC = () => {
                           </div>
                         )}
 
-                        {/* Status Mention Card in Chat */}
-                        {(msg.statusMention || msg.type === 'status_mention' || (msg.text && msg.text.toLowerCase().includes('mentioned you in a status'))) && (
+                        {/* Status Mention / Reshare Card in Chat */}
+                        {(msg.statusMention || msg.type === 'status_mention' || (msg.text && (msg.text.toLowerCase().includes('mentioned you in') || msg.text.toLowerCase().includes('added your status')))) && (
                           <div 
-                            onClick={() => {
-                              const targetStatusId = msg.statusMention?.statusId;
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const targetStatusId = msg.statusMention?.statusId || msg.statusReply?.statusId;
+                              const ownerId = msg.statusMention?.statusOwnerId || msg.senderId;
                               if (targetStatusId) {
-                                handleOpenStatusFromReply(targetStatusId, msg.statusMention?.statusOwnerId);
+                                handleOpenStatusFromReply(targetStatusId, ownerId);
                               }
                             }}
                             className="mb-2 p-3 rounded-2xl bg-gradient-to-br from-[#18252d] to-[#0f171d] border border-[#00a8ff]/40 shadow-xl cursor-pointer hover:border-[#00a8ff] transition-all group shrink-0"
@@ -2429,7 +2431,7 @@ export const ChatWindow: React.FC = () => {
                             <div className="flex items-center justify-between gap-2 mb-2 pb-1.5 border-b border-white/10">
                               <span className="text-xs font-bold text-[#00a8ff] flex items-center gap-1.5">
                                 <Sparkles className="w-3.5 h-3.5 text-yellow-300 fill-current animate-pulse" />
-                                <span>Status Mention</span>
+                                <span>{msg.text?.includes('Added your status') ? 'Status Reshared' : 'Status Mention'}</span>
                               </span>
                               <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
                                 Instagram Story Style
@@ -2451,13 +2453,15 @@ export const ChatWindow: React.FC = () => {
 
                               <div className="min-w-0 flex-1">
                                 <p className="text-xs font-bold text-white truncate">
-                                  {msg.statusMention?.statusOwnerName || 'User'} mentioned you in Status
+                                  {msg.text?.includes('Added your status') 
+                                    ? `${msg.senderName || 'User'} added your status to their Status! 🎉`
+                                    : `${msg.statusMention?.statusOwnerName || msg.senderName || 'User'} mentioned you in Status`}
                                 </p>
                                 <p className="text-[11px] text-gray-300 line-clamp-1 mt-0.5">
-                                  {msg.statusMention?.statusText || 'Tap to view fullscreen & add to your status'}
+                                  {msg.statusMention?.statusText || 'Tap to view status'}
                                 </p>
                                 <p className="text-[10px] text-emerald-400 font-bold mt-1 underline group-hover:text-emerald-300 flex items-center gap-1">
-                                  <span>Tap to View & Reshare</span>
+                                  <span>Tap to View Status</span>
                                   <ChevronRight className="w-3 h-3" />
                                 </p>
                               </div>

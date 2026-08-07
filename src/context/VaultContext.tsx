@@ -2615,7 +2615,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const ownerAvatar = user.avatar || currentAuthUser.photoURL || '';
 
     try {
-      await addDoc(collection(db, 'status'), {
+      const docRef = await addDoc(collection(db, 'status'), {
         userId: currentAuthUser.uid,
         userName: ownerName,
         userAvatar: ownerAvatar,
@@ -2640,6 +2640,32 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         likes: [],
         seenUserIds: [],
       });
+
+      // Send direct chat message back to original creator notifying them of reshare!
+      if (originalCreatorId && originalCreatorId !== currentAuthUser.uid) {
+        const reshareMentionData: StatusMentionData = {
+          statusId: docRef.id,
+          statusOwnerId: currentAuthUser.uid,
+          statusOwnerName: ownerName,
+          statusType: originalStatus.mediaType || (originalStatus.mediaUrl ? 'image' : 'text'),
+          statusThumbnail: originalStatus.mediaUrl || '',
+          statusMediaUrl: originalStatus.mediaUrl || '',
+          statusText: originalStatus.text || originalStatus.caption || '',
+          statusMediaType: originalStatus.mediaType || (originalStatus.mediaUrl ? 'image' : 'text'),
+          statusCreatedAt: Date.now(),
+        };
+
+        await sendMessage(
+          originalCreatorId,
+          `Added your status to their Status! 🎉`,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          false,
+          reshareMentionData
+        ).catch((err) => console.warn('Reshare notification message failed:', err));
+      }
 
       return { success: true, message: 'Added to your Status! 🎉' };
     } catch (err: any) {

@@ -1014,10 +1014,16 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const isAdmin = isSuperAdmin || fbEmail === ADMIN_EMAIL;
       const isVerified = isSuperAdmin || isAdmin;
 
+      const isLocallyCompleted = localStorage.getItem(`calcchat_profile_completed_${fbUser.uid}`) === 'true';
+      const localUsername = localStorage.getItem(`calcchat_username_${fbUser.uid}`) || '';
+      const localPasscode = localStorage.getItem(`calcchat_passcode_${fbUser.uid}`) || '1234';
+
+      const userHasCompleted = isLocallyCompleted || Boolean(localUsername) || Boolean(fbUser.displayName);
+
       setUser({
         id: fbUser.uid,
-        name: fbUser.displayName || 'User',
-        username: '',
+        name: fbUser.displayName || localUsername || 'User',
+        username: localUsername || (fbUser.displayName ? fbUser.displayName.toLowerCase().replace(/\s+/g, '_') : ''),
         avatar: fbUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
         status: 'Available on Secret Vault',
         isOnline: true,
@@ -1027,12 +1033,19 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         isSuperAdmin,
         isAdmin,
         isVerified,
-        hasUsername: false,
-        hasChatPassword: false,
-        isProfileComplete: false,
+        passcode: localPasscode,
+        hasUsername: userHasCompleted,
+        hasChatPassword: userHasCompleted,
+        isProfileComplete: userHasCompleted,
       });
-      setOnboardingStep('username');
-      setNeedsUsername(requireUsername);
+
+      if (userHasCompleted) {
+        setOnboardingStep('completed');
+        setNeedsUsername(false);
+      } else {
+        setOnboardingStep('username');
+        setNeedsUsername(requireUsername);
+      }
       setContacts([]);
       setMessages({});
       setFriendUids([]);
@@ -1104,12 +1117,20 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           return;
         }
 
-        // Stay in setup mode until we positively confirm a profile exists.
-        setNeedsUsername(true);
+        const isLocallyCompleted = localStorage.getItem(`calcchat_profile_completed_${fbUser.uid}`) === 'true';
+        const localSavedUsername = localStorage.getItem(`calcchat_username_${fbUser.uid}`);
+
+        // Check local state first to prevent unnecessary setup modal flashes for returning users
+        if (isLocallyCompleted) {
+          setNeedsUsername(false);
+          setOnboardingStep('completed');
+        } else {
+          setNeedsUsername(true);
+        }
 
         if (typeof navigator !== 'undefined' && navigator.onLine === false) {
           setAuthError('Firestore is offline. Loading local session.');
-          applyFallbackUser(fbUser, true);
+          applyFallbackUser(fbUser, !isLocallyCompleted);
           return;
         }
 
@@ -1137,15 +1158,19 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const isAdmin = isSuperAdmin || fbEmail === ADMIN_EMAIL || Boolean(uData.isAdmin);
           const isVerified = isSuperAdmin || isAdmin || Boolean(uData.isVerified);
 
-          const userHasUsername = Boolean(uData.hasUsername && uData.username) || (Boolean(uData.username) && Boolean(uData.isProfileComplete));
-          const userHasPassword = Boolean(uData.hasChatPassword && (uData.passcode || uData.settings?.passcode)) || (Boolean(uData.isProfileComplete) && Boolean(uData.settings?.passcode || uData.passcode));
+          const hasStoredUsername = Boolean(uData.username && uData.username.trim() !== '');
+          const isProfileDone = Boolean(uData.isProfileComplete) || isLocallyCompleted;
 
+          const userHasUsername = isProfileDone || hasStoredUsername || Boolean(uData.hasUsername) || Boolean(localSavedUsername);
+          const userHasPassword = isProfileDone || Boolean(uData.hasChatPassword) || Boolean(uData.passcode && uData.passcode.trim() !== '') || Boolean(uData.settings?.passcode) || isLocallyCompleted || userHasUsername;
+
+          const resolvedUsername = uData.username || localSavedUsername || (fbUser.displayName ? fbUser.displayName.toLowerCase().replace(/\s+/g, '_') : '');
           const userPasscode = uData.passcode || uData.settings?.passcode || '1234';
 
           setUser({
             id: fbUser.uid,
-            name: uData.displayName || fbUser.displayName || 'User',
-            username: uData.username || '',
+            name: uData.displayName || fbUser.displayName || resolvedUsername || 'User',
+            username: resolvedUsername,
             avatar: uData.avatar || uData.photoURL || fbUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=1200&auto=format&fit=crop&q=95',
             status: uData.status || 'Available on Secret Vault',
             isOnline: true,
@@ -1176,6 +1201,22 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (userHasUsername && userHasPassword) {
             setOnboardingStep('completed');
             setNeedsUsername(false);
+            localStorage.setItem(`calcchat_profile_completed_${fbUser.uid}`, 'true');
+            if (resolvedUsername) {
+              localStorage.setItem(`calcchat_username_${fbUser.uid}`, resolvedUsername);
+            }
+            localStorage.setItem(`calcchat_passcode_${fbUser.uid}`, userPasscode);
+
+            // Sync Firestore if profile complete flags were missing
+            if (!uData.isProfileComplete || !uData.hasUsername || !uData.hasChatPassword) {
+              updateDoc(userRef, {
+                hasUsername: true,
+                hasChatPassword: true,
+                isProfileComplete: true,
+                ...(resolvedUsername ? { username: resolvedUsername, usernameLower: resolvedUsername.toLowerCase() } : {}),
+                passcode: userPasscode,
+              }).catch(() => {});
+            }
           } else if (!userHasUsername) {
             setOnboardingStep('username');
             setNeedsUsername(true);
@@ -1193,13 +1234,13 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             lastLogin: serverTimestamp(),
           }).catch(() => {});
         } else {
-          applyFallbackUser(fbUser, true);
+          applyFallbackUser(fbUser, !isLocallyCompleted);
         }
       } catch (error) {
         console.error('Auth profile load error:', error);
         setAuthError('Unable to load profile data right now.');
         if (fbUser) {
-          applyFallbackUser(fbUser, true);
+          applyFallbackUser(fbUser, !isLocallyCompleted);
         } else {
           setUser(DEFAULT_USER);
           setNeedsUsername(false);
@@ -1665,6 +1706,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               isEdited: Boolean(data.isEdited),
               isForwarded: Boolean(data.isForwarded),
               replyTo: data.replyTo,
+              statusReply: data.statusReply || undefined,
+              statusReaction: data.statusReaction || undefined,
               deletedForEveryone: Boolean(data.deletedForEveryone),
               deletedFor: deletedForArr,
               reactions: data.reactions || {},
@@ -2091,6 +2134,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }, { merge: true });
     });
 
+    try {
+      localStorage.setItem(`calcchat_username_${authUser.uid}`, uLower);
+    } catch (e) {}
+
     setUser(prev => ({
       ...prev,
       id: authUser.uid,
@@ -2125,6 +2172,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setSettings(updatedSettings);
     try {
       localStorage.setItem('secret_vault_settings', JSON.stringify(updatedSettings));
+      localStorage.setItem(`calcchat_profile_completed_${authUser.uid}`, 'true');
+      localStorage.setItem(`calcchat_passcode_${authUser.uid}`, cleanPasscode);
     } catch (e) {}
 
     await updateDoc(userRef, {

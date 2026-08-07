@@ -376,5 +376,10 @@ export interface VaultSettings {
   soundEffects: boolean;
   notificationsEnabled: boolean;
   chatWallpaper?: string;
+  chatWallpaperBlur?: number;
+  chatWallpaperBrightness?: number;
+  chatWallpaperRecent?: string[];
+  chatWallpaperFavorites?: string[];
+  chatWallpaperCustomList?: string[];
 }
   

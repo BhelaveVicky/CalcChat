@@ -4,12 +4,14 @@ import {
   LogOut, Search, X, ChevronRight, Moon, Sun, Globe, History,
   Trash2, Download, Clock, Eye, EyeOff, ShieldAlert, Check,
   Smartphone, Palette, Lock, RefreshCw, Archive, Star, Camera,
-  Plus, Crown, ShieldCheck, Image as ImageIcon
+  Plus, Crown, ShieldCheck, Image as ImageIcon, Sliders
 } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 import { useSettings } from '../context/SettingsContext';
 import { compressImage } from '../lib/mediaCompressor';
 import { checkIsAdmin } from '../lib/adminUtils';
+import { SetChatWallpaperModal } from './SetChatWallpaperModal';
+import { WallpaperSuccessOverlay } from './WallpaperSuccessOverlay';
 
 /* ─── tiny helpers ───────────────────────────────────────── */
 const Toggle: React.FC<{ on: boolean; onChange: () => void; color?: string }> = ({
@@ -330,7 +332,9 @@ const ChatsSubView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [adminWallpaperName, setAdminWallpaperName] = useState('');
   const [adminWallpaperUrl, setAdminWallpaperUrl] = useState('');
   const [isAddingAdminWp, setIsAddingAdminWp] = useState(false);
+  const [showLiveWallpaperModal, setShowLiveWallpaperModal] = useState(false);
   const [snack, setSnack] = useState('');
+  const [fullScreenSuccessMsg, setFullScreenSuccessMsg] = useState<string | null>(null);
   
   const wallpaperInputRef = React.useRef<HTMLInputElement>(null);
   const adminWpFileInputRef = React.useRef<HTMLInputElement>(null);
@@ -340,6 +344,13 @@ const ChatsSubView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const showSnack = (msg: string) => {
     setSnack(msg);
     setTimeout(() => setSnack(''), 3000);
+  };
+
+  const triggerSuccessOverlay = (msg: string = 'Wallpaper Set Successfully!') => {
+    setFullScreenSuccessMsg(msg);
+    setTimeout(() => {
+      setFullScreenSuccessMsg(null);
+    }, 2200);
   };
 
   const isDark = vaultSettings.theme !== 'material-light' && vaultSettings.theme !== 'light';
@@ -444,8 +455,12 @@ const ChatsSubView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               <button
                 type="button"
                 onClick={() => {
-                  updateVaultSettings({ chatWallpaper: 'default' });
-                  showSnack('Reset to default wallpaper');
+                  updateVaultSettings({ 
+                    chatWallpaper: 'default',
+                    chatWallpaperBlur: 0,
+                    chatWallpaperBrightness: 100,
+                  });
+                  triggerSuccessOverlay('Wallpaper Reset Successfully!');
                 }}
                 className="text-xs text-[#00a8ff] hover:underline font-medium cursor-pointer"
               >
@@ -453,6 +468,28 @@ const ChatsSubView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               </button>
             )}
           </div>
+
+          {/* WhatsApp Style Live Preview Launcher */}
+          <button
+            type="button"
+            onClick={() => setShowLiveWallpaperModal(true)}
+            className="w-full mb-4 p-3.5 rounded-2xl bg-gradient-to-r from-[#111b21] to-[#1f2c34] border border-[#00a8ff]/40 hover:border-[#00a8ff] flex items-center justify-between text-left shadow-lg cursor-pointer group transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#00a8ff]/15 text-[#00a8ff] flex items-center justify-center border border-[#00a8ff]/30 group-hover:scale-105 transition-transform">
+                <Sliders className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-[#e9edef] group-hover:text-[#00a8ff] transition-colors">
+                  WhatsApp Live Chat Preview
+                </p>
+                <p className="text-[11px] text-[#8696a0]">
+                  Full screen preview, blur & brightness sliders
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-[#8696a0] group-hover:text-[#00a8ff] group-hover:translate-x-0.5 transition-all" />
+          </button>
 
           {/* Active Preview */}
           {vaultSettings?.chatWallpaper && vaultSettings.chatWallpaper !== 'default' && (
@@ -492,7 +529,7 @@ const ChatsSubView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     title={swatch.name}
                     onClick={() => {
                       updateVaultSettings({ chatWallpaper: swatch.bg });
-                      showSnack(`Wallpaper set to ${swatch.name}`);
+                      triggerSuccessOverlay(`Wallpaper Set Successfully!`);
                     }}
                     className={`w-full h-20 sm:h-24 rounded-2xl border-2 transition-all cursor-pointer relative overflow-hidden flex flex-col items-center justify-between p-1.5 shadow-sm ${
                       isSelected 
@@ -567,7 +604,7 @@ const ChatsSubView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     const raw = event.target.result as string;
                     const compressed = await compressImage(raw, 800, 200000);
                     updateVaultSettings({ chatWallpaper: compressed || raw });
-                    showSnack('Custom wallpaper uploaded!');
+                    triggerSuccessOverlay('Custom Wallpaper Set Successfully!');
                   }
                 };
                 reader.readAsDataURL(file);
@@ -599,7 +636,7 @@ const ChatsSubView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                 onClick={() => {
                   if (customWallpaperUrl.trim()) {
                     updateVaultSettings({ chatWallpaper: customWallpaperUrl.trim() });
-                    showSnack('Wallpaper URL applied!');
+                    triggerSuccessOverlay('Wallpaper Set Successfully!');
                     setCustomWallpaperUrl('');
                   }
                 }}
@@ -716,6 +753,50 @@ const ChatsSubView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
           {snack}
         </div>
       )}
+
+      {/* WhatsApp Full Live Wallpaper Preview Modal */}
+      {showLiveWallpaperModal && (
+        <SetChatWallpaperModal
+          isOpen={showLiveWallpaperModal}
+          onClose={() => setShowLiveWallpaperModal(false)}
+          contactName="Chat Preview"
+          contactAvatar={user?.avatar || authUser?.photoURL || undefined}
+          isDark={isDark}
+          currentWallpaper={vaultSettings?.chatWallpaper || 'default'}
+          currentBlur={vaultSettings?.chatWallpaperBlur ?? 0}
+          currentBrightness={vaultSettings?.chatWallpaperBrightness ?? 100}
+          adminWallpapers={adminWallpapers}
+          recentWallpapers={vaultSettings?.chatWallpaperRecent}
+          favoriteWallpapers={vaultSettings?.chatWallpaperFavorites}
+          customWallpapers={vaultSettings?.chatWallpaperCustomList}
+          onApplyWallpaper={async (payload) => {
+            updateVaultSettings({
+              chatWallpaper: payload.wallpaper,
+              chatWallpaperBlur: payload.blur,
+              chatWallpaperBrightness: payload.brightness,
+              chatWallpaperRecent: payload.recent,
+              chatWallpaperFavorites: payload.favorites,
+              chatWallpaperCustomList: payload.customList,
+            });
+            triggerSuccessOverlay('Wallpaper Set Successfully!');
+          }}
+          onResetWallpaper={async () => {
+            updateVaultSettings({
+              chatWallpaper: 'default',
+              chatWallpaperBlur: 0,
+              chatWallpaperBrightness: 100,
+            });
+            triggerSuccessOverlay('Wallpaper Reset Successfully!');
+          }}
+        />
+      )}
+
+      {/* Full Screen Checkmark Animation Overlay */}
+      <WallpaperSuccessOverlay
+        show={Boolean(fullScreenSuccessMsg)}
+        message={fullScreenSuccessMsg || undefined}
+        onClose={() => setFullScreenSuccessMsg(null)}
+      />
     </div>
   );
 };

@@ -26,6 +26,7 @@ import { PinnedMessageBanner } from './PinnedMessageBanner';
 import { WhatsAppProfileViewer } from './WhatsAppProfileViewer';
 import { SetChatWallpaperModal } from './SetChatWallpaperModal';
 import { SelectMembersModal } from './SelectMembersModal';
+import { WallpaperSuccessOverlay } from './WallpaperSuccessOverlay';
 import { StatusReplyCard } from './StatusReplyCard';
 import { renderTextWithLinks } from '../lib/linkUtils';
 import { getGroupMembersList } from '../lib/groupUtils';
@@ -83,7 +84,7 @@ export const ChatWindow: React.FC = () => {
   const { 
     activeContactId, setActiveContactId, setActiveTab, contacts, messages, 
     sendMessage, editMessage, user, deleteMessage, deleteForEveryone, toggleStarMessage,
-    togglePinMessage, forwardMessage, setTypingStatus, settings, togglePinContact,
+    togglePinMessage, forwardMessage, setTypingStatus, settings, updateSettings, togglePinContact,
     toggleArchiveContact, clearChatHistory, blockContact, unblockContact,
     blockedContactIds, blockedByContactIds, startCall,
     customNicknames, getContactDisplayName, isFriend, unfriendContact,
@@ -210,6 +211,7 @@ export const ChatWindow: React.FC = () => {
   const [showDeleteGroupConfirmModal, setShowDeleteGroupConfirmModal] = useState(false);
   const [showWallpaperModal, setShowWallpaperModal] = useState(false);
   const [showAddMembersModal, setShowAddMembersModal] = useState(false);
+  const [wallpaperSuccessMsg, setWallpaperSuccessMsg] = useState<string | null>(null);
 
   // Per-chat custom wallpaper dictionary
   const [perChatWallpapers, setPerChatWallpapers] = useState<Record<string, string>>(() => {
@@ -253,6 +255,9 @@ export const ChatWindow: React.FC = () => {
     : (contact?.isGroup && contact?.wallpaper)
     ? contact.wallpaper
     : (settings?.chatWallpaper || 'default');
+
+  const chatWallpaperBlur = settings?.chatWallpaperBlur ?? 0;
+  const chatWallpaperBrightness = settings?.chatWallpaperBrightness ?? 100;
 
   const isCustomImage = Boolean(
     chatWallpaper && 
@@ -1733,33 +1738,36 @@ export const ChatWindow: React.FC = () => {
 
 
         {/* Messages View Area */}
-        <div 
-          onClick={() => {
-            if (selectedMsgIds.length > 0 || activeReactionMsgId) {
-              setSelectedMsgIds([]);
-              setActiveReactionMsgId(null);
-            }
-          }}
-          className={`flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 no-scrollbar min-h-0 transition-all ${
-            isCustomImage || isCustomColor ? '' : (isDark ? 'bg-[#0b141a]/60 bg-cover bg-center bg-no-repeat' : 'bg-[#efeae2]')
-          }`}
-          style={{
-            ...(isCustomImage ? {
-              backgroundImage: `url("${chatWallpaper}")`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat',
-            } : (!isCustomColor && isDark) ? {
-              backgroundImage: "url('/dark_blocks_bg.jpg')",
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat',
-            } : {}),
-            ...(isCustomColor ? {
-              backgroundColor: chatWallpaper,
-            } : {}),
-          }}
-        >
+        <div className="relative flex-1 min-h-0 overflow-hidden flex flex-col">
+          {/* Wallpaper Background Layer with Blur & Brightness */}
+          <div 
+            className="absolute inset-0 transition-all duration-300 bg-cover bg-center bg-no-repeat pointer-events-none z-0"
+            style={{
+              ...(isCustomImage ? {
+                backgroundImage: `url("${chatWallpaper}")`,
+              } : (!isCustomColor && isDark) ? {
+                backgroundImage: "url('/dark_blocks_bg.jpg')",
+              } : {}),
+              ...(isCustomColor ? {
+                backgroundColor: chatWallpaper,
+              } : {
+                backgroundColor: isDark ? '#0b141a' : '#efeae2',
+              }),
+              filter: `blur(${chatWallpaperBlur}px) brightness(${chatWallpaperBrightness}%)`,
+              transform: chatWallpaperBlur > 0 ? 'scale(1.06)' : 'none',
+            }}
+          />
+
+          {/* Messages Container */}
+          <div 
+            onClick={() => {
+              if (selectedMsgIds.length > 0 || activeReactionMsgId) {
+                setSelectedMsgIds([]);
+                setActiveReactionMsgId(null);
+              }
+            }}
+            className="relative z-10 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 no-scrollbar min-h-0"
+          >
           {curMessages.length === 0 ? (
             <div className={`h-full flex flex-col items-center justify-center text-center text-xs px-6 ${
               isDark ? 'text-[#8596a0]' : 'text-gray-500'
@@ -2440,6 +2448,7 @@ export const ChatWindow: React.FC = () => {
       )}
           <div ref={messagesEndRef} />
         </div>
+      </div>
 
         {/* Replying Banner above Input */}
         {replyingToMsg && (
@@ -4127,10 +4136,24 @@ export const ChatWindow: React.FC = () => {
           contactAvatar={contact.avatar}
           isDark={isDark}
           currentWallpaper={chatWallpaper}
+          currentBlur={chatWallpaperBlur}
+          currentBrightness={chatWallpaperBrightness}
           adminWallpapers={adminWallpapers}
-          onApplyWallpaper={async (newWp) => {
+          recentWallpapers={settings.chatWallpaperRecent}
+          favoriteWallpapers={settings.chatWallpaperFavorites}
+          customWallpapers={settings.chatWallpaperCustomList}
+          onApplyWallpaper={async (payload) => {
+            const newWp = payload.wallpaper;
             const updated = { ...perChatWallpapers, [contact.id]: newWp };
             setPerChatWallpapers(updated);
+            updateSettings({
+              chatWallpaper: newWp,
+              chatWallpaperBlur: payload.blur,
+              chatWallpaperBrightness: payload.brightness,
+              chatWallpaperRecent: payload.recent,
+              chatWallpaperFavorites: payload.favorites,
+              chatWallpaperCustomList: payload.customList,
+            });
             try {
               localStorage.setItem('calcchat_per_chat_wallpapers', JSON.stringify(updated));
             } catch (e) {
@@ -4143,12 +4166,18 @@ export const ChatWindow: React.FC = () => {
                 console.warn('Group wallpaper sync warning:', e);
               }
             }
-            showToast(`Wallpaper set for ${getContactDisplayName(contact)}!`);
+            setWallpaperSuccessMsg('Wallpaper Set Successfully!');
+            setTimeout(() => setWallpaperSuccessMsg(null), 2200);
           }}
           onResetWallpaper={async () => {
             const updated = { ...perChatWallpapers };
             delete updated[contact.id];
             setPerChatWallpapers(updated);
+            updateSettings({
+              chatWallpaper: 'default',
+              chatWallpaperBlur: 0,
+              chatWallpaperBrightness: 100,
+            });
             try {
               localStorage.setItem('calcchat_per_chat_wallpapers', JSON.stringify(updated));
             } catch (e) {
@@ -4161,10 +4190,18 @@ export const ChatWindow: React.FC = () => {
                 console.warn('Group reset wallpaper warning:', e);
               }
             }
-            showToast(`Wallpaper reset for ${getContactDisplayName(contact)}`);
+            setWallpaperSuccessMsg('Wallpaper Reset Successfully!');
+            setTimeout(() => setWallpaperSuccessMsg(null), 2200);
           }}
         />
       )}
+
+      {/* Full Screen Wallpaper Success Overlay */}
+      <WallpaperSuccessOverlay
+        show={Boolean(wallpaperSuccessMsg)}
+        message={wallpaperSuccessMsg || undefined}
+        onClose={() => setWallpaperSuccessMsg(null)}
+      />
 
       {/* Select Members Modal for Group */}
       {showAddMembersModal && contact && (

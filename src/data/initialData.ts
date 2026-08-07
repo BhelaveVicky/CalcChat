@@ -21,6 +21,11 @@ export const DEFAULT_SETTINGS: VaultSettings = {
   showAndroidFrame: false,
   soundEffects: true,
   chatWallpaper: 'default',
+  chatWallpaperBlur: 0,
+  chatWallpaperBrightness: 100,
+  chatWallpaperRecent: [],
+  chatWallpaperFavorites: [],
+  chatWallpaperCustomList: [],
   notificationsEnabled: true,
 };
 

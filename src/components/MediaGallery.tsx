@@ -7,8 +7,8 @@ import {
 } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 import { StatusUpdate } from '../types';
-import { StatusCard } from './status/StatusCard';
-import { StatusViewer } from './status/StatusViewer';
+import { StatusCard } from './Status/StatusCard';
+import { StatusViewer } from './Status/StatusViewer';
 import { compressImage } from '../lib/mediaCompressor';
 
 export interface StatusSlide {

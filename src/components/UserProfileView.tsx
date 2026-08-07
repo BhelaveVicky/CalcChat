@@ -4,7 +4,7 @@ import {
   Camera, Check, Eye, Edit3, RotateCw, ZoomIn, ZoomOut, RefreshCw,
   ChevronLeft, ChevronRight, Circle, Info, Smile, CheckCheck,
   Ban, UserPlus, Plus, ShieldAlert, Trash2, Code2, Heart, Sparkles,
-  Users, Phone, ShieldCheck, Crown, Activity, BadgeCheck, Palette
+  Users, Phone, ShieldCheck, Crown, Activity, BadgeCheck, Palette, MoreHorizontal
 } from 'lucide-react';
 import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -16,6 +16,7 @@ import { checkIsAdmin, VerifiedBadge, ADMIN_EMAILS } from '../lib/adminUtils';
 import { FollowersList } from './FollowersList';
 import { FollowingList } from './FollowingList';
 import { WhatsAppProfileViewer } from './WhatsAppProfileViewer';
+import { GET_PRESET_WALLPAPERS } from '../data/presetWalpapers';
 
 export const UserProfileView: React.FC = () => {
   const { 
@@ -1583,17 +1584,10 @@ export const UserProfileView: React.FC = () => {
                 </div>
               )}
 
-              {/* Preset Color Swatches + Admin Wallpapers Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-4 max-h-[65vh] overflow-y-auto p-1">
+              {/* Vertical Portrait Wallpaper Gallery Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5 mb-4 p-1">
                 {[
-                  { id: 'preset_1', name: 'Default', bg: 'default', color: isDark ? '#0b141a' : '#efeae2', isImage: false, isAdminAdded: false },
-                  { id: 'preset_2', name: 'Dark Charcoal', bg: '#111b21', color: '#111b21', isImage: false, isAdminAdded: false },
-                  { id: 'preset_3', name: 'Deep Slate', bg: '#1e293b', color: '#1e293b', isImage: false, isAdminAdded: false },
-                  { id: 'preset_4', name: 'Emerald Dark', bg: '#062c1b', color: '#062c1b', isImage: false, isAdminAdded: false },
-                  { id: 'preset_img_1', name: 'Geometric Dark', bg: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80', color: '#1e293b', isImage: true, isAdminAdded: false },
-                  { id: 'preset_img_2', name: 'Neon Glow', bg: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=600&auto=format&fit=crop&q=80', color: '#1e293b', isImage: true, isAdminAdded: false },
-                  { id: 'preset_img_3', name: 'Deep Space', bg: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?w=600&auto=format&fit=crop&q=80', color: '#1e293b', isImage: true, isAdminAdded: false },
-                  { id: 'preset_img_4', name: 'Minimal Nature', bg: 'https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?w=600&auto=format&fit=crop&q=80', color: '#1e293b', isImage: true, isAdminAdded: false },
+                  ...GET_PRESET_WALLPAPERS(isDark),
                   ...(adminWallpapers || []).map((wp, idx) => ({
                     id: wp.id,
                     name: wp.name || `Admin Wallpaper ${idx + 1}`,
@@ -1610,7 +1604,7 @@ export const UserProfileView: React.FC = () => {
                   const isImage = swatch.isImage || swatch.bg.startsWith('data:') || swatch.bg.startsWith('http') || swatch.bg.startsWith('blob:');
 
                   return (
-                    <div key={swatch.id || swatch.name || idx} className="relative group">
+                    <div key={swatch.id || swatch.name || idx} className="flex flex-col gap-1.5 relative group">
                       <button
                         type="button"
                         title={swatch.name}
@@ -1618,41 +1612,65 @@ export const UserProfileView: React.FC = () => {
                           updateVaultSettings({ chatWallpaper: swatch.bg });
                           showSnack(`Wallpaper set to ${swatch.name}`);
                         }}
-                        className={`w-full h-20 sm:h-24 rounded-2xl border-2 transition-all cursor-pointer relative overflow-hidden flex flex-col items-center justify-between p-1.5 shadow-sm ${
+                        className={`w-full aspect-[9/16] rounded-[22px] border-2 transition-all cursor-pointer relative overflow-hidden shadow-md group ${
                           isSelected 
-                            ? 'border-[#00a8ff] ring-2 ring-[#00a8ff]/30 scale-[1.02] shadow-md z-10' 
-                            : 'border-gray-700/50 hover:border-gray-500 hover:scale-[1.01]'
+                            ? 'border-[#00a8ff] ring-3 ring-[#00a8ff]/40 scale-[1.02] shadow-xl z-10' 
+                            : isDark ? 'border-transparent hover:border-gray-500' : 'border-gray-200 hover:border-gray-400'
                         }`}
                         style={
-                          isImage 
-                            ? { backgroundImage: `url("${swatch.bg}")`, backgroundSize: 'cover', backgroundPosition: 'center' }
-                            : { backgroundColor: swatch.color }
+                          !isImage && swatch.bg === 'default'
+                            ? { backgroundColor: isDark ? '#0b141a' : '#efeae2' }
+                            : !isImage
+                            ? { backgroundColor: swatch.color }
+                            : undefined
                         }
                       >
-                        {isSelected && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[1px]">
-                            <div className="w-6 h-6 rounded-full bg-[#00a8ff] text-white flex items-center justify-center shadow-lg">
-                              <Check className="w-4 h-4 stroke-[3]" />
+                        {isImage ? (
+                          <img 
+                            src={swatch.bg} 
+                            alt={swatch.name} 
+                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
+                            loading="lazy" 
+                          />
+                        ) : (
+                          <div className="w-full h-full flex flex-col justify-between p-3">
+                            <span className="px-2 py-0.5 bg-black/40 text-white/80 text-[9px] font-semibold rounded-full w-fit backdrop-blur-xs">
+                              Solid
+                            </span>
+                            <div className="bg-black/50 backdrop-blur-md px-2 py-1 rounded-xl text-white text-[11px] font-semibold text-center truncate">
+                              {swatch.name}
                             </div>
                           </div>
                         )}
-                        
-                        <div className="w-full flex items-center justify-between z-10">
+
+                        {isSelected && (
+                          <div className="absolute top-3 right-3 w-7 h-7 rounded-full bg-[#00a8ff] text-white flex items-center justify-center shadow-lg border border-white/30 z-20">
+                            <Check className="w-4 h-4 stroke-[3]" />
+                          </div>
+                        )}
+
+                        <div className="absolute top-3 left-3 flex items-center gap-1 z-10">
                           {swatch.isAdminAdded ? (
-                            <span className="px-1.5 py-0.5 bg-[#00a8ff] text-[#0b141a] text-[8px] font-black rounded uppercase tracking-wider shadow">
+                            <span className="px-2 py-0.5 bg-[#00a8ff] text-[#0b141a] text-[9px] font-black rounded-md uppercase tracking-wider shadow">
                               ADMIN
                             </span>
                           ) : isImage ? (
-                            <span className="px-1.5 py-0.5 bg-black/60 text-white text-[8px] font-bold rounded shadow backdrop-blur-sm">
+                            <span className="px-2 py-0.5 bg-black/50 text-white text-[9px] font-black tracking-wider rounded-md backdrop-blur-md border border-white/10 shadow">
                               HD
                             </span>
-                          ) : <span />}
+                          ) : null}
                         </div>
+                      </button>
 
-                        <span className="w-full text-[9.5px] font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] truncate text-center z-10 bg-black/30 backdrop-blur-[2px] py-0.5 px-1 rounded-md">
+                      {/* Title and Three Dots Option Bar like Image 2 */}
+                      <div className="flex items-center justify-between px-1.5">
+                        <span className={`text-[11px] font-medium truncate max-w-[80%] ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                           {swatch.name}
                         </span>
-                      </button>
+                        <button type="button" className="text-gray-400 hover:text-white p-0.5 cursor-pointer">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </button>
+                      </div>
 
                       {isAdmin && swatch.isAdminAdded && swatch.id && (
                         <button
@@ -1665,9 +1683,9 @@ export const UserProfileView: React.FC = () => {
                               showSnack('Admin wallpaper deleted');
                             }
                           }}
-                          className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-rose-600 hover:bg-rose-700 text-white rounded-full flex items-center justify-center shadow-md cursor-pointer transition-all z-20"
+                          className="absolute top-2 right-2 w-6 h-6 bg-rose-600 hover:bg-rose-700 text-white rounded-full flex items-center justify-center shadow-md cursor-pointer transition-all z-30"
                         >
-                          <X className="w-3 h-3" />
+                          <X className="w-3.5 h-3.5" />
                         </button>
                       )}
                     </div>
@@ -1675,72 +1693,76 @@ export const UserProfileView: React.FC = () => {
                 })}
               </div>
 
-              {/* Upload Custom Wallpaper Button */}
-              <input
-                ref={wallpaperInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    const reader = new FileReader();
-                    reader.onload = async (event) => {
-                      if (event.target?.result) {
-                        const raw = event.target.result as string;
-                        const compressed = await compressImage(raw, 800, 200000);
-                        updateVaultSettings({ chatWallpaper: compressed || raw });
-                        showSnack('Custom wallpaper uploaded & applied!');
-                      }
-                    };
-                    reader.readAsDataURL(file);
-                  }
-                }}
-              />
-
-              <div className="space-y-2.5">
-                <button
-                  type="button"
-                  onClick={() => wallpaperInputRef.current?.click()}
-                  className={`w-full p-3.5 rounded-2xl border-2 border-dashed flex items-center justify-center gap-2 transition-colors text-xs font-semibold cursor-pointer ${
-                    isDark 
-                      ? 'border-[#2a3942] hover:border-gray-500 text-[#8696a0] hover:text-[#e9edef] bg-[#111b21]' 
-                      : 'border-gray-300 hover:border-gray-400 text-gray-600 hover:text-gray-900 bg-gray-50'
-                  }`}
-                >
-                  <Camera className="w-4 h-4 text-[#0095f6]" />
-                  <span>Upload custom image from device</span>
-                </button>
-
-                {/* Custom Image URL Input */}
-                <div className="flex gap-2">
+              {/* Upload Custom Wallpaper Button (Admin Only) */}
+              {isAdmin && (
+                <>
                   <input
-                    type="url"
-                    value={customWallpaperUrl}
-                    onChange={(e) => setCustomWallpaperUrl(e.target.value)}
-                    placeholder="Or paste wallpaper image URL..."
-                    className={`flex-1 px-3.5 py-2.5 rounded-xl text-xs border outline-none transition-all ${
-                      isDark 
-                        ? 'bg-[#111b21] border-[#2a3942] text-[#e9edef] placeholder-[#8696a0] focus:border-[#0095f6]' 
-                        : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-[#0095f6]'
-                    }`}
-                  />
-                  <button
-                    type="button"
-                    disabled={!customWallpaperUrl.trim()}
-                    onClick={() => {
-                      if (customWallpaperUrl.trim()) {
-                        updateVaultSettings({ chatWallpaper: customWallpaperUrl.trim() });
-                        showSnack('Custom wallpaper URL applied!');
-                        setCustomWallpaperUrl('');
+                    ref={wallpaperInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = async (event) => {
+                          if (event.target?.result) {
+                            const raw = event.target.result as string;
+                            const compressed = await compressImage(raw, 800, 200000);
+                            updateVaultSettings({ chatWallpaper: compressed || raw });
+                            showSnack('Custom wallpaper uploaded & applied!');
+                          }
+                        };
+                        reader.readAsDataURL(file);
                       }
                     }}
-                    className="px-4 py-2.5 rounded-xl bg-[#0095f6] hover:bg-[#0088cc] disabled:opacity-40 text-white text-xs font-bold transition-all shrink-0 cursor-pointer"
-                  >
-                    Apply URL
-                  </button>
-                </div>
-              </div>
+                  />
+
+                  <div className="space-y-2.5">
+                    <button
+                      type="button"
+                      onClick={() => wallpaperInputRef.current?.click()}
+                      className={`w-full p-3.5 rounded-2xl border-2 border-dashed flex items-center justify-center gap-2 transition-colors text-xs font-semibold cursor-pointer ${
+                        isDark 
+                          ? 'border-[#2a3942] hover:border-gray-500 text-[#8696a0] hover:text-[#e9edef] bg-[#111b21]' 
+                          : 'border-gray-300 hover:border-gray-400 text-gray-600 hover:text-gray-900 bg-gray-50'
+                      }`}
+                    >
+                      <Camera className="w-4 h-4 text-[#0095f6]" />
+                      <span>Upload custom image from device</span>
+                    </button>
+
+                    {/* Custom Image URL Input */}
+                    <div className="flex gap-2">
+                      <input
+                        type="url"
+                        value={customWallpaperUrl}
+                        onChange={(e) => setCustomWallpaperUrl(e.target.value)}
+                        placeholder="Or paste wallpaper image URL..."
+                        className={`flex-1 px-3.5 py-2.5 rounded-xl text-xs border outline-none transition-all ${
+                          isDark 
+                            ? 'bg-[#111b21] border-[#2a3942] text-[#e9edef] placeholder-[#8696a0] focus:border-[#0095f6]' 
+                            : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-[#0095f6]'
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        disabled={!customWallpaperUrl.trim()}
+                        onClick={() => {
+                          if (customWallpaperUrl.trim()) {
+                            updateVaultSettings({ chatWallpaper: customWallpaperUrl.trim() });
+                            showSnack('Custom wallpaper URL applied!');
+                            setCustomWallpaperUrl('');
+                          }
+                        }}
+                        className="px-4 py-2.5 rounded-xl bg-[#0095f6] hover:bg-[#0088cc] disabled:opacity-40 text-white text-xs font-bold transition-all shrink-0 cursor-pointer"
+                      >
+                        Apply URL
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Chat History Section */}

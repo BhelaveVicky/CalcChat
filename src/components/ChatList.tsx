@@ -6,7 +6,7 @@ import {
   Heart, ListPlus, MinusCircle, LogOut, ChevronRight, Users, UserPlus, UserCheck,
   MessageSquarePlus, Tag, Video, User, Ban, UserMinus
 } from 'lucide-react';
-import { useVault } from '../context/VaultContext';
+import { useVault, WELCOME_MESSAGE_TEXT } from '../context/VaultContext';
 import { Contact, Message } from '../types';
 import { NicknameModal } from './NicknameModal';
 import { formatChatDate, formatMessageTime } from '../lib/dateUtils.ts';
@@ -519,7 +519,7 @@ export const ChatList: React.FC = () => {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <h5 className="font-bold text-sm text-white truncate">{resUser.name}</h5>
-                          {checkIsAdmin(resUser) && <VerifiedBadge className="w-4 h-4 shrink-0 text-[#ff2e93]" />}
+                          {checkIsAdmin(resUser) && <VerifiedBadge className="w-4 h-4 shrink-0 text-[#00a8ff]" />}
                           {resUser.isOnline && (
                             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">Online</span>
                           )}
@@ -654,13 +654,27 @@ export const ChatList: React.FC = () => {
 
               if (!msgs || msgs.length === 0) {
                 return {
-                  text: contact.status || 'Hey there! I am using WhatsApp.',
+                  text: contact.lastMessage || 'New Chat',
                   isOutgoing: false,
                   status: null,
                 };
               }
 
               const isOutgoing = lastMsg.senderId === currentUserId || lastMsg.senderId === 'user';
+
+              // Check for welcome message or initial new chat
+              if (
+                lastMsg.text === WELCOME_MESSAGE_TEXT ||
+                lastMsg.text?.includes('Welcome to CalcChat') ||
+                lastMsg.text?.includes('👋 **Welcome') ||
+                contact.lastMessage === 'New Chat'
+              ) {
+                return {
+                  text: formatGroupSender('New Chat'),
+                  isOutgoing,
+                  status: getMsgStatus(lastMsg),
+                };
+              }
 
               // 1. Check if deleted
               if (lastMsg.deletedForEveryone || lastMsg.deletedForMe || lastMsg.text?.startsWith('🚫') || lastMsg.text?.includes('deleted this message')) {
@@ -694,8 +708,8 @@ export const ChatList: React.FC = () => {
 
               let text = '';
 
-              // 3. Call messages
-              const isCall = lastMsg.type === 'voice_call' || lastMsg.type === 'video_call' || lastMsg.callInfo || lastMsg.text?.toLowerCase().includes('call');
+              // 3. Call messages (Only match actual call types or callInfo objects, not arbitrary text containing 'call')
+              const isCall = (lastMsg.type === 'voice_call' || lastMsg.type === 'video_call' || !!lastMsg.callInfo) && lastMsg.type !== 'text';
               if (isCall) {
                 const isVideo = lastMsg.type === 'video_call' || lastMsg.callInfo?.type === 'video' || lastMsg.text?.toLowerCase().includes('video');
                 const isMissed = lastMsg.callInfo?.status === 'missed' || lastMsg.text?.toLowerCase().includes('missed');
@@ -807,9 +821,8 @@ export const ChatList: React.FC = () => {
                   className="relative shrink-0 mr-3.5 cursor-pointer hover:scale-105 active:scale-95 transition-transform"
                 >
                   <img
-                    src={contact.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}
-                    alt={contact.name || 'User'}
-                    onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'; }}
+                    src={contact.avatar}
+                    alt={contact.name}
                     className={`w-12 h-12 sm:w-13 sm:h-13 rounded-full object-cover ${
                       isDark ? 'bg-[#202c33]' : 'bg-gray-200'
                     }`}
@@ -830,14 +843,14 @@ export const ChatList: React.FC = () => {
 
                 {/* Middle: Title & Message Preview */}
                 <div className={`min-w-0 flex-1 border-b pb-3 flex flex-col justify-center ${
-                  isDark ? 'border-[#ff2e93]/20' : 'border-[#ff2e93]/25'
+                  isDark ? 'border-[#1f2c34]/60' : 'border-gray-100'
                 }`}>
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <h3 className={`font-semibold text-[16px] truncate ${
                         isDark ? 'text-[#e9edef]' : 'text-gray-900'
                       }`}>{getContactDisplayName(contact)}</h3>
-                      {checkIsAdmin(contact) && <VerifiedBadge className="w-4 h-4 shrink-0 text-[#ff2e93]" />}
+                      {checkIsAdmin(contact) && <VerifiedBadge className="w-4 h-4 shrink-0 text-[#00a8ff]" />}
                       {contact.isMuted && <BellOff className="w-3.5 h-3.5 text-gray-400 shrink-0 opacity-80" />}
                       {contact.isPinned && <Pin className={`w-3.5 h-3.5 rotate-45 shrink-0 ${isDark ? 'text-[#8596a0]' : 'text-gray-400'}`} />}
                       {contact.isLocked && <Lock className="w-3 h-3 text-amber-400 shrink-0" />}
@@ -848,18 +861,13 @@ export const ChatList: React.FC = () => {
                     }`}>
                       {lastMsg ? (
                         (() => {
-                          try {
-                            const ts = lastMsg.createdAt || lastMsg.timestamp;
-                            const dateLabel = formatChatDate(ts);
-                            return dateLabel === 'Today'
-                              ? formatMessageTime(ts, typeof lastMsg.timestamp === 'string' ? lastMsg.timestamp : undefined)
-                              : (dateLabel || '');
-                          } catch (e) {
-                            return '';
-                          }
+                          const dateLabel = formatChatDate(lastMsg.createdAt || lastMsg.timestamp);
+                          return dateLabel === 'Today'
+                            ? formatMessageTime(lastMsg.createdAt || lastMsg.timestamp, lastMsg.timestamp)
+                            : dateLabel;
                         })()
                       ) : (
-                        typeof contact.lastSeen === 'string' ? contact.lastSeen : ''
+                        contact.lastSeen || 'Yesterday'
                       )}
                     </span>
                   </div>
@@ -1189,7 +1197,7 @@ export const ChatList: React.FC = () => {
                             <img src={m.avatar} alt={m.name} className="w-7 h-7 rounded-full object-cover shrink-0" />
                             <div className="flex items-center gap-1 min-w-0">
                               <span className="text-xs font-medium truncate">{m.name}</span>
-                              {checkIsAdmin(m) && <VerifiedBadge className="w-3.5 h-3.5 shrink-0 text-[#ff2e93]" />}
+                              {checkIsAdmin(m) && <VerifiedBadge className="w-3.5 h-3.5 shrink-0 text-[#00a8ff]" />}
                             </div>
                           </div>
                           {isSelected ? (
@@ -1355,7 +1363,7 @@ export const ChatList: React.FC = () => {
             <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent text-white px-4 py-3 z-10 flex items-center justify-between">
               <div className="flex items-center gap-1 min-w-0">
                 <span className="font-semibold text-[15px] truncate pr-1 shadow-sm">{previewContact.name}</span>
-                {checkIsAdmin(previewContact) && <VerifiedBadge className="w-4 h-4 shrink-0 text-[#ff2e93]" />}
+                {checkIsAdmin(previewContact) && <VerifiedBadge className="w-4 h-4 shrink-0 text-[#00a8ff]" />}
               </div>
             </div>
 

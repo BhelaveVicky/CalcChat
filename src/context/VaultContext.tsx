@@ -964,7 +964,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         await setDoc(doc(db, 'chats', chatId), {
           participants: [superAdminUid, targetUser.uid],
-          lastMessage: '👋 Welcome to CalcChat App!',
+          lastMessage: 'New Chat',
           lastMessageTime: serverTimestamp(),
           lastMessageSenderId: superAdminUid,
           updatedAt: serverTimestamp(),
@@ -2308,7 +2308,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const chatId = friendshipId;
     await setDoc(doc(db, 'chats', chatId), {
       participants: [authUser.uid, senderId],
-      lastMessage: '',
+      lastMessage: 'New Chat',
       updatedAt: serverTimestamp(),
       createdAt: serverTimestamp(),
     }, { merge: true });
@@ -4190,15 +4190,11 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const unlockVault = (code: string): boolean => {
-    // Check against settings.passcode, user.passcode (Firestore loaded), or default '1234'
-    const activePasscode = settings.passcode || user.passcode || '1234';
+    const activePasscode = settings.passcode || '1234';
     if (code === activePasscode) {
       setActiveTab('chats');
       setActiveContactId(null);
       setIsUnlocked(true);
-      // Ensure any onboarding gate is cleared so vault opens for ALL users
-      setNeedsUsername(false);
-      setOnboardingStep('completed');
       return true;
     }
     return false;

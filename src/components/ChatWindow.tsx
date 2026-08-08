@@ -32,6 +32,23 @@ import { ReportUserModal } from './ReportUserModal';
 import { renderTextWithLinks } from '../lib/linkUtils';
 import { getGroupMembersList } from '../lib/groupUtils';
 
+// --- Emoji Helper Functions ---
+const isOnlyEmojis = (str?: string) => {
+  if (!str) return false;
+  const cleanStr = str.replace(/[\s\n]+/g, '');
+  if (!cleanStr) return false;
+  // This covers most emojis, including keycaps, flags, and skin tones.
+  const regex = /^(\p{Emoji_Presentation}|\p{Extended_Pictographic}|\u200d|\uFE0F|\p{Emoji_Modifier_Base}|\p{Emoji_Modifier}|\p{Emoji_Component})+$/u;
+  return regex.test(cleanStr);
+};
+
+const getEmojiArray = (str: string) => {
+  // Use Intl.Segmenter to properly split graphemes (handles complex emojis)
+  const segmenter = new Intl.Segmenter('en', { granularity: 'grapheme' });
+  return Array.from(segmenter.segment(str.replace(/[\s\n]+/g, ''))).map(s => s.segment);
+};
+// ------------------------------
+
 const EMOJI_LIST: string[] = [
   '😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','😘','😗','😚','😙',
   '😋','😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🤐','🤨','😐','😑','😶','😏','😒','🙄',
@@ -1911,6 +1928,8 @@ export const ChatWindow: React.FC = () => {
                   );
                 }
 
+                const isEmojiOnlyMsg = isOnlyEmojis(msg.text) && !msg.media && !msg.replyTo && !msg.statusReply && !msg.statusReaction && !msg.callInfo && msg.type !== 'voice_call' && msg.type !== 'video_call' && !msg.deletedForEveryone && !msg.statusMention && msg.type !== 'status_mention' && !msg.isForwarded;
+
                 return (
                   <React.Fragment key={msg.id}>
                     {showSeparator && (
@@ -1930,7 +1949,7 @@ export const ChatWindow: React.FC = () => {
                       )}
 
                       {/* Swipeable Message Bubble Wrapper */}
-                      <div className="relative max-w-[85%] sm:max-w-[75%]">
+                      <div className={`relative max-w-[85%] sm:max-w-[75%] ${isEmojiOnlyMsg ? 'w-auto' : ''}`}>
                         {/* Swipe to Reply Icon Indicator */}
                         {swipingMsgId === msg.id && swipeOffset > 3 && (
                           <div 
@@ -1977,20 +1996,22 @@ export const ChatWindow: React.FC = () => {
                               setActiveReactionMsgId(null);
                             }
                           }}
-                          className={`w-full px-4 py-2.5 text-sm relative shadow-md transition-all select-none ${
-                            isMe
-                              ? 'rounded-2xl rounded-br-xs border-2 border-[#ff2e93] bg-[#2a1226] text-white shadow-[0_4px_20px_-2px_rgba(255,46,147,0.35)]'
-                              : 'rounded-2xl rounded-bl-xs border-2 border-[#3b82f6] bg-[#121630] text-white shadow-[0_4px_20px_-2px_rgba(59,130,246,0.35)]'
+                          className={`w-full text-sm relative transition-all select-none ${
+                            isEmojiOnlyMsg
+                              ? 'bg-transparent border-transparent shadow-none px-0 py-0'
+                              : isMe
+                                ? 'rounded-2xl rounded-br-xs border-2 border-[#ff2e93] bg-[#2a1226] text-white shadow-[0_4px_20px_-2px_rgba(255,46,147,0.35)] shadow-md px-4 py-2.5'
+                                : 'rounded-2xl rounded-bl-xs border-2 border-[#3b82f6] bg-[#121630] text-white shadow-[0_4px_20px_-2px_rgba(59,130,246,0.35)] shadow-md px-4 py-2.5'
                           } ${
                             isSelectMode ? 'cursor-pointer' : ''
                           } ${
-                            isSelected ? 'ring-2 ring-pink-500 bg-pink-500/20 scale-[1.01]' : ''
+                            isSelected && !isEmojiOnlyMsg ? 'ring-2 ring-pink-500 bg-pink-500/20 scale-[1.01]' : (isSelected && isEmojiOnlyMsg ? 'scale-[1.05] drop-shadow-[0_0_15px_rgba(255,46,147,0.8)]' : '')
                           } ${
-                            highlightedMsgId === msg.id ? 'ring-2 ring-pink-500 bg-pink-500/20 animate-pulse' : ''
+                            highlightedMsgId === msg.id && !isEmojiOnlyMsg ? 'ring-2 ring-pink-500 bg-pink-500/20 animate-pulse' : ''
                           }`}
                         >
                     {/* Speech Bubble Tail - Outgoing (Pink corner wedge matching user screenshot) */}
-                    {isMe && (
+                    {isMe && !isEmojiOnlyMsg && (
                       <svg
                         className="absolute -bottom-[2px] -right-[7px] w-3.5 h-3.5 text-[#ff2e93] fill-[#ff2e93] pointer-events-none drop-shadow-xs z-10"
                         viewBox="0 0 10 10"
@@ -2000,7 +2021,7 @@ export const ChatWindow: React.FC = () => {
                     )}
 
                     {/* Speech Bubble Tail - Incoming (Blue corner wedge matching Image 2 screenshot) */}
-                    {!isMe && (
+                    {!isMe && !isEmojiOnlyMsg && (
                       <svg
                         className="absolute -bottom-[2px] -left-[7px] w-3.5 h-3.5 text-[#3b82f6] fill-[#3b82f6] pointer-events-none drop-shadow-xs z-10"
                         viewBox="0 0 10 10"
@@ -2474,13 +2495,23 @@ export const ChatWindow: React.FC = () => {
 
                         {/* Message Text */}
                         {!(msg.callInfo || msg.type === 'voice_call' || msg.type === 'video_call') && (
-                          <p className="leading-normal whitespace-pre-wrap break-words text-[15px]">{renderTextWithLinks(msg.text)}</p>
+                          isEmojiOnlyMsg ? (
+                            <div className="grid gap-x-1 gap-y-1 w-max mt-1 mb-1" style={{ gridTemplateColumns: `repeat(${Math.min(4, getEmojiArray(msg.text!).length)}, minmax(0, 1fr))` }}>
+                              {getEmojiArray(msg.text!).map((emoji, i) => (
+                                <span key={i} className="text-[2.5rem] leading-[1.1] text-center drop-shadow-md">{emoji}</span>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="leading-normal whitespace-pre-wrap break-words text-[15px]">{renderTextWithLinks(msg.text)}</p>
+                          )
                         )}
                       </>
                     )}
 
                     {/* Footer Timestamp & Status */}
-                    <div className={`flex items-center justify-end gap-1 mt-1 text-[11px] ${isMe ? 'text-white/85' : 'text-[#8596a0]'}`}>
+                    <div className={`flex items-center justify-end gap-1 mt-1 text-[11px] ${
+                      isEmojiOnlyMsg ? 'bg-black/40 backdrop-blur-md rounded-full px-2 py-0.5 w-max ml-auto text-white/90 shadow-sm' : (isMe ? 'text-white/85' : 'text-[#8596a0]')
+                    }`}>
                       {msg.isStarred && !msg.deletedForEveryone && <Star className="w-3 h-3 text-amber-300 fill-amber-300 shrink-0" />}
                       {msg.isEdited && !msg.deletedForEveryone && <span className="italic text-[9px] opacity-80">edited</span>}
                       <span>{formattedTime}</span>
@@ -2488,11 +2519,11 @@ export const ChatWindow: React.FC = () => {
                       {/* Delivery Status Indicator */}
                       {isMe && (
                         (msg.isRead || msg.seen) ? (
-                          <CheckCheck className="w-4 h-4 text-[#34b7f1] shrink-0 font-extrabold drop-shadow-xs stroke-[2.5]" />
+                          <CheckCheck className={`w-4 h-4 shrink-0 font-extrabold drop-shadow-xs stroke-[2.5] ${isEmojiOnlyMsg ? 'text-[#53bdeb]' : 'text-[#34b7f1]'}`} />
                         ) : (msg.isDelivered || msg.isSent) ? (
-                          <CheckCheck className="w-3.5 h-3.5 text-white/70 shrink-0 stroke-[2]" />
+                          <CheckCheck className={`w-3.5 h-3.5 shrink-0 stroke-[2] ${isEmojiOnlyMsg ? 'text-white/80' : 'text-white/70'}`} />
                         ) : (
-                          <Check className="w-3.5 h-3.5 text-white/70 shrink-0 stroke-[2]" />
+                          <Check className={`w-3.5 h-3.5 shrink-0 stroke-[2] ${isEmojiOnlyMsg ? 'text-white/80' : 'text-white/70'}`} />
                         )
                       )}
                     </div>

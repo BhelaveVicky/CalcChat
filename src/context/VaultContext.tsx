@@ -909,9 +909,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // 30-second timeout for unanswered calls (auto disconnect if not picked up in 30s)
   useEffect(() => {
     let timeoutTimer: NodeJS.Timeout | null = null;
-    if (activeCall && (activeCall.status === 'ringing' || activeCall.status === 'incoming' || activeCall.status === 'connecting')) {
+    if (activeCall && (activeCall.status === 'ringing' || activeCall.status === 'incoming')) {
       timeoutTimer = setTimeout(() => {
-        if (activeCallRef.current && (activeCallRef.current.status === 'ringing' || activeCallRef.current.status === 'incoming' || activeCallRef.current.status === 'connecting')) {
+        if (activeCallRef.current && (activeCallRef.current.status === 'ringing' || activeCallRef.current.status === 'incoming')) {
           const callId = activeCallRef.current.id;
           if (activeCallRef.current.direction === 'outgoing') {
             if (callId) {

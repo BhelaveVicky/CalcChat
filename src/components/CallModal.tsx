@@ -2,10 +2,19 @@ import React, { useEffect, useRef, useState } from 'react';
 import { 
   Phone, Video, Mic, MicOff, VideoOff, PhoneOff, PhoneCall, 
   SwitchCamera, Volume2, ShieldCheck, Wifi, Maximize2, Minimize2,
-  AlertCircle, Lock, RefreshCw, X
+  AlertCircle, Lock, RefreshCw, X, Sparkles, ArrowLeftRight, Check, Sliders
 } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 import { getContactNotificationSettings } from '../lib/contactSettings';
+
+const VIDEO_FILTERS = [
+  { id: 'none', label: 'Normal', css: 'none' },
+  { id: 'bw', label: 'B&W', css: 'grayscale(100%)' },
+  { id: 'sepia', label: 'Vintage', css: 'sepia(85%) contrast(110%)' },
+  { id: 'warm', label: 'Warm', css: 'saturate(160%) contrast(105%)' },
+  { id: 'cool', label: 'Cyber', css: 'hue-rotate(180deg) brightness(110%)' },
+  { id: 'vivid', label: 'Vivid', css: 'contrast(125%) saturate(145%)' },
+];
 
 export const CallModal: React.FC = () => {
   const { 
@@ -20,8 +29,13 @@ export const CallModal: React.FC = () => {
   const localVideoRef = useRef<HTMLVideoElement>(null);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isSelfViewPrimary, setIsSelfViewPrimary] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState('none');
+  const [showFilterPicker, setShowFilterPicker] = useState(false);
 
   const contact = contacts.find(c => c.id === activeCall?.contactId) || groupContacts.find(g => g.id === activeCall?.contactId);
+
+  const activeFilterCss = VIDEO_FILTERS.find(f => f.id === selectedFilter)?.css || 'none';
 
   // Toggle browser fullscreen mode
   const toggleFullscreen = () => {
@@ -93,14 +107,14 @@ export const CallModal: React.FC = () => {
     if (remoteVideoRef.current && activeCall?.remoteStream) {
       remoteVideoRef.current.srcObject = activeCall.remoteStream;
     }
-  }, [activeCall?.remoteStream]);
+  }, [activeCall?.remoteStream, isSelfViewPrimary]);
 
   // Attach local stream to video element
   useEffect(() => {
     if (localVideoRef.current && activeCall?.localStream) {
       localVideoRef.current.srcObject = activeCall.localStream;
     }
-  }, [activeCall?.localStream]);
+  }, [activeCall?.localStream, isSelfViewPrimary]);
 
   if (!activeCall && !callPermissionError) return null;
 
@@ -206,61 +220,188 @@ export const CallModal: React.FC = () => {
         {activeCall.type === 'video' && (activeCall.status === 'connected' || activeCall.status === 'connecting') ? (
           <div className="w-full h-[400px] sm:h-[500px] rounded-3xl overflow-hidden relative shadow-2xl border border-white/10 bg-slate-900 group flex items-center justify-center">
             
-            {/* Remote Video Stream or Profile Picture */}
-            <div className="w-full h-full relative flex items-center justify-center bg-slate-900">
-              <video 
-                ref={remoteVideoRef} 
-                autoPlay 
-                playsInline 
-                className={`w-full h-full object-cover ${!activeCall.remoteStream || activeCall.isRemoteVideoOff ? 'hidden' : 'block'}`} 
-              />
-
-              {(!activeCall.remoteStream || activeCall.isRemoteVideoOff) && (
-                <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 p-4">
-                  <img 
-                    src={contactAvatar} 
-                    alt={contact.name} 
-                    className="w-28 h-28 sm:w-36 sm:h-36 rounded-full object-cover border-4 border-slate-700/60 shadow-2xl" 
+            {/* Main / Primary Video Stream */}
+            <div className="w-full h-full relative flex items-center justify-center bg-slate-900 overflow-hidden">
+              {!isSelfViewPrimary ? (
+                /* Remote Video Stream as Primary */
+                <>
+                  <video 
+                    ref={remoteVideoRef} 
+                    autoPlay 
+                    playsInline 
+                    className={`w-full h-full object-cover transition-all duration-300 ${!activeCall.remoteStream || activeCall.isRemoteVideoOff ? 'hidden' : 'block'}`} 
                   />
-                  {activeCall.isRemoteVideoOff && (
-                    <span className="mt-3 text-xs font-medium text-slate-400 bg-black/40 px-3 py-1 rounded-full backdrop-blur-md border border-white/5">
-                      Camera Off
-                    </span>
+
+                  {(!activeCall.remoteStream || activeCall.isRemoteVideoOff) && (
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 p-4">
+                      <img 
+                        src={contactAvatar} 
+                        alt={contact.name} 
+                        className="w-28 h-28 sm:w-36 sm:h-36 rounded-full object-cover border-4 border-slate-700/60 shadow-2xl" 
+                      />
+                      {activeCall.isRemoteVideoOff && (
+                        <span className="mt-3 text-xs font-medium text-slate-400 bg-black/40 px-3 py-1 rounded-full backdrop-blur-md border border-white/5">
+                          Camera Off
+                        </span>
+                      )}
+                      {!activeCall.remoteStream && !activeCall.isRemoteVideoOff && (
+                        <span className="mt-3 text-xs font-medium text-slate-300 animate-pulse">
+                          Connecting video feed...
+                        </span>
+                      )}
+                    </div>
                   )}
-                  {!activeCall.remoteStream && !activeCall.isRemoteVideoOff && (
-                    <span className="mt-3 text-xs font-medium text-slate-300 animate-pulse">
-                      Connecting video feed...
-                    </span>
+                </>
+              ) : (
+                /* Local Self-View Stream as Primary */
+                <>
+                  <video 
+                    ref={localVideoRef} 
+                    autoPlay 
+                    playsInline 
+                    muted 
+                    style={{ filter: activeFilterCss }}
+                    className={`w-full h-full object-cover transition-all duration-300 ${activeCall.isVideoOff || !activeCall.localStream ? 'hidden' : 'block'}`} 
+                  />
+                  {(activeCall.isVideoOff || !activeCall.localStream) && (
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 p-4 text-center">
+                      <img 
+                        src={userAvatar} 
+                        alt="Me" 
+                        className="w-28 h-28 sm:w-36 sm:h-36 rounded-full object-cover border-4 border-[#ff2e93] shadow-2xl" 
+                      />
+                      <span className="mt-3 text-xs font-medium text-slate-400 bg-black/40 px-3 py-1 rounded-full backdrop-blur-md border border-white/5">
+                        Your Camera is Off
+                      </span>
+                    </div>
                   )}
-                </div>
+                </>
               )}
             </div>
 
-            {/* PIP Local Self Video Overlay */}
-            <div className="absolute bottom-4 right-4 w-28 h-36 sm:w-32 sm:h-44 rounded-2xl overflow-hidden border-2 border-[#ff2e93] shadow-2xl bg-slate-900 flex items-center justify-center">
-              <video 
-                ref={localVideoRef} 
-                autoPlay 
-                playsInline 
-                muted 
-                className={`w-full h-full object-cover ${activeCall.isVideoOff || !activeCall.localStream ? 'hidden' : 'block'}`} 
-              />
-              {(activeCall.isVideoOff || !activeCall.localStream) && (
-                <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 p-2 text-center">
-                  <img 
-                    src={userAvatar} 
-                    alt="Me" 
-                    className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-slate-700/60 shadow-md" 
+            {/* Small PIP Secondary View Overlay - Click to Swap */}
+            <div 
+              onClick={() => setIsSelfViewPrimary(!isSelfViewPrimary)}
+              title="Click to swap video view"
+              className="absolute bottom-4 right-4 w-28 h-36 sm:w-32 sm:h-44 rounded-2xl overflow-hidden border-2 border-[#ff2e93] shadow-2xl bg-slate-900 flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-all duration-300 z-20 group/pip"
+            >
+              {!isSelfViewPrimary ? (
+                /* Local Self Video in PIP */
+                <>
+                  <video 
+                    ref={localVideoRef} 
+                    autoPlay 
+                    playsInline 
+                    muted 
+                    style={{ filter: activeFilterCss }}
+                    className={`w-full h-full object-cover ${activeCall.isVideoOff || !activeCall.localStream ? 'hidden' : 'block'}`} 
                   />
-                </div>
+                  {(activeCall.isVideoOff || !activeCall.localStream) && (
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 p-2 text-center">
+                      <img 
+                        src={userAvatar} 
+                        alt="Me" 
+                        className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-slate-700/60 shadow-md" 
+                      />
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* Remote Stream in PIP */
+                <>
+                  <video 
+                    ref={remoteVideoRef} 
+                    autoPlay 
+                    playsInline 
+                    className={`w-full h-full object-cover ${!activeCall.remoteStream || activeCall.isRemoteVideoOff ? 'hidden' : 'block'}`} 
+                  />
+                  {(!activeCall.remoteStream || activeCall.isRemoteVideoOff) && (
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 p-2 text-center">
+                      <img 
+                        src={contactAvatar} 
+                        alt={contact.name} 
+                        className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-slate-700/60 shadow-md" 
+                      />
+                    </div>
+                  )}
+                </>
               )}
+
+              {/* Hover Swap Indicator Overlay */}
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/pip:opacity-100 transition-opacity flex flex-col items-center justify-center p-1 text-center backdrop-blur-[2px]">
+                <ArrowLeftRight className="w-5 h-5 text-white mb-1 animate-pulse" />
+                <span className="text-[10px] font-bold text-white leading-tight">Click to Swap</span>
+              </div>
             </div>
 
-            {/* Remote Contact Name Badge */}
-            <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-semibold text-white flex items-center gap-2 border border-white/10">
-              <span className="w-2 h-2 rounded-full bg-[#ff2e93] animate-pulse" />
-              <span>{getContactDisplayName(contact)}</span>
+            {/* Top Bar Badges: Name Badge & Action Controls */}
+            <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-20 pointer-events-none">
+              <div className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-semibold text-white flex items-center gap-2 border border-white/10 pointer-events-auto">
+                <span className="w-2 h-2 rounded-full bg-[#ff2e93] animate-pulse" />
+                <span>{isSelfViewPrimary ? `You (${(user as any)?.displayName || user?.name || 'Self'})` : getContactDisplayName(contact)}</span>
+              </div>
+
+              <div className="flex items-center gap-2 pointer-events-auto">
+                {/* Swap View Button */}
+                <button
+                  onClick={() => setIsSelfViewPrimary(!isSelfViewPrimary)}
+                  className="p-2 rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-md border border-white/10 transition-all active:scale-95 flex items-center gap-1.5 px-3 text-xs font-medium"
+                  title="Swap view between remote and self"
+                >
+                  <ArrowLeftRight className="w-4 h-4 text-[#ff2e93]" />
+                  <span className="hidden sm:inline">Swap</span>
+                </button>
+
+                {/* Filter Selector Toggle Button */}
+                <button
+                  onClick={() => setShowFilterPicker(!showFilterPicker)}
+                  className={`p-2 rounded-full backdrop-blur-md border transition-all active:scale-95 flex items-center gap-1.5 px-3 text-xs font-medium ${
+                    showFilterPicker || selectedFilter !== 'none'
+                      ? 'bg-[#ff2e93] text-[#0b141a] font-bold border-[#ff2e93]'
+                      : 'bg-black/60 hover:bg-black/80 text-white border-white/10'
+                  }`}
+                  title="Camera Filters & Effects"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span className="hidden sm:inline">{selectedFilter !== 'none' ? VIDEO_FILTERS.find(f => f.id === selectedFilter)?.label : 'Filters'}</span>
+                </button>
+              </div>
             </div>
+
+            {/* Video Filters Selector Bar */}
+            {showFilterPicker && (
+              <div className="absolute bottom-4 left-4 right-36 bg-black/90 backdrop-blur-xl p-3 rounded-2xl border border-white/15 z-30 animate-slide-up shadow-2xl">
+                <div className="flex items-center justify-between mb-2 px-1">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                    <Sparkles className="w-3.5 h-3.5 text-[#ff2e93]" />
+                    <span>Camera Filters & Effects</span>
+                  </div>
+                  <button 
+                    onClick={() => setShowFilterPicker(false)}
+                    className="text-slate-400 hover:text-white p-1 rounded-full hover:bg-white/10"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                  {VIDEO_FILTERS.map((f) => (
+                    <button
+                      key={f.id}
+                      onClick={() => setSelectedFilter(f.id)}
+                      className={`flex flex-col items-center min-w-[62px] p-2 rounded-xl text-xs font-medium transition-all ${
+                        selectedFilter === f.id
+                          ? 'bg-[#ff2e93] text-[#0b141a] font-bold shadow-lg scale-105'
+                          : 'bg-white/10 text-white hover:bg-white/20'
+                      }`}
+                    >
+                      <span className="truncate">{f.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
           </div>
         ) : (
           /* Voice Call / Ringing Screen */

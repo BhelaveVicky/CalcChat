@@ -17,7 +17,7 @@ export const WhatsAppBottomBar: React.FC = () => {
           }`}
       >
         <div className="relative flex items-center justify-center">
-          <div className={`px-3.5 sm:px-5 py-1 rounded-full transition-colors ${activeTab === 'chats' ? (isDark ? 'bg-[#ff2e93]/20' : 'bg-pink-100') : ''
+          <div className={`px-2 sm:px-4 py-1 rounded-full transition-colors ${activeTab === 'chats' ? (isDark ? 'bg-[#ff2e93]/20' : 'bg-pink-100') : ''
             }`}>
             <MessageSquare className="w-5 h-5 fill-current" />
           </div>
@@ -37,7 +37,7 @@ export const WhatsAppBottomBar: React.FC = () => {
           }`}
       >
         <div className="relative flex items-center justify-center">
-          <div className={`px-3.5 sm:px-5 py-1 rounded-full transition-colors ${activeTab === 'gallery' ? (isDark ? 'bg-[#ff2e93]/20' : 'bg-pink-100') : ''
+          <div className={`px-2 sm:px-4 py-1 rounded-full transition-colors ${activeTab === 'gallery' ? (isDark ? 'bg-[#ff2e93]/20' : 'bg-pink-100') : ''
             }`}>
             <CircleDashed className="w-5 h-5 stroke-[2.2]" />
           </div>
@@ -57,7 +57,7 @@ export const WhatsAppBottomBar: React.FC = () => {
           }`}
       >
         <div className="relative flex items-center justify-center">
-          <div className={`px-3.5 sm:px-5 py-1 rounded-full transition-colors ${activeTab === 'calls' ? (isDark ? 'bg-[#ff2e93]/20' : 'bg-pink-100') : ''
+          <div className={`px-2 sm:px-4 py-1 rounded-full transition-colors ${activeTab === 'calls' ? (isDark ? 'bg-[#ff2e93]/20' : 'bg-pink-100') : ''
             }`}>
             <Phone className="w-5 h-5" />
           </div>
@@ -77,7 +77,7 @@ export const WhatsAppBottomBar: React.FC = () => {
           }`}
       >
         <div className="relative flex items-center justify-center">
-          <div className={`px-3.5 sm:px-5 py-1 rounded-full transition-colors ${activeTab === 'profile' ? (isDark ? 'bg-[#ff2e93]/20' : 'bg-pink-100') : ''
+          <div className={`px-2 sm:px-4 py-1 rounded-full transition-colors ${activeTab === 'profile' ? (isDark ? 'bg-[#ff2e93]/20' : 'bg-pink-100') : ''
             }`}>
             <User className="w-5 h-5" />
           </div>
@@ -91,7 +91,7 @@ export const WhatsAppBottomBar: React.FC = () => {
         className="flex flex-col items-center justify-center gap-1 flex-1 transition-all group text-rose-500 hover:text-rose-400"
       >
         <div className="relative flex items-center justify-center">
-          <div className="px-3.5 sm:px-5 py-1 rounded-full bg-rose-500/10 group-hover:bg-rose-500/20 transition-colors">
+          <div className="px-2 sm:px-4 py-1 rounded-full bg-rose-500/10 group-hover:bg-rose-500/20 transition-colors">
             <ArrowRightCircle className="w-5 h-5 stroke-[2.2] text-rose-500 animate-pulse" />
           </div>
         </div>

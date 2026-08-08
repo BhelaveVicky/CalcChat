@@ -66,8 +66,7 @@ export const VaultContainer: React.FC = () => {
   const isChatOpenOnMobile = activeTab === 'chats' && activeContactId;
 
   return (
-    <div className={`flex-1 flex flex-col w-full h-full ${vaultSettings.showAndroidFrame ? 'max-w-md mx-auto shadow-2xl' : 'max-w-full'
-      } overflow-hidden relative transition-colors duration-300 ${themeBg}`}>
+    <div className={`flex-1 flex flex-col w-full h-full max-w-full overflow-hidden relative transition-colors duration-300 ${themeBg}`}>
 
       {/* Splash Screen overlay when unlocking the Hidden Chat / Vault */}
       {showUnlockSplash && <SplashScreen isFadingOut={isFadingOut} />}

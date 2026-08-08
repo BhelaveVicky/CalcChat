@@ -62,14 +62,11 @@ export const AndroidFrame: React.FC<{ children: React.ReactNode }> = ({ children
         </div>
       </div>
 
-      {/* Android Device Mockup Shell - Full width/height on mobile, Framed mockup on tablet/desktop */}
-      <div className="relative w-full h-[calc(100dvh-48px)] sm:h-[840px] sm:max-h-[90vh] sm:max-w-[420px] bg-black rounded-none sm:rounded-[46px] p-0 sm:p-[11px] shadow-none sm:shadow-[0_0_50px_-12px_rgba(16,185,129,0.25)] border-0 sm:border-[4px] border-slate-800 flex flex-col overflow-hidden">
-        {/* Hardware side buttons simulation (hidden on mobile) */}
-        <div className="hidden sm:block absolute -right-[15px] top-[180px] w-[4px] h-[45px] bg-slate-700 rounded-r-md"></div>
-        <div className="hidden sm:block absolute -right-[15px] top-[240px] w-[4px] h-[90px] bg-slate-700 rounded-r-md"></div>
+      {/* Responsive Viewport Wrapper - Full width/height on mobile, expands on tablet/desktop */}
+      <div className="relative w-full h-[100dvh] sm:h-full sm:flex-1 bg-black sm:rounded-[32px] sm:my-2 p-0 sm:p-2 sm:shadow-[0_0_40px_-10px_rgba(16,185,129,0.2)] sm:border-[2px] border-slate-800 flex flex-col overflow-hidden max-w-[1920px] mx-auto w-full">
         
         {/* Inner AMOLED Screen */}
-        <div className="relative w-full h-full bg-slate-950 rounded-none sm:rounded-[36px] overflow-hidden flex flex-col border-0 sm:border border-slate-900/80 shadow-inner">
+        <div className="relative w-full h-full bg-slate-950 sm:rounded-[24px] overflow-hidden flex flex-col sm:border border-slate-900/80 shadow-inner">
           
           {/* Android Status Bar */}
           <div className="w-full h-8 px-6 pt-1 flex items-center justify-between text-slate-200 text-xs font-medium z-40 bg-transparent shrink-0">
@@ -79,8 +76,8 @@ export const AndroidFrame: React.FC<{ children: React.ReactNode }> = ({ children
               <Shield className="w-3 h-3 text-emerald-500 opacity-80" />
             </div>
 
-            {/* Center: Punch Hole Camera Cutout */}
-            <div className="absolute left-1/2 -translate-x-1/2 top-2 w-4 h-4 bg-black rounded-full border border-slate-800/80 flex items-center justify-center pointer-events-none">
+            {/* Center: Punch Hole Camera Cutout (hidden on large screens to avoid obscuring UI) */}
+            <div className="hidden sm:flex absolute left-1/2 -translate-x-1/2 top-2 w-4 h-4 bg-black rounded-full border border-slate-800/80 items-center justify-center pointer-events-none">
               <div className="w-1.5 h-1.5 bg-slate-900 rounded-full border border-slate-800"></div>
             </div>
 

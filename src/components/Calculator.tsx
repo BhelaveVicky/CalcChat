@@ -178,18 +178,18 @@ export const Calculator: React.FC = () => {
   }
 
   return (
-    <div className={`flex-1 flex items-center justify-center p-0 sm:p-6 select-none w-full h-[100dvh] sm:h-auto min-h-[100dvh] transition-colors duration-300 ${
+    <div className={`flex-1 flex flex-col items-center justify-center p-0 select-none w-full h-full min-h-[100dvh] transition-colors duration-300 ${
       appSettings.darkMode ? 'bg-slate-900' : 'bg-slate-100'
     }`}>
       
-      {/* Device wrapper - full height/width on mobile, simulated mockup on desktop */}
-      <div className="w-full h-[100dvh] sm:h-[820px] sm:w-[390px] sm:max-w-sm sm:rounded-[50px] sm:border-[10px] sm:border-slate-950 sm:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] sm:overflow-hidden relative flex flex-col bg-gradient-to-b from-[#ff8e6a] to-[#ff5676]">
+      {/* Device wrapper - full height/width responsive */}
+      <div className="w-full h-full min-h-[100dvh] sm:min-h-0 sm:h-full relative flex flex-col bg-gradient-to-b from-[#ff8e6a] to-[#ff5676] overflow-hidden">
         
-        {/* Desktop Device Notch */}
-        <div className="hidden sm:block absolute top-0 left-1/2 -translate-x-1/2 z-20 w-40 h-6 bg-slate-950 rounded-b-2xl"></div>
+        {/* Desktop Device Notch (Optional / Hidden for fully responsive) */}
+        <div className="hidden absolute top-0 left-1/2 -translate-x-1/2 z-20 w-40 h-6 bg-slate-950 rounded-b-2xl"></div>
         
         {/* Top Display Section (Balanced 50-50 flex-1 section) */}
-        <div className="flex-1 flex flex-col justify-between pt-12 pb-6 px-6 relative">
+        <div className="flex-1 flex flex-col justify-between pt-8 sm:pt-12 pb-4 sm:pb-6 px-4 sm:px-6 relative">
           {/* Top Bar with Settings and Title */}
           <div className="relative w-full flex items-center justify-center pt-1 min-h-[28px] flex-none">
             {/* Centered title */}
@@ -210,32 +210,32 @@ export const Calculator: React.FC = () => {
           {/* Display Output area */}
           <div className="relative mt-auto mb-2 w-full flex flex-col items-end pr-1 pl-1">
             {/* Previous Equation History */}
-            <div className="text-right text-lg font-medium tracking-wide font-sans mb-1.5 min-h-[28px] select-text text-white/70">
+            <div className="text-right text-base sm:text-lg font-medium tracking-wide font-sans mb-1 min-h-[24px] sm:min-h-[28px] select-text text-white/70 break-all w-full line-clamp-2">
               {equation.replace(/x/g, 'X')}
             </div>
 
             {/* Current Value / Result */}
-            <div className="text-right text-5xl sm:text-6xl font-semibold tracking-tight font-sans truncate w-full select-text text-white">
+            <div className="text-right text-4xl sm:text-6xl font-semibold tracking-tight font-sans truncate w-full select-text text-white">
               {formatDisplayNumber(display)}
             </div>
           </div>
         </div>
 
         {/* Keypad Bottom Sheet (Expanded to flex-1 to occupy remaining height) */}
-        <div className={`flex-1 rounded-t-[40px] px-6 pb-8 pt-3 shadow-[0_-8px_30px_rgba(0,0,0,0.15)] flex flex-col justify-between overflow-hidden ${
+        <div className={`flex-1 rounded-t-[32px] sm:rounded-t-[40px] px-4 sm:px-6 pb-6 sm:pb-8 pt-3 shadow-[0_-8px_30px_rgba(0,0,0,0.15)] flex flex-col justify-between overflow-hidden ${
               appSettings.darkMode ? 'bg-[#1a1a1a]' : 'bg-white'
             }`}>
           {/* Bottom sheet drag handle indicator */}
-          <div className={`w-12 h-1.5 rounded-full mx-auto mb-6 mt-1 flex-none ${
+          <div className={`w-12 h-1.5 rounded-full mx-auto mb-4 sm:mb-6 mt-1 flex-none ${
               appSettings.darkMode ? 'bg-gray-700' : 'bg-gray-200/80'
             }`}></div>
 
           {/* Grid Layout for Buttons - Spans all available height */}
-          <div className="grid grid-cols-4 grid-rows-5 gap-3.5 flex-1 mb-2">
+          <div className="grid grid-cols-4 grid-rows-5 gap-2.5 sm:gap-3.5 flex-1 mb-2">
             {/* Row 1 */}
             <button
               onClick={() => handleButtonClick('AC')}
-              className={`h-full min-h-[54px] rounded-2xl font-bold text-lg transition-all shadow-[0_4px_10px_rgba(255,86,118,0.2)] flex items-center justify-center active:scale-95 ${
+              className={`h-full min-h-[44px] sm:min-h-[54px] rounded-xl sm:rounded-2xl font-bold text-base sm:text-lg transition-all shadow-[0_4px_10px_rgba(255,86,118,0.2)] flex items-center justify-center active:scale-95 ${
                 appSettings.darkMode
                   ? 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
                   : 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
@@ -245,7 +245,7 @@ export const Calculator: React.FC = () => {
             </button>
             <button
               onClick={() => handleButtonClick('C')}
-              className={`h-full min-h-[54px] rounded-2xl font-bold text-lg transition-all shadow-[0_4px_10px_rgba(255,86,118,0.2)] flex items-center justify-center active:scale-95 ${
+              className={`h-full min-h-[44px] sm:min-h-[54px] rounded-xl sm:rounded-2xl font-bold text-base sm:text-lg transition-all shadow-[0_4px_10px_rgba(255,86,118,0.2)] flex items-center justify-center active:scale-95 ${
                 appSettings.darkMode
                   ? 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
                   : 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
@@ -255,7 +255,7 @@ export const Calculator: React.FC = () => {
             </button>
             <button
               onClick={() => handleButtonClick('%')}
-              className={`h-full min-h-[54px] rounded-2xl font-bold text-lg transition-all shadow-[0_4px_10px_rgba(255,86,118,0.2)] flex items-center justify-center active:scale-95 ${
+              className={`h-full min-h-[44px] sm:min-h-[54px] rounded-xl sm:rounded-2xl font-bold text-base sm:text-lg transition-all shadow-[0_4px_10px_rgba(255,86,118,0.2)] flex items-center justify-center active:scale-95 ${
                 appSettings.darkMode
                   ? 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
                   : 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
@@ -265,7 +265,7 @@ export const Calculator: React.FC = () => {
             </button>
             <button
               onClick={() => handleButtonClick('/')}
-              className={`h-full min-h-[54px] rounded-2xl font-bold text-2xl transition-all shadow-[0_4px_10px_rgba(255,86,118,0.2)] flex items-center justify-center active:scale-95 ${
+              className={`h-full min-h-[44px] sm:min-h-[54px] rounded-xl sm:rounded-2xl font-bold text-xl sm:text-2xl transition-all shadow-[0_4px_10px_rgba(255,86,118,0.2)] flex items-center justify-center active:scale-95 ${
                 appSettings.darkMode
                   ? 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
                   : 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
@@ -279,7 +279,7 @@ export const Calculator: React.FC = () => {
               <button
                 key={num}
                 onClick={() => handleButtonClick(num)}
-                className={`h-full min-h-[54px] rounded-2xl font-semibold text-xl transition-all shadow-[0_2px_5px_rgba(0,0,0,0.04)] flex items-center justify-center active:scale-95 ${
+                className={`h-full min-h-[44px] sm:min-h-[54px] rounded-xl sm:rounded-2xl font-semibold text-lg sm:text-xl transition-all shadow-[0_2px_5px_rgba(0,0,0,0.04)] flex items-center justify-center active:scale-95 ${
                   appSettings.darkMode
                     ? 'bg-gradient-to-b from-gray-800 to-gray-900 border border-gray-700/70 hover:from-gray-700 hover:to-gray-800 text-white'
                     : 'bg-gradient-to-b from-gray-50 to-gray-100 border border-gray-100/70 hover:from-gray-100 hover:to-gray-200 text-gray-800'
@@ -290,7 +290,7 @@ export const Calculator: React.FC = () => {
             ))}
             <button
               onClick={() => handleButtonClick('x')}
-              className={`h-full min-h-[54px] rounded-2xl font-bold text-xl transition-all shadow-[0_4px_10px_rgba(255,86,118,0.2)] flex items-center justify-center active:scale-95 ${
+              className={`h-full min-h-[44px] sm:min-h-[54px] rounded-xl sm:rounded-2xl font-bold text-lg sm:text-xl transition-all shadow-[0_4px_10px_rgba(255,86,118,0.2)] flex items-center justify-center active:scale-95 ${
                 appSettings.darkMode
                   ? 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
                   : 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
@@ -304,7 +304,7 @@ export const Calculator: React.FC = () => {
               <button
                 key={num}
                 onClick={() => handleButtonClick(num)}
-                className={`h-full min-h-[54px] rounded-2xl font-semibold text-xl transition-all shadow-[0_2px_5px_rgba(0,0,0,0.04)] flex items-center justify-center active:scale-95 ${
+                className={`h-full min-h-[44px] sm:min-h-[54px] rounded-xl sm:rounded-2xl font-semibold text-lg sm:text-xl transition-all shadow-[0_2px_5px_rgba(0,0,0,0.04)] flex items-center justify-center active:scale-95 ${
                   appSettings.darkMode
                     ? 'bg-gradient-to-b from-gray-800 to-gray-900 border border-gray-700/70 hover:from-gray-700 hover:to-gray-800 text-white'
                     : 'bg-gradient-to-b from-gray-50 to-gray-100 border border-gray-100/70 hover:from-gray-100 hover:to-gray-200 text-gray-800'
@@ -315,7 +315,7 @@ export const Calculator: React.FC = () => {
             ))}
             <button
               onClick={() => handleButtonClick('-')}
-              className={`h-full min-h-[54px] rounded-2xl font-bold text-2xl transition-all shadow-[0_4px_10px_rgba(255,86,118,0.2)] flex items-center justify-center active:scale-95 ${
+              className={`h-full min-h-[44px] sm:min-h-[54px] rounded-xl sm:rounded-2xl font-bold text-xl sm:text-2xl transition-all shadow-[0_4px_10px_rgba(255,86,118,0.2)] flex items-center justify-center active:scale-95 ${
                 appSettings.darkMode
                   ? 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
                   : 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
@@ -329,7 +329,7 @@ export const Calculator: React.FC = () => {
               <button
                 key={num}
                 onClick={() => handleButtonClick(num)}
-                className={`h-full min-h-[54px] rounded-2xl font-semibold text-xl transition-all shadow-[0_2px_5px_rgba(0,0,0,0.04)] flex items-center justify-center active:scale-95 ${
+                className={`h-full min-h-[44px] sm:min-h-[54px] rounded-xl sm:rounded-2xl font-semibold text-lg sm:text-xl transition-all shadow-[0_2px_5px_rgba(0,0,0,0.04)] flex items-center justify-center active:scale-95 ${
                   appSettings.darkMode
                     ? 'bg-gradient-to-b from-gray-800 to-gray-900 border border-gray-700/70 hover:from-gray-700 hover:to-gray-800 text-white'
                     : 'bg-gradient-to-b from-gray-50 to-gray-100 border border-gray-100/70 hover:from-gray-100 hover:to-gray-200 text-gray-800'
@@ -340,7 +340,7 @@ export const Calculator: React.FC = () => {
             ))}
             <button
               onClick={() => handleButtonClick('+')}
-              className={`h-full min-h-[54px] rounded-2xl font-bold text-xl transition-all shadow-[0_4px_10px_rgba(255,86,118,0.2)] flex items-center justify-center active:scale-95 ${
+              className={`h-full min-h-[44px] sm:min-h-[54px] rounded-xl sm:rounded-2xl font-bold text-lg sm:text-xl transition-all shadow-[0_4px_10px_rgba(255,86,118,0.2)] flex items-center justify-center active:scale-95 ${
                 appSettings.darkMode
                   ? 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
                   : 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
@@ -352,7 +352,7 @@ export const Calculator: React.FC = () => {
             {/* Row 5 */}
             <button
               onClick={() => handleButtonClick('00')}
-              className={`h-full min-h-[54px] rounded-2xl font-semibold text-xl transition-all shadow-[0_2px_5px_rgba(0,0,0,0.04)] flex items-center justify-center active:scale-95 ${
+              className={`h-full min-h-[44px] sm:min-h-[54px] rounded-xl sm:rounded-2xl font-semibold text-lg sm:text-xl transition-all shadow-[0_2px_5px_rgba(0,0,0,0.04)] flex items-center justify-center active:scale-95 ${
                 appSettings.darkMode
                   ? 'bg-gradient-to-b from-gray-800 to-gray-900 border border-gray-700/70 hover:from-gray-700 hover:to-gray-800 text-white'
                   : 'bg-gradient-to-b from-gray-50 to-gray-100 border border-gray-100/70 hover:from-gray-100 hover:to-gray-200 text-gray-800'
@@ -362,7 +362,7 @@ export const Calculator: React.FC = () => {
             </button>
             <button
               onClick={() => handleButtonClick('0')}
-              className={`h-full min-h-[54px] rounded-2xl font-semibold text-xl transition-all shadow-[0_2px_5px_rgba(0,0,0,0.04)] flex items-center justify-center active:scale-95 ${
+              className={`h-full min-h-[44px] sm:min-h-[54px] rounded-xl sm:rounded-2xl font-semibold text-lg sm:text-xl transition-all shadow-[0_2px_5px_rgba(0,0,0,0.04)] flex items-center justify-center active:scale-95 ${
                 appSettings.darkMode
                   ? 'bg-gradient-to-b from-gray-800 to-gray-900 border border-gray-700/70 hover:from-gray-700 hover:to-gray-800 text-white'
                   : 'bg-gradient-to-b from-gray-50 to-gray-100 border border-gray-100/70 hover:from-gray-100 hover:to-gray-200 text-gray-800'
@@ -372,7 +372,7 @@ export const Calculator: React.FC = () => {
             </button>
             <button
               onClick={() => handleButtonClick('.')}
-              className={`h-full min-h-[54px] rounded-2xl font-semibold text-xl transition-all shadow-[0_2px_5px_rgba(0,0,0,0.04)] flex items-center justify-center active:scale-95 ${
+              className={`h-full min-h-[44px] sm:min-h-[54px] rounded-xl sm:rounded-2xl font-semibold text-lg sm:text-xl transition-all shadow-[0_2px_5px_rgba(0,0,0,0.04)] flex items-center justify-center active:scale-95 ${
                 appSettings.darkMode
                   ? 'bg-gradient-to-b from-gray-800 to-gray-900 border border-gray-700/70 hover:from-gray-700 hover:to-gray-800 text-white'
                   : 'bg-gradient-to-b from-gray-50 to-gray-100 border border-gray-100/70 hover:from-gray-100 hover:to-gray-200 text-gray-800'
@@ -382,7 +382,7 @@ export const Calculator: React.FC = () => {
             </button>
             <button
               onClick={() => handleButtonClick('=')}
-              className={`h-full min-h-[54px] rounded-2xl font-bold text-2xl transition-all shadow-[0_4px_10px_rgba(255,86,118,0.2)] flex items-center justify-center active:scale-95 ${
+              className={`h-full min-h-[44px] sm:min-h-[54px] rounded-xl sm:rounded-2xl font-bold text-xl sm:text-2xl transition-all shadow-[0_4px_10px_rgba(255,86,118,0.2)] flex items-center justify-center active:scale-95 ${
                 appSettings.darkMode
                   ? 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
                   : 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'

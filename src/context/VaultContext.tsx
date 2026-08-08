@@ -4053,6 +4053,13 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setActiveCall(prev => prev ? { ...prev, isRemoteVideoOff: !!data.receiverVideoOff } : null);
       }
 
+      // If the remote receiver updated the status to connecting or connected, reflect it locally
+      if (data.status === 'connecting' && activeCallRef.current?.status === 'ringing') {
+        setActiveCall(prev => prev ? { ...prev, status: 'connecting' } : null);
+      } else if (data.status === 'connected' && activeCallRef.current?.status !== 'connected') {
+        setActiveCall(prev => prev ? { ...prev, status: 'connected' } : null);
+      }
+
       if (data.answer && pc.signalingState !== 'stable' && !pc.currentRemoteDescription) {
         try {
           await pc.setRemoteDescription(new RTCSessionDescription(data.answer));

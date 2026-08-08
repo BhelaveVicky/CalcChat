@@ -2865,10 +2865,10 @@ export const ChatWindow: React.FC = () => {
                 </span>
               </div>
             ) : (
-              <form onSubmit={handleSend} className={`p-2 flex items-center gap-2 shrink-0 transition-colors z-20 ${
+              <form onSubmit={handleSend} className={`p-2 flex items-center gap-2 shrink-0 w-full min-w-0 transition-colors z-20 ${
                 isDark ? 'bg-[#0b141a]/60 backdrop-blur-md' : 'bg-gray-100/60 backdrop-blur-md border-t border-gray-200/80'
               }`}>
-                <div className={`flex-1 rounded-full flex items-center px-3 py-1.5 gap-2 border ${
+                <div className={`flex-1 min-w-0 rounded-full flex items-center px-3 py-1.5 gap-2 border ${
                   isDark ? 'bg-[#202c33]/90 border-transparent shadow-sm' : 'bg-white border-gray-200/80 shadow-sm'
                 }`}>
                   <button
@@ -2877,7 +2877,7 @@ export const ChatWindow: React.FC = () => {
                       setShowEmojiPicker(!showEmojiPicker);
                       setShowAttachModal(false);
                     }}
-                    className={`p-1.5 transition-colors ${
+                    className={`p-1.5 shrink-0 transition-colors ${
                       showEmojiPicker 
                         ? 'text-[#ff2e93]' 
                         : (isDark ? 'text-[#8596a0] hover:text-[#e9edef]' : 'text-gray-500 hover:text-gray-800')
@@ -2892,7 +2892,7 @@ export const ChatWindow: React.FC = () => {
                     placeholder="Message"
                     value={inputText}
                     onChange={handleInputChange}
-                    className={`flex-1 bg-transparent focus:outline-none text-base py-1 ${
+                    className={`flex-1 min-w-0 w-full bg-transparent focus:outline-none text-base py-1 ${
                       isDark ? 'text-[#e9edef] placeholder-[#8596a0]' : 'text-gray-900 placeholder-gray-400'
                     }`}
                   />
@@ -2948,13 +2948,13 @@ export const ChatWindow: React.FC = () => {
                     type="button"
                     onClick={() => {
                       if (!canSendVoice) {
+                        showToast('Voice message support coming soon!');
+                      } else {
                         showToast('Sending voice notes is disabled in this group.');
-                        return;
                       }
-                      handleStartRecording();
                     }}
-                    className="bg-[#ff2e93] hover:bg-[#ff1e85] active:scale-95 text-[#0b141a] w-11 h-11 rounded-full font-bold transition-all shadow-md flex items-center justify-center shrink-0 cursor-pointer"
-                    title="Hold to Record Voice Message"
+                    className={`bg-[#ff2e93] hover:bg-[#ff1e85] active:scale-95 text-[#0b141a] w-11 h-11 rounded-full font-bold transition-all shadow-md flex items-center justify-center shrink-0 cursor-pointer`}
+                    title="Voice Note"
                   >
                     <Mic className="w-5 h-5" />
                   </button>

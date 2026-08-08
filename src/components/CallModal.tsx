@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { 
   Phone, Video, Mic, MicOff, VideoOff, PhoneOff, PhoneCall, 
   SwitchCamera, Volume2, ShieldCheck, Wifi, Maximize2, Minimize2,
-  AlertCircle, Lock, RefreshCw, X, Sparkles, ArrowLeftRight, Check, Sliders
+  AlertCircle, Lock, RefreshCw, X, Sparkles, ArrowLeftRight, Check, Sliders, MoreVertical
 } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 import { getContactNotificationSettings } from '../lib/contactSettings';
@@ -32,6 +32,7 @@ export const CallModal: React.FC = () => {
   const [isSelfViewPrimary, setIsSelfViewPrimary] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('none');
   const [showFilterPicker, setShowFilterPicker] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   const contact = contacts.find(c => c.id === activeCall?.contactId) || groupContacts.find(g => g.id === activeCall?.contactId);
 
@@ -188,37 +189,12 @@ export const CallModal: React.FC = () => {
         )}
       </div>
 
-      {/* Top Header Bar */}
-      <div className="z-10 w-full max-w-lg flex items-center justify-between px-2 pt-2">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="w-5 h-5 text-[#ff2e93]" />
-          <span className="text-xs font-semibold text-[#ff2e93] tracking-wider uppercase">End-to-End Encrypted</span>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-xs font-mono text-slate-300 bg-black/40 px-3 py-1 rounded-full backdrop-blur-md border border-white/10">
-            <Wifi className={`w-3.5 h-3.5 ${activeCall.connectionQuality === 'poor' ? 'text-rose-400' : 'text-[#ff2e93]'}`} />
-            <span>
-              {activeCall.connectionQuality === 'reconnecting' ? 'Reconnecting...' : 'HD 1080p'}
-            </span>
-          </div>
-
-          <button 
-            onClick={toggleFullscreen}
-            className="p-2 rounded-full bg-black/40 hover:bg-black/60 text-slate-300 border border-white/10 backdrop-blur-md transition-all"
-            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-          >
-            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-          </button>
-        </div>
-      </div>
-
       {/* Main Profile / Video Container */}
-      <div className="z-10 flex-1 flex flex-col items-center justify-center w-full max-w-lg my-auto relative">
+      <div className="z-10 absolute inset-0 w-full h-full flex flex-col pointer-events-none">
         
         {/* Video Call Active Screen */}
         {activeCall.type === 'video' && (activeCall.status === 'connected' || activeCall.status === 'connecting') ? (
-          <div className="w-full h-[400px] sm:h-[500px] rounded-3xl overflow-hidden relative shadow-2xl border border-white/10 bg-slate-900 group flex items-center justify-center">
+          <div className="w-full h-full overflow-hidden relative bg-slate-900 group flex items-center justify-center pointer-events-auto">
             
             {/* Main / Primary Video Stream */}
             <div className="w-full h-full relative flex items-center justify-center bg-slate-900 overflow-hidden">
@@ -441,7 +417,7 @@ export const CallModal: React.FC = () => {
       </div>
 
       {/* Call Controls Bar */}
-      <div className="z-10 w-full max-w-lg bg-[#1f2c34]/90 backdrop-blur-xl rounded-3xl p-4 border border-white/10 shadow-2xl">
+      <div className="z-50 w-full max-w-lg bg-[#1f2c34]/90 backdrop-blur-xl rounded-3xl p-4 border border-white/10 shadow-2xl mt-auto">
         {activeCall.status === 'incoming' ? (
           /* Incoming Call Actions: Accept vs Decline */
           <div className="flex items-center justify-around">
@@ -473,7 +449,7 @@ export const CallModal: React.FC = () => {
           </div>
         ) : (
           /* Active / Outgoing Ringing Call Controls */
-          <div className="flex items-center justify-around">
+          <div className="flex items-center justify-around relative">
             {/* Mic Mute */}
             <button
               onClick={toggleMuteCall}
@@ -505,26 +481,42 @@ export const CallModal: React.FC = () => {
               <PhoneOff className="w-7 h-7" />
             </button>
 
-            {/* Speaker Toggle */}
+            {/* More Controls (3 Dot) Menu Toggle */}
             <button
-              onClick={toggleSpeakerCall}
+              onClick={() => setShowMoreMenu(!showMoreMenu)}
               className={`p-3.5 rounded-2xl transition-all active:scale-95 ${
-                activeCall.isSpeakerOn ? 'bg-[#ff2e93] text-[#0b141a]' : 'bg-[#2a3942] text-white hover:bg-[#344550]'
+                showMoreMenu ? 'bg-[#ff2e93] text-[#0b141a]' : 'bg-[#2a3942] text-white hover:bg-[#344550]'
               }`}
-              title="Speaker Mode"
+              title="More options"
             >
-              <Volume2 className="w-6 h-6" />
+              <MoreVertical className="w-6 h-6" />
             </button>
 
-            {/* Switch Camera */}
-            {activeCall.type === 'video' && (
-              <button
-                onClick={switchCameraCall}
-                className="p-3.5 rounded-2xl bg-[#2a3942] text-white hover:bg-[#344550] active:scale-95 transition-all"
-                title="Switch Camera"
-              >
-                <SwitchCamera className="w-6 h-6" />
-              </button>
+            {/* More Options Popup */}
+            {showMoreMenu && (
+              <div className="absolute bottom-20 right-0 bg-black/90 backdrop-blur-xl p-3 rounded-2xl border border-white/15 z-30 animate-slide-up shadow-2xl flex flex-col gap-2 min-w-[150px]">
+                {/* Speaker Toggle */}
+                <button
+                  onClick={toggleSpeakerCall}
+                  className={`flex items-center gap-3 p-3 rounded-xl transition-all active:scale-95 text-xs font-semibold ${
+                    activeCall.isSpeakerOn ? 'bg-[#ff2e93] text-[#0b141a]' : 'bg-[#2a3942] text-white hover:bg-[#344550]'
+                  }`}
+                >
+                  <Volume2 className="w-5 h-5" />
+                  {activeCall.isSpeakerOn ? 'Speaker On' : 'Speaker Off'}
+                </button>
+
+                {/* Switch Camera */}
+                {activeCall.type === 'video' && (
+                  <button
+                    onClick={switchCameraCall}
+                    className="flex items-center gap-3 p-3 rounded-xl bg-[#2a3942] text-white hover:bg-[#344550] active:scale-95 transition-all text-xs font-semibold"
+                  >
+                    <SwitchCamera className="w-5 h-5" />
+                    Switch Camera
+                  </button>
+                )}
+              </div>
             )}
           </div>
         )}

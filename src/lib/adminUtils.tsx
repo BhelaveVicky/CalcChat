@@ -16,6 +16,9 @@ export function checkIsAdmin(userData?: any): boolean {
   if (typeof userData === 'string') {
     email = userData.toLowerCase().trim();
   } else if (typeof userData === 'object') {
+    if (userData.isVerified === false || userData.verified === false) {
+      return false;
+    }
     if (userData.isVerified === true || userData.verified === true || userData.isVerifiedAdmin === true) {
       return true;
     }

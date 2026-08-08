@@ -13,7 +13,7 @@ import {
   CallInfo, CallLog, CallType, CallDirection, CallStatus, Contact, MediaAttachment, Message, 
   UserProfile, VaultSettings, FriendRequest, FriendStatus, StatusUpdate,
   StatusSeenRecord, StatusLikeRecord, StatusReactionRecord, StatusReplyData, StatusReactionData, StatusMentionData, AppNotification,
-  AdminWallpaper, GroupPermissions, GroupJoinRequest, GroupActivityLog, DeletedMessageLog, DEFAULT_GROUP_PERMISSIONS
+  AdminWallpaper, GroupPermissions, GroupJoinRequest, GroupActivityLog, DeletedMessageLog, DEFAULT_GROUP_PERMISSIONS, UserReport
 } from '../types';
 import { DEFAULT_SETTINGS, DEFAULT_USER } from '../data/initialData';
 import { isFirebaseConfigured, firebaseAuth, googleProvider, db } from '../lib/firebase';
@@ -237,7 +237,12 @@ interface VaultContextType {
   deleteAdminWallpaper: (wallpaperId: string) => Promise<void>;
   toggleUserAdminStatus?: (targetUid: string, isAdmin: boolean) => Promise<void>;
   toggleUserVerifiedBadge?: (targetUid: string, isVerified: boolean) => Promise<void>;
+  toggleUserBannedStatus?: (targetUid: string, isBanned: boolean) => Promise<void>;
   followUserDirectly?: (targetUid: string) => Promise<void>;
+  reports?: UserReport[];
+  submitUserReport?: (reportedUid: string, reason: string, reportedUserData?: any) => Promise<void>;
+  updateReportStatus?: (reportId: string, status: 'reviewed' | 'resolved' | 'dismissed') => Promise<void>;
+  deleteReport?: (reportId: string) => Promise<void>;
 }
 
 const VaultContext = createContext<VaultContextType | undefined>(undefined);
@@ -375,6 +380,11 @@ const fallbackVaultContext: VaultContextType = {
   adminWallpapers: [],
   addAdminWallpaper: async () => {},
   deleteAdminWallpaper: async () => {},
+  reports: [],
+  submitUserReport: async () => {},
+  updateReportStatus: async () => {},
+  deleteReport: async () => {},
+  toggleUserBannedStatus: async () => {},
 };
 
 const ICE_SERVERS: RTCConfiguration = {
@@ -444,6 +454,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [presenceTick, setPresenceTick] = useState(0);
   const [chatMetadata, setChatMetadata] = useState<Record<string, { lastMessage?: string; lastMessageTime?: any; lastMessageSenderId?: string }>>({});
   const [adminWallpapers, setAdminWallpapers] = useState<AdminWallpaper[]>([]);
+  const [reports, setReports] = useState<UserReport[]>([]);
 
   // Notifications State
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -1193,6 +1204,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             isSuperAdmin,
             isAdmin,
             isVerified,
+            isBanned: Boolean(uData.isBanned),
             passcode: userPasscode,
             hasUsername: userHasUsername,
             hasChatPassword: userHasPassword,
@@ -1384,6 +1396,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           id: docSnap.id,
           displayName: data.displayName || data.username || 'User',
           username: data.username || '',
+          email: (data.email || '').toLowerCase(),
           photoURL: resolvedAvatar,
           avatar: resolvedAvatar,
           about: data.about || data.status || 'Available on CalcChat',
@@ -1392,6 +1405,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           isOnline: Boolean(data.online),
           lastSeen: (data.lastSeen && typeof data.lastSeen === 'object' && typeof data.lastSeen.seconds === 'number') ? formatLastSeen(data.lastSeen) : (data.lastSeen || 'Offline'),
           friends: Array.isArray(data.friends) ? data.friends : [],
+          isAdmin: Boolean(data.isAdmin),
+          isSuperAdmin: Boolean(data.isSuperAdmin),
+          isVerified: data.isVerified,
         });
       });
       setAllRegisteredUsers(uList);
@@ -5848,6 +5864,13 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       throw new Error('Only the Super Admin (bhelavevicky66@gmail.com) can change Admin roles.');
     }
 
+    // Optimistically update local state immediately
+    setAllRegisteredUsers(prev => prev.map(u => (u.uid === targetUid || u.id === targetUid) ? { ...u, isAdmin: nextIsAdmin } : u));
+    setContacts(prev => prev.map(c => c.id === targetUid ? { ...c, isAdmin: nextIsAdmin } : c));
+    if (user.id === targetUid || user.firebaseUid === targetUid) {
+      setUser(prev => ({ ...prev, isAdmin: nextIsAdmin }));
+    }
+
     if (db && targetUid) {
       await updateDoc(doc(db, 'users', targetUid), {
         isAdmin: nextIsAdmin,
@@ -5863,11 +5886,146 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       throw new Error('Only the Super Admin (bhelavevicky66@gmail.com) can grant or revoke Blue Tick verification.');
     }
 
+    // Optimistically update local state immediately
+    setAllRegisteredUsers(prev => prev.map(u => (u.uid === targetUid || u.id === targetUid) ? { ...u, isVerified: nextIsVerified } : u));
+    setContacts(prev => prev.map(c => c.id === targetUid ? { ...c, isVerified: nextIsVerified } : c));
+    if (user.id === targetUid || user.firebaseUid === targetUid) {
+      setUser(prev => ({ ...prev, isVerified: nextIsVerified }));
+    }
+
     if (db && targetUid) {
       await updateDoc(doc(db, 'users', targetUid), {
         isVerified: nextIsVerified,
         updatedAt: serverTimestamp(),
       }).catch(err => console.error('Error toggling verified badge:', err));
+    }
+  };
+
+  const toggleUserBannedStatus = async (targetUid: string, nextIsBanned: boolean) => {
+    if (!authUser) return;
+    const isSelfSuperAdmin = authUser.email?.toLowerCase() === SUPER_ADMIN_EMAIL || user.isSuperAdmin;
+    if (!isSelfSuperAdmin) {
+      throw new Error('Only the Super Admin (bhelavevicky66@gmail.com) can ban or unban accounts.');
+    }
+
+    // Optimistically update local states immediately
+    setAllRegisteredUsers(prev => prev.map(u => (u.uid === targetUid || u.id === targetUid) ? { ...u, isBanned: nextIsBanned } : u));
+    setContacts(prev => prev.map(c => c.id === targetUid ? { ...c, isBanned: nextIsBanned } : c));
+    if (user.id === targetUid || user.firebaseUid === targetUid) {
+      setUser(prev => ({ ...prev, isBanned: nextIsBanned }));
+    }
+
+    if (db && targetUid) {
+      await updateDoc(doc(db, 'users', targetUid), {
+        isBanned: nextIsBanned,
+        bannedAt: nextIsBanned ? serverTimestamp() : null,
+        bannedBy: nextIsBanned ? (authUser.email || 'Super Admin') : null,
+        updatedAt: serverTimestamp(),
+      }).catch(err => console.error('Error toggling user ban status:', err));
+    }
+  };
+
+  // Real-time listener for Reports Collection
+  useEffect(() => {
+    if (!db || !authUser) {
+      setReports([]);
+      return;
+    }
+
+    try {
+      const reportsQuery = query(collection(db, 'reports'));
+      const unsub = onSnapshot(reportsQuery, (snapshot) => {
+        const list: UserReport[] = [];
+        snapshot.docs.forEach(docSnap => {
+          const data = docSnap.data();
+          list.push({
+            id: docSnap.id,
+            reportedUid: data.reportedUid || '',
+            reportedName: data.reportedName || 'User',
+            reportedEmail: data.reportedEmail || '',
+            reportedPhoto: data.reportedPhoto || '',
+            reporterUid: data.reporterUid || '',
+            reporterName: data.reporterName || 'User',
+            reporterEmail: data.reporterEmail || '',
+            reason: data.reason || 'No reason specified',
+            status: data.status || 'pending',
+            createdAt: data.createdAt,
+          });
+        });
+        // Sort by createdAt desc
+        list.sort((a, b) => {
+          const tA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0);
+          const tB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0);
+          return tB - tA;
+        });
+        setReports(list);
+      }, (err) => {
+        console.warn('Reports snapshot warning:', err);
+      });
+
+      return () => unsub();
+    } catch (e) {
+      console.warn('Reports listener error:', e);
+    }
+  }, [authUser, db]);
+
+  // Real-time listener on current user doc to instantly catch banning
+  useEffect(() => {
+    if (!db || !authUser) return;
+
+    try {
+      const myUserRef = doc(db, 'users', authUser.uid);
+      const unsub = onSnapshot(myUserRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (Boolean(data.isBanned) !== Boolean(user.isBanned)) {
+            setUser(prev => ({ ...prev, isBanned: Boolean(data.isBanned) }));
+          }
+        }
+      }, (err) => {
+        console.warn('My user doc snapshot warning:', err);
+      });
+      return () => unsub();
+    } catch (e) {}
+  }, [authUser, db, user.isBanned]);
+
+  const submitUserReport = async (reportedUid: string, reason: string, reportedUserData?: any) => {
+    if (!authUser || !reportedUid) return;
+
+    const reportedUserObj = allRegisteredUsers.find(u => u.uid === reportedUid || u.id === reportedUid) || reportedUserData;
+
+    const reportPayload = {
+      reportedUid,
+      reportedName: reportedUserObj?.displayName || reportedUserObj?.name || reportedUserData?.name || 'User',
+      reportedEmail: reportedUserObj?.email || reportedUserData?.email || '',
+      reportedPhoto: reportedUserObj?.photoURL || reportedUserObj?.avatar || reportedUserData?.avatar || '',
+      reporterUid: authUser.uid,
+      reporterName: user.name || authUser.displayName || 'User',
+      reporterEmail: authUser.email || user.email || '',
+      reason: reason.trim() || 'Reported by user',
+      status: 'pending',
+      createdAt: serverTimestamp(),
+    };
+
+    if (db) {
+      await addDoc(collection(db, 'reports'), reportPayload);
+    }
+  };
+
+  const updateReportStatus = async (reportId: string, status: 'reviewed' | 'resolved' | 'dismissed') => {
+    setReports(prev => prev.map(r => r.id === reportId ? { ...r, status } : r));
+    if (db && reportId) {
+      await updateDoc(doc(db, 'reports', reportId), {
+        status,
+        updatedAt: serverTimestamp(),
+      }).catch(err => console.error('Error updating report status:', err));
+    }
+  };
+
+  const deleteReport = async (reportId: string) => {
+    setReports(prev => prev.filter(r => r.id !== reportId));
+    if (db && reportId) {
+      await deleteDoc(doc(db, 'reports', reportId)).catch(err => console.error('Error deleting report:', err));
     }
   };
 
@@ -6042,7 +6200,12 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       deleteAdminWallpaper,
       toggleUserAdminStatus,
       toggleUserVerifiedBadge,
+      toggleUserBannedStatus,
       followUserDirectly,
+      reports,
+      submitUserReport,
+      updateReportStatus,
+      deleteReport,
     }}>
       {children}
     </VaultContext.Provider>

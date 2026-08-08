@@ -28,6 +28,7 @@ import { SetChatWallpaperModal } from './SetChatWallpaperModal';
 import { SelectMembersModal } from './SelectMembersModal';
 import { WallpaperSuccessOverlay } from './WallpaperSuccessOverlay';
 import { StatusReplyCard } from './StatusReplyCard';
+import { ReportUserModal } from './ReportUserModal';
 import { renderTextWithLinks } from '../lib/linkUtils';
 import { getGroupMembersList } from '../lib/groupUtils';
 
@@ -293,6 +294,8 @@ export const ChatWindow: React.FC = () => {
       return {};
     }
   });
+
+  const [showReportModal, setShowReportModal] = useState(false);
 
   const groupAvatarInputRef = useRef<HTMLInputElement>(null);
   const groupWallpaperInputRef = useRef<HTMLInputElement>(null);
@@ -1775,14 +1778,14 @@ export const ChatWindow: React.FC = () => {
                       type="button"
                       onClick={() => {
                         setShowHeaderMenu(false);
-                        showToast(`Reported ${contact.name}`);
+                        setShowReportModal(true);
                       }}
                       className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors text-red-500 font-semibold ${
                         isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
                       }`}
                     >
                       <Flag className="w-4.5 h-4.5 text-red-500" />
-                      <span>Report</span>
+                      <span>Report User</span>
                     </button>
 
                   </div>
@@ -4397,6 +4400,21 @@ export const ChatWindow: React.FC = () => {
             <span className="text-sm font-medium">Opening status...</span>
           </div>
         </div>
+      )}
+
+      {/* Report User Modal */}
+      {showReportModal && contact && (
+        <ReportUserModal
+          isOpen={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          reportedUser={{
+            id: contact.id,
+            name: getContactDisplayName(contact),
+            avatar: contact.avatar,
+            email: contact.email,
+            username: contact.username,
+          }}
+        />
       )}
 
       {/* Reused Fullscreen Status Viewer */}

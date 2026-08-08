@@ -18,10 +18,25 @@ export interface UserProfile {
   isAdmin?: boolean;
   isSuperAdmin?: boolean;
   isVerified?: boolean;
+  isBanned?: boolean;
   passcode?: string;
   hasUsername?: boolean;
   hasChatPassword?: boolean;
   isProfileComplete?: boolean;
+}
+
+export interface UserReport {
+  id: string;
+  reportedUid: string;
+  reportedName: string;
+  reportedEmail?: string;
+  reportedPhoto?: string;
+  reporterUid: string;
+  reporterName: string;
+  reporterEmail?: string;
+  reason: string;
+  status: 'pending' | 'reviewed' | 'resolved' | 'dismissed';
+  createdAt: any;
 }
 
 export type CallType = 'voice' | 'video';

@@ -13,6 +13,7 @@ import LoginPage from './components/LoginPage';
 import { UsernameModal } from './components/UsernameModal';
 import { ChatPasswordModal } from './components/ChatPasswordModal';
 import { SplashScreen } from './components/SplashScreen';
+import { BannedAccountModal } from './components/BannedAccountModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 const AppContent: React.FC = () => {
@@ -84,9 +85,12 @@ const AppContent: React.FC = () => {
 
   // Existing user with completed profile -> Main Application
   return (
-    <AndroidFrame>
-      <VaultContainer />
-    </AndroidFrame>
+    <>
+      <BannedAccountModal />
+      <AndroidFrame>
+        <VaultContainer />
+      </AndroidFrame>
+    </>
   );
 };
 

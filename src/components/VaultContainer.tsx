@@ -27,17 +27,20 @@ export const VaultContainer: React.FC = () => {
       setShowUnlockSplash(true);
       setIsFadingOut(false);
 
+      let fadeTimer: NodeJS.Timeout;
       const timer = setTimeout(() => {
         setIsFadingOut(true);
-        const fadeTimer = setTimeout(() => {
+        fadeTimer = setTimeout(() => {
           setShowUnlockSplash(false);
         }, 500);
-        return () => clearTimeout(fadeTimer);
-      }, 1400);
+      }, 1000);
 
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        if (fadeTimer) clearTimeout(fadeTimer);
+      };
     } else {
-      setShowUnlockSplash(true);
+      setShowUnlockSplash(false);
       setIsFadingOut(false);
     }
   }, [isUnlocked]);

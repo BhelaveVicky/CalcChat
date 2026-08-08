@@ -22,32 +22,29 @@ const AppContent: React.FC = () => {
   const prevAuthUserUid = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
-    // Determine if auth state or session changed
-    const currentUid = authUser ? authUser.uid : null;
-    
-    // Always trigger splash screen on initial load, reload, session restore, or login/logout state change
+    // If auth is not ready yet, keep splash screen visible
     if (!authReady) {
       setShowSplash(true);
       setIsFadingOut(false);
       return;
     }
 
-    // Trigger splash screen
+    // Trigger splash screen fade sequence once auth is ready
     setShowSplash(true);
     setIsFadingOut(false);
 
+    let fadeTimer: NodeJS.Timeout;
     const timer = setTimeout(() => {
       setIsFadingOut(true);
-      const fadeTimer = setTimeout(() => {
+      fadeTimer = setTimeout(() => {
         setShowSplash(false);
       }, 500); // 500ms fade out transition
+    }, 1200); // 1.2s display time
 
-      return () => clearTimeout(fadeTimer);
-    }, 1500); // minimum 1.5s display for smooth premium feel
-
-    prevAuthUserUid.current = currentUid;
-
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      if (fadeTimer) clearTimeout(fadeTimer);
+    };
   }, [authReady, authUser?.uid]);
 
   // Mandatory Splash Screen overlay during launch, reload, login, or session initialization

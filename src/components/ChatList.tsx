@@ -12,6 +12,8 @@ import { NicknameModal } from './NicknameModal';
 import { formatChatDate, formatMessageTime, formatLastSeen } from '../lib/dateUtils.ts';
 import { WhatsAppProfileViewer } from './WhatsAppProfileViewer';
 import { checkIsAdmin, VerifiedBadge } from '../lib/adminUtils';
+import { AIChatWindow } from './AIChatWindow';
+import { PINK_AI_AVATAR_SVG } from '../assets/aiAvatarData';
 
 export const ChatList: React.FC = () => {
   const navigate = useNavigate();
@@ -82,6 +84,43 @@ export const ChatList: React.FC = () => {
   const [previewContact, setPreviewContact] = useState<any | null>(null);
   const [fullImageContact, setFullImageContact] = useState<Contact | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [showAIChat, setShowAIChat] = useState<boolean>(false);
+  const [aiConversations, setAiConversations] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem('calcchat_ai_conversations_v2');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [aiPinned, setAiPinned] = useState<boolean>(() => localStorage.getItem('calcchat_ai_pinned') === 'true');
+  const [aiMuted, setAiMuted] = useState<boolean>(() => localStorage.getItem('calcchat_ai_muted') === 'true');
+
+  const reloadAiConvs = () => {
+    try {
+      const saved = localStorage.getItem('calcchat_ai_conversations_v2');
+      setAiConversations(saved ? JSON.parse(saved) : []);
+    } catch {
+      setAiConversations([]);
+    }
+  };
+
+  useEffect(() => {
+    reloadAiConvs();
+    const handleAiUpdate = () => reloadAiConvs();
+    window.addEventListener('calcchat_ai_updated', handleAiUpdate);
+    window.addEventListener('storage', handleAiUpdate);
+    return () => {
+      window.removeEventListener('calcchat_ai_updated', handleAiUpdate);
+      window.removeEventListener('storage', handleAiUpdate);
+    };
+  }, []);
+
+  // Active AI conversation check
+  const activeAiConv = React.useMemo(() => {
+    if (!aiConversations || !Array.isArray(aiConversations)) return null;
+    return aiConversations.find((c: any) => c.messages && Array.isArray(c.messages) && c.messages.some((m: any) => m.sender === 'user')) || null;
+  }, [aiConversations]);
 
   const selectableMembers = React.useMemo(() => {
     const map = new Map<string, { id: string; name: string; avatar: string; username?: string }>();
@@ -356,6 +395,20 @@ export const ChatList: React.FC = () => {
     setActiveContactId(newGroupId);
   };
 
+  if (showAIChat) {
+    return (
+      <AIChatWindow
+        onClose={() => {
+          setShowAIChat(false);
+          reloadAiConvs();
+        }}
+        onClearAIChatFromList={() => {
+          reloadAiConvs();
+        }}
+      />
+    );
+  }
+
   return (
     <div className={`flex-1 flex flex-col overflow-hidden relative font-sans select-none h-full min-h-0 transition-colors ${isDark ? 'bg-[#0b141a] text-[#e9edef]' : 'bg-white text-gray-900'
       }`}>
@@ -463,6 +516,130 @@ export const ChatList: React.FC = () => {
 
       {/* Conversations & Global Search List */}
       <div className="flex-1 overflow-y-auto divide-y divide-transparent min-h-0 no-scrollbar">
+        {/* AI Assistant Contact Item - ONLY VISIBLE AFTER USER SENDS FIRST MESSAGE */}
+        {!showArchivedOnly && (!search.trim() || 'calcchat ai assistant'.includes(search.toLowerCase()) || 'ai'.includes(search.toLowerCase())) && activeAiConv && (
+          (() => {
+            const lastAiMsg = activeAiConv.messages && activeAiConv.messages.length > 0 
+              ? activeAiConv.messages[activeAiConv.messages.length - 1] 
+              : null;
+            return (
+              <div
+                onClick={() => setShowAIChat(true)}
+                className={`p-3 sm:p-3.5 mx-2 my-1.5 rounded-2xl transition-all cursor-pointer flex items-center justify-between border select-none group relative ${
+                  isDark
+                    ? 'bg-[#182229] hover:bg-[#202c33] border-[#2a3942]/60 text-white'
+                    : 'bg-white hover:bg-slate-50 border-gray-100 text-gray-900 shadow-sm'
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="relative shrink-0">
+                    <div className="w-12 h-12 rounded-2xl overflow-hidden p-0.5 bg-gradient-to-tr from-[#ff2e93] via-[#ff62b0] to-[#f43f5e] shadow-md shadow-pink-500/20 group-hover:scale-105 transition-transform">
+                      <img src={PINK_AI_AVATAR_SVG} alt="AI Bot" className="w-full h-full object-cover rounded-xl" />
+                    </div>
+                    <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-[#0b141a] rounded-full animate-pulse" />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <h4 className="font-bold text-sm truncate tracking-wide text-white">CalcChat AI Assistant</h4>
+                        <span className="bg-[#ff2e93] text-white text-[9px] font-black px-1.5 py-0.2 rounded shadow-sm">AI</span>
+                        {aiMuted && <BellOff className="w-3.5 h-3.5 text-gray-400 shrink-0 opacity-80" />}
+                        {aiPinned && <Pin className="w-3.5 h-3.5 rotate-45 text-pink-400 shrink-0" />}
+                      </div>
+                      <span className="text-[10px] text-gray-400 font-medium">
+                        {lastAiMsg ? lastAiMsg.timestamp : ''}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-400 truncate mt-0.5 flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-[#ff2e93] shrink-0" />
+                      <span className="truncate">
+                        {lastAiMsg ? (lastAiMsg.sender === 'user' ? `You: ${lastAiMsg.text}` : lastAiMsg.text) : 'Ask me anything'}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* AI Chat Menu Options */}
+                <div className="relative ml-2" onClick={e => e.stopPropagation()}>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenMenuId(openMenuId === 'ai_chat_menu' ? null : 'ai_chat_menu');
+                    }}
+                    className="p-1.5 text-gray-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+                    title="More options"
+                  >
+                    <MoreVertical className="w-4 h-4" />
+                  </button>
+
+                  {openMenuId === 'ai_chat_menu' && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setOpenMenuId(null)} />
+                      <div className={`absolute right-0 top-8 z-50 rounded-2xl shadow-2xl py-2 w-48 text-xs font-sans border ${
+                        isDark ? 'bg-[#233138] border-[#2a3942] text-[#e9edef]' : 'bg-white border-gray-200 text-gray-800'
+                      }`}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOpenMenuId(null);
+                            setShowAIChat(true);
+                          }}
+                          className="w-full text-left px-4 py-2.5 hover:bg-white/10 flex items-center gap-2.5 cursor-pointer font-medium"
+                        >
+                          <MessageSquare className="w-4 h-4 text-[#ff2e93]" />
+                          <span>Open Chat</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOpenMenuId(null);
+                            const nextPinned = !aiPinned;
+                            setAiPinned(nextPinned);
+                            localStorage.setItem('calcchat_ai_pinned', nextPinned ? 'true' : 'false');
+                          }}
+                          className="w-full text-left px-4 py-2.5 hover:bg-white/10 flex items-center gap-2.5 cursor-pointer font-medium"
+                        >
+                          <Pin className="w-4 h-4 text-amber-400" />
+                          <span>{aiPinned ? 'Unpin Chat' : 'Pin Chat'}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOpenMenuId(null);
+                            const nextMuted = !aiMuted;
+                            setAiMuted(nextMuted);
+                            localStorage.setItem('calcchat_ai_muted', nextMuted ? 'true' : 'false');
+                          }}
+                          className="w-full text-left px-4 py-2.5 hover:bg-white/10 flex items-center gap-2.5 cursor-pointer font-medium"
+                        >
+                          <BellOff className="w-4 h-4 text-cyan-400" />
+                          <span>{aiMuted ? 'Unmute' : 'Mute Notifications'}</span>
+                        </button>
+                        <div className="my-1 border-t border-gray-700/50" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOpenMenuId(null);
+                            localStorage.removeItem('calcchat_ai_conversations_v2');
+                            localStorage.removeItem('calcchat_active_ai_id_v2');
+                            window.dispatchEvent(new Event('calcchat_ai_updated'));
+                            setToastMsg('AI Chat cleared & removed');
+                          }}
+                          className="w-full text-left px-4 py-2.5 hover:bg-rose-500/20 text-rose-400 flex items-center gap-2.5 cursor-pointer font-semibold"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span>Clear / Delete Chat</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })()
+        )}
         {/* Global User Search Section when user is typing in search input */}
         {search.trim().length > 0 && (
           <div className="p-4 border-b border-[#2a3942]/40">
@@ -1110,6 +1287,23 @@ export const ChatList: React.FC = () => {
           })
         )}
       </div>
+
+      {/* Floating Action Button (Pink AI Assistant) - Positioned directly ABOVE Create Group button */}
+      <button
+        type="button"
+        onClick={() => {
+          setShowAIChat(true);
+        }}
+        className="absolute bottom-20 right-4 z-30 w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-[#ff2e93] via-[#ff62b0] to-[#f43f5e] hover:brightness-110 active:scale-90 text-white shadow-2xl shadow-pink-500/40 flex items-center justify-center transition-all cursor-pointer border-2 border-white/40 group overflow-hidden"
+        title="CalcChat AI Assistant"
+      >
+        <div className="w-full h-full p-1 flex items-center justify-center relative">
+          <img src={PINK_AI_AVATAR_SVG} alt="AI Bot" className="w-full h-full object-cover rounded-xl group-hover:scale-110 transition-transform" />
+          <span className="absolute -top-1 -right-1 bg-gradient-to-r from-pink-500 to-rose-500 text-[9px] font-black px-1.5 py-0.2 rounded-full border border-white text-white shadow-md">
+            AI
+          </span>
+        </div>
+      </button>
 
       {/* Floating Action Button (New Group) - Shown on Chat section above bottom bar */}
       <button

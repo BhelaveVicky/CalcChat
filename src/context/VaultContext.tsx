@@ -21,6 +21,7 @@ import { compressImage } from '../lib/mediaCompressor';
 import { saveMediaBlob, getMediaBlob } from '../lib/mediaStorage';
 import { extractVideoMetadata } from '../lib/videoUtils';
 import { playMessageArrivalSound } from '../lib/soundUtils';
+import { getContactNotificationSettings } from '../lib/contactSettings';
 import { formatStatusTime, parseMessageDate, formatLastSeen } from '../lib/dateUtils';
 import { getGroupMembersList } from '../lib/groupUtils';
 
@@ -287,6 +288,7 @@ const fallbackVaultContext: VaultContextType = {
   isFriend: () => false,
   searchFirebaseUsers: async () => [],
   postStatusUpdate: async () => {},
+  reshareStatus: async () => ({ success: false, message: '' }),
   deleteStatusUpdate: async () => {},
   likeStatusUpdate: async () => {},
   markStatusAsSeen: async () => {},
@@ -1018,6 +1020,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const isLocallyCompleted = localStorage.getItem(`calcchat_profile_completed_${fbUser.uid}`) === 'true';
       const localUsername = localStorage.getItem(`calcchat_username_${fbUser.uid}`) || '';
       const localPasscode = localStorage.getItem(`calcchat_passcode_${fbUser.uid}`) || '1234';
+      const localAvatar = localStorage.getItem(`calcchat_custom_avatar_${fbUser.uid}`);
 
       const userHasCompleted = isLocallyCompleted || Boolean(localUsername) || Boolean(fbUser.displayName);
 
@@ -1025,7 +1028,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         id: fbUser.uid,
         name: fbUser.displayName || localUsername || 'User',
         username: localUsername || (fbUser.displayName ? fbUser.displayName.toLowerCase().replace(/\s+/g, '_') : ''),
-        avatar: fbUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+        avatar: localAvatar || fbUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
         status: 'Available on Secret Vault',
         isOnline: true,
         email: fbUser.email || '',
@@ -1065,7 +1068,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const userRef = doc(db, 'users', fbUser.uid);
       const snap = await getDoc(userRef).catch(() => null);
       if (!snap || !snap.exists()) {
-        const photoURL = fbUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=1200&auto=format&fit=crop&q=95';
+        const localAvatar = localStorage.getItem(`calcchat_custom_avatar_${fbUser.uid}`);
+        const photoURL = localAvatar || fbUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=1200&auto=format&fit=crop&q=95';
 
         await setDoc(userRef, {
           uid: fbUser.uid,
@@ -1101,6 +1105,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     const unsubscribe = onAuthStateChanged(firebaseAuth, async (fbUser) => {
+      let isLocallyCompleted = false;
+      let localSavedUsername: string | null = null;
+
       try {
         setAuthUser(fbUser);
 
@@ -1118,8 +1125,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           return;
         }
 
-        const isLocallyCompleted = localStorage.getItem(`calcchat_profile_completed_${fbUser.uid}`) === 'true';
-        const localSavedUsername = localStorage.getItem(`calcchat_username_${fbUser.uid}`);
+        if (fbUser) {
+          isLocallyCompleted = localStorage.getItem(`calcchat_profile_completed_${fbUser.uid}`) === 'true';
+          localSavedUsername = localStorage.getItem(`calcchat_username_${fbUser.uid}`);
+        }
 
         // Check local state first to prevent unnecessary setup modal flashes for returning users
         if (isLocallyCompleted) {
@@ -1168,11 +1177,14 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const resolvedUsername = uData.username || localSavedUsername || (fbUser.displayName ? fbUser.displayName.toLowerCase().replace(/\s+/g, '_') : '');
           const userPasscode = uData.passcode || uData.settings?.passcode || '1234';
 
+          const localCustomAvatar = localStorage.getItem(`calcchat_custom_avatar_${fbUser.uid}`);
+          const resolvedAvatar = uData.avatar || uData.photoURL || localCustomAvatar || fbUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=1200&auto=format&fit=crop&q=95';
+
           setUser({
             id: fbUser.uid,
             name: uData.displayName || fbUser.displayName || resolvedUsername || 'User',
             username: resolvedUsername,
-            avatar: uData.avatar || uData.photoURL || fbUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=1200&auto=format&fit=crop&q=95',
+            avatar: resolvedAvatar,
             status: uData.status || 'Available on Secret Vault',
             isOnline: true,
             email: fbUser.email || '',
@@ -1366,13 +1378,14 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const uList: any[] = [];
       snapshot.docs.forEach(docSnap => {
         const data = docSnap.data();
+        const resolvedAvatar = data.avatar || data.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
         uList.push({
           uid: docSnap.id,
           id: docSnap.id,
           displayName: data.displayName || data.username || 'User',
           username: data.username || '',
-          photoURL: data.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-          avatar: data.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+          photoURL: resolvedAvatar,
+          avatar: resolvedAvatar,
           about: data.about || data.status || 'Available on CalcChat',
           status: data.status || data.about || 'Available on CalcChat',
           online: Boolean(data.online),
@@ -1447,11 +1460,12 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const combined = Array.from(new Set([...uids1, ...uids2]));
       setFriendUids(combined);
 
+      const myAvatar = user.avatar || (authUser ? localStorage.getItem(`calcchat_custom_avatar_${authUser.uid}`) : null) || authUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
       const selfContact: Contact = {
         id: authUser.uid,
         name: user.name ? `${user.name} (You)` : 'You (Message Yourself)',
         username: user.username,
-        avatar: user.avatar || authUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+        avatar: myAvatar,
         status: 'Message yourself • Personal Notes',
         isOnline: true,
         lastSeen: 'Online',
@@ -1476,7 +1490,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               id: fUid,
               name: data.displayName || data.username || 'User',
               username: data.username,
-              avatar: data.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+              avatar: data.avatar || data.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
               status: data.status || 'Available on Secret Vault',
               isOnline: false,
               lastSeen: (data.lastSeen && typeof data.lastSeen === 'object' && typeof data.lastSeen.seconds === 'number') ? formatLastSeen(data.lastSeen) : (data.lastSeen || 'Offline'),
@@ -1537,8 +1551,11 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (data.activeCall && data.activeCall.status === 'active') {
           const callParts: GroupCallParticipant[] = Array.isArray(data.activeCall.participants) ? data.activeCall.participants : [];
           const isInCall = callParts.some(p => p.uid === authUser.uid || p.uid === user.id);
-          
-          if (!isInCall && !activeCallRef.current) {
+          const grpNotif = getContactNotificationSettings(data.groupId || gId);
+          const globalCallNotif = localStorage.getItem('calcchat_global_notify_calls') !== 'false';
+          const globalGrpNotif = localStorage.getItem('calcchat_global_notify_groups') !== 'false';
+
+          if (!isInCall && !activeCallRef.current && grpNotif.callNotifications && globalCallNotif && globalGrpNotif) {
             // Trigger incoming group call for group members
             setActiveCall({
               id: data.activeCall.callId || 'group_call_' + gId,
@@ -1661,7 +1678,17 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               const data = change.doc.data();
               if (data.senderId && data.senderId !== authUser.uid) {
                 const isMuted = mutedContactIds.includes(data.senderId) || mutedContactIds.includes(targetId);
-                if (!isMuted) {
+                const senderNotif = getContactNotificationSettings(data.senderId);
+                const targetNotif = getContactNotificationSettings(targetId);
+                const globalMsgNotif = localStorage.getItem('calcchat_global_notify_messages') !== 'false';
+                const globalGrpNotif = localStorage.getItem('calcchat_global_notify_groups') !== 'false';
+                const isGroup = groupContacts.some(g => g.id === targetId) || targetId.startsWith('group_');
+
+                const isNotifAllowed = isGroup
+                  ? (globalGrpNotif && senderNotif.chatNotifications && targetNotif.chatNotifications)
+                  : (globalMsgNotif && senderNotif.chatNotifications && targetNotif.chatNotifications);
+
+                if (!isMuted && isNotifAllowed) {
                   playMessageArrivalSound(data.senderId);
                 }
               }
@@ -2101,7 +2128,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     const userRef = doc(db, 'users', authUser.uid);
-    const photoURL = authUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
+    const localCustomAvatar = localStorage.getItem(`calcchat_custom_avatar_${authUser.uid}`);
+    const photoURL = user.avatar || localCustomAvatar || authUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
 
     await runTransaction(db, async (transaction) => {
       const usernameRef = doc(db, 'usernames', uLower);
@@ -3445,6 +3473,16 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           return;
         }
 
+        const callerNotif = getContactNotificationSettings(data.callerId);
+        const globalCallNotif = localStorage.getItem('calcchat_global_notify_calls') !== 'false';
+
+        if (!callerNotif.callNotifications || !globalCallNotif) {
+          if (data.status === 'ringing') {
+            updateDoc(doc(db, 'calls', callId), { status: 'rejected' }).catch(() => {});
+          }
+          return;
+        }
+
         if (activeCallRef.current && activeCallRef.current.id !== callId) {
           if (data.status === 'ringing') {
             updateDoc(doc(db, 'calls', callId), { status: 'busy' }).catch(() => {});
@@ -4565,6 +4603,12 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     try {
       localStorage.setItem('secret_vault_user_profile', JSON.stringify(updatedUser));
+      if (newProfile.avatar) {
+        localStorage.setItem(`calcchat_custom_avatar_${user.id}`, newProfile.avatar);
+        if (authUser?.uid) {
+          localStorage.setItem(`calcchat_custom_avatar_${authUser.uid}`, newProfile.avatar);
+        }
+      }
     } catch (_) {}
 
     // Synchronize contacts or allRegisteredUsers if self is listed
@@ -4593,9 +4637,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       if (newProfile.avatar || newProfile.name) {
+        const photoUrlToUpdate = (newProfile.avatar && newProfile.avatar.length < 2000) ? newProfile.avatar : undefined;
         await updateAuthProfile(authUser, {
           displayName: newProfile.name || authUser.displayName || undefined,
-          photoURL: newProfile.avatar || authUser.photoURL || undefined,
+          ...(photoUrlToUpdate ? { photoURL: photoUrlToUpdate } : {}),
         }).catch(() => {});
       }
     }

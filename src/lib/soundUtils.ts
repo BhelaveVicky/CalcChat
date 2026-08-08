@@ -2,6 +2,9 @@ import { getContactNotificationSettings } from './contactSettings';
 
 // Web Audio API soft message arrival tone
 export function playMessageArrivalSound(senderId?: string) {
+  const globalMsgNotif = localStorage.getItem('calcchat_global_notify_messages') !== 'false';
+  if (!globalMsgNotif) return;
+
   if (senderId) {
     const settings = getContactNotificationSettings(senderId);
     if (!settings.chatNotifications) {

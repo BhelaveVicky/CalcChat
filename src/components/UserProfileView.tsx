@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   User, Key, Lock, MessageSquare, Bell, Keyboard, LogOut, Search, X, 
-  Camera, Check, Eye, Edit3, RotateCw, ZoomIn, ZoomOut, RefreshCw,
+  Camera, Check, Eye, EyeOff, Edit3, RotateCw, ZoomIn, ZoomOut, RefreshCw,
   ChevronLeft, ChevronRight, Circle, Info, Smile, CheckCheck,
   Ban, UserPlus, Plus, ShieldAlert, Trash2, Code2, Heart, Sparkles,
   Users, Phone, ShieldCheck, Crown, Activity, BadgeCheck, Palette, MoreHorizontal
@@ -69,10 +69,10 @@ export const UserProfileView: React.FC = () => {
   const [showCreatorModal, setShowCreatorModal] = useState(false);
   const [showChatsModal, setShowChatsModal] = useState(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
-  const [notifyMessages, setNotifyMessages] = useState(true);
-  const [notifyGroups, setNotifyGroups] = useState(true);
-  const [notifyStatus, setNotifyStatus] = useState(true);
-  const [notifyCalls, setNotifyCalls] = useState(true);
+  const [notifyMessages, setNotifyMessages] = useState(() => localStorage.getItem('calcchat_global_notify_messages') !== 'false');
+  const [notifyGroups, setNotifyGroups] = useState(() => localStorage.getItem('calcchat_global_notify_groups') !== 'false');
+  const [notifyStatus, setNotifyStatus] = useState(() => localStorage.getItem('calcchat_global_notify_status') !== 'false');
+  const [notifyCalls, setNotifyCalls] = useState(() => localStorage.getItem('calcchat_global_notify_calls') !== 'false');
   const [showClearHistoryConfirmModal, setShowClearHistoryConfirmModal] = useState(false);
   const [blockSearch, setBlockSearch] = useState('');
 
@@ -2125,8 +2125,10 @@ export const UserProfileView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => {
-                  setNotifyMessages(!notifyMessages);
-                  showSnack(`Messages notifications turned ${!notifyMessages ? 'On' : 'Off'}`);
+                  const nextVal = !notifyMessages;
+                  setNotifyMessages(nextVal);
+                  localStorage.setItem('calcchat_global_notify_messages', String(nextVal));
+                  showSnack(`Messages notifications turned ${nextVal ? 'On' : 'Off'}`);
                 }}
                 className={`w-12 h-7 shrink-0 rounded-full p-1 transition-colors relative focus:outline-none cursor-pointer ${
                   notifyMessages ? 'bg-[#0095f6]' : (isDark ? 'bg-gray-700' : 'bg-gray-300')
@@ -2138,13 +2140,13 @@ export const UserProfileView: React.FC = () => {
               </button>
             </div>
 
-            {/* 2. Groups */}
+            {/* 2. Group Calls / Notifications */}
             <div className="py-4 flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <Users className={`w-6 h-6 shrink-0 ${isDark ? 'text-[#8696a0]' : 'text-gray-700'}`} />
                 <div>
                   <h3 className={`text-base font-semibold ${isDark ? 'text-[#e9edef]' : 'text-gray-900'}`}>
-                    Groups
+                    Group Calls / Notifications
                   </h3>
                   <p className={`text-sm mt-0.5 ${isDark ? 'text-[#8696a0]' : 'text-gray-500'}`}>
                     {notifyGroups ? 'On' : 'Off'}
@@ -2156,8 +2158,10 @@ export const UserProfileView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => {
-                  setNotifyGroups(!notifyGroups);
-                  showSnack(`Groups notifications turned ${!notifyGroups ? 'On' : 'Off'}`);
+                  const nextVal = !notifyGroups;
+                  setNotifyGroups(nextVal);
+                  localStorage.setItem('calcchat_global_notify_groups', String(nextVal));
+                  showSnack(`Groups notifications turned ${nextVal ? 'On' : 'Off'}`);
                 }}
                 className={`w-12 h-7 shrink-0 rounded-full p-1 transition-colors relative focus:outline-none cursor-pointer ${
                   notifyGroups ? 'bg-[#0095f6]' : (isDark ? 'bg-gray-700' : 'bg-gray-300')
@@ -2187,8 +2191,10 @@ export const UserProfileView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => {
-                  setNotifyStatus(!notifyStatus);
-                  showSnack(`Status notifications turned ${!notifyStatus ? 'On' : 'Off'}`);
+                  const nextVal = !notifyStatus;
+                  setNotifyStatus(nextVal);
+                  localStorage.setItem('calcchat_global_notify_status', String(nextVal));
+                  showSnack(`Status notifications turned ${nextVal ? 'On' : 'Off'}`);
                 }}
                 className={`w-12 h-7 shrink-0 rounded-full p-1 transition-colors relative focus:outline-none cursor-pointer ${
                   notifyStatus ? 'bg-[#0095f6]' : (isDark ? 'bg-gray-700' : 'bg-gray-300')
@@ -2218,8 +2224,10 @@ export const UserProfileView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => {
-                  setNotifyCalls(!notifyCalls);
-                  showSnack(`Calls notifications turned ${!notifyCalls ? 'On' : 'Off'}`);
+                  const nextVal = !notifyCalls;
+                  setNotifyCalls(nextVal);
+                  localStorage.setItem('calcchat_global_notify_calls', String(nextVal));
+                  showSnack(`Calls notifications turned ${nextVal ? 'On' : 'Off'}`);
                 }}
                 className={`w-12 h-7 shrink-0 rounded-full p-1 transition-colors relative focus:outline-none cursor-pointer ${
                   notifyCalls ? 'bg-[#0095f6]' : (isDark ? 'bg-gray-700' : 'bg-gray-300')

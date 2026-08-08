@@ -17,7 +17,7 @@ export const DEFAULT_SETTINGS: VaultSettings = {
   autoLockMinutes: 5,
   hideChatHistory: false,
   disappearingMessages: false,
-  theme: 'material-dark',
+  theme: 'material-light',
   showAndroidFrame: false,
   soundEffects: true,
   chatWallpaper: 'default',

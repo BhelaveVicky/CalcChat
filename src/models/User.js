@@ -49,7 +49,7 @@ const userSchema = new mongoose.Schema({
     },
     theme: {
       type: String,
-      default: 'material-dark'
+      default: 'material-light'
     },
     showAndroidFrame: {
       type: Boolean,
@@ -125,7 +125,7 @@ class MockUser {
       autoLockMinutes: data.settings?.autoLockMinutes !== undefined ? data.settings.autoLockMinutes : 5,
       hideChatHistory: data.settings?.hideChatHistory !== undefined ? data.settings.hideChatHistory : false,
       disappearingMessages: data.settings?.disappearingMessages !== undefined ? data.settings.disappearingMessages : false,
-      theme: data.settings?.theme || 'material-dark',
+      theme: data.settings?.theme || 'material-light',
       showAndroidFrame: data.settings?.showAndroidFrame !== undefined ? data.settings.showAndroidFrame : true,
       soundEffects: data.settings?.soundEffects !== undefined ? data.settings.soundEffects : true,
     };

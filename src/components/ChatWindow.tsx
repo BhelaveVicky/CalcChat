@@ -1411,6 +1411,28 @@ export const ChatWindow: React.FC = () => {
         isDark ? 'bg-[#0b141a] text-[#e9edef]' : 'bg-white text-gray-900'
       }`}>
 
+        {/* Wallpaper Background Layer with Blur & Brightness - Full Chat Canvas */}
+        <div 
+          className="absolute inset-0 transition-all duration-300 bg-cover bg-center bg-no-repeat pointer-events-none z-0"
+          style={{
+            ...(isCustomImage ? {
+              backgroundImage: `url("${chatWallpaper}")`,
+            } : {}),
+            ...(isCustomColor ? {
+              backgroundColor: chatWallpaper,
+              backgroundImage: "url('/dark_blocks_bg.jpg')",
+              backgroundBlendMode: 'overlay',
+            } : (!isCustomImage && isDark) ? {
+              backgroundImage: "url('/dark_blocks_bg.jpg')",
+            } : {
+              backgroundColor: isDark ? '#0b141a' : '#efeae2',
+            }),
+            filter: `blur(${chatWallpaperBlur}px) brightness(${chatWallpaperBrightness}%)`,
+            WebkitFilter: `blur(${chatWallpaperBlur}px) brightness(${chatWallpaperBrightness}%)`,
+            transform: chatWallpaperBlur > 0 ? 'scale(1.15)' : 'none',
+          }}
+        />
+
         {/* Top Chat Header OR Message Selection Toolbar */}
         {isSelectMode ? (
           <MessageSelectionToolbar
@@ -1815,29 +1837,7 @@ export const ChatWindow: React.FC = () => {
 
 
         {/* Messages View Area */}
-        <div className="relative flex-1 min-h-0 overflow-hidden flex flex-col">
-          {/* Wallpaper Background Layer with Blur & Brightness */}
-          <div 
-            className="absolute inset-0 transition-all duration-300 bg-cover bg-center bg-no-repeat pointer-events-none z-0"
-            style={{
-              ...(isCustomImage ? {
-                backgroundImage: `url("${chatWallpaper}")`,
-              } : {}),
-              ...(isCustomColor ? {
-                backgroundColor: chatWallpaper,
-                backgroundImage: "url('/dark_blocks_bg.jpg')",
-                backgroundBlendMode: 'overlay',
-              } : (!isCustomImage && isDark) ? {
-                backgroundImage: "url('/dark_blocks_bg.jpg')",
-              } : {
-                backgroundColor: isDark ? '#0b141a' : '#efeae2',
-              }),
-              filter: `blur(${chatWallpaperBlur}px) brightness(${chatWallpaperBrightness}%)`,
-              WebkitFilter: `blur(${chatWallpaperBlur}px) brightness(${chatWallpaperBrightness}%)`,
-              transform: chatWallpaperBlur > 0 ? 'scale(1.15)' : 'none',
-            }}
-          />
-
+        <div className="relative z-10 flex-1 min-h-0 overflow-hidden flex flex-col bg-transparent">
           {/* Messages Container */}
           <div 
             onClick={() => {
@@ -2599,8 +2599,8 @@ export const ChatWindow: React.FC = () => {
 
         {/* Replying Banner above Input */}
         {replyingToMsg && (
-          <div className={`px-4 py-2 flex items-center justify-between border-t border-[#ff2e93]/30 text-xs animate-fade-in ${
-            isDark ? 'bg-[#182229] text-[#e9edef]' : 'bg-pink-50 text-pink-900'
+          <div className={`px-4 py-2 flex items-center justify-between border-t border-[#ff2e93]/30 text-xs animate-fade-in z-20 ${
+            isDark ? 'bg-[#182229]/80 backdrop-blur-md text-[#e9edef]' : 'bg-pink-50/80 backdrop-blur-md text-pink-900'
           }`}>
             <div className="flex items-center gap-2 border-l-2 border-[#ff2e93] pl-2 truncate">
               <CornerUpLeft className="w-3.5 h-3.5 text-[#ff2e93] shrink-0" />
@@ -2619,8 +2619,8 @@ export const ChatWindow: React.FC = () => {
 
         {/* Editing Banner above Input */}
         {editingMsg && (
-          <div className={`px-4 py-2 flex items-center justify-between border-t border-amber-500/30 text-xs animate-fade-in ${
-            isDark ? 'bg-[#182229] text-[#e9edef]' : 'bg-amber-50 text-amber-900'
+          <div className={`px-4 py-2 flex items-center justify-between border-t border-amber-500/30 text-xs animate-fade-in z-20 ${
+            isDark ? 'bg-[#182229]/80 backdrop-blur-md text-[#e9edef]' : 'bg-amber-50/80 backdrop-blur-md text-amber-900'
           }`}>
             <div className="flex items-center gap-2 border-l-2 border-amber-500 pl-2 truncate">
               <Edit3 className="w-3.5 h-3.5 text-amber-500 shrink-0" />
@@ -2635,7 +2635,7 @@ export const ChatWindow: React.FC = () => {
         {/* Voice Note Recorder Tray */}
         {isRecording ? (
           <div className={`p-3 flex items-center justify-between gap-3 border-t animate-fade-in z-20 ${
-            isDark ? 'bg-[#111b21] border-[#222e35]' : 'bg-white border-gray-200'
+            isDark ? 'bg-[#111b21]/80 backdrop-blur-md border-[#222e35]/60' : 'bg-white/80 backdrop-blur-md border-gray-200'
           }`}>
             <div className="flex items-center gap-3 text-rose-500 font-mono font-bold text-sm">
               <span className="w-3 h-3 bg-rose-500 rounded-full animate-ping shrink-0" />
@@ -2675,7 +2675,7 @@ export const ChatWindow: React.FC = () => {
           </div>
         ) : !isFriend(contact.id) ? (
           <div className={`p-4 border-t flex items-center justify-between gap-3 text-xs font-semibold shrink-0 z-20 ${
-            isDark ? 'bg-[#182229] border-[#2a3942] text-amber-400' : 'bg-amber-50 border-amber-200 text-amber-800'
+            isDark ? 'bg-[#182229]/90 backdrop-blur-md border-[#2a3942]/60 text-amber-400' : 'bg-amber-50/90 backdrop-blur-md border-amber-200 text-amber-800'
           }`}>
             <div className="flex items-center gap-2">
               <Lock className="w-4 h-4 shrink-0 text-amber-400" />
@@ -2723,7 +2723,7 @@ export const ChatWindow: React.FC = () => {
             {/* Attachment Options Popover */}
             {showAttachModal && (
               <div className={`p-4 border-t animate-slide-up grid grid-cols-3 gap-3 shadow-2xl justify-items-center ${
-                isDark ? 'bg-[#111b21] border-[#222e35]' : 'bg-white border-gray-200'
+                isDark ? 'bg-[#111b21]/90 backdrop-blur-md border-[#222e35]' : 'bg-white/90 backdrop-blur-md border-gray-200'
               }`}>
                 {/* Photos */}
                 {canSendImages && (
@@ -2792,7 +2792,7 @@ export const ChatWindow: React.FC = () => {
             {/* Emoji Picker Tray */}
             {showEmojiPicker && (
               <div className={`p-3 border-t animate-slide-up flex flex-col h-64 max-h-72 shadow-2xl transition-all ${
-                isDark ? 'bg-[#111b21] border-[#222e35]' : 'bg-slate-50 border-gray-200'
+                isDark ? 'bg-[#111b21]/95 backdrop-blur-md border-[#222e35]' : 'bg-slate-50/95 backdrop-blur-md border-gray-200'
               }`}>
                 <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-500/20 px-1">
                   <div className="flex items-center gap-2">
@@ -2830,7 +2830,7 @@ export const ChatWindow: React.FC = () => {
             {/* Bottom Input Bar or Blocked Notice */}
             {(blockedContactIds.includes(contact.id) || blockedByContactIds.includes(contact.id)) ? (
               <div className={`p-4 text-center flex flex-col items-center justify-center gap-2 border-t shrink-0 ${
-                isDark ? 'bg-[#111b21] border-[#1f2c34] text-[#8696a0]' : 'bg-gray-100 border-gray-200 text-gray-600'
+                isDark ? 'bg-[#111b21]/80 backdrop-blur-md border-[#1f2c34]/60 text-[#8696a0]' : 'bg-gray-100/80 backdrop-blur-md border-gray-200 text-gray-600'
               }`}>
                 <p className="text-xs font-medium">
                   {blockedContactIds.includes(contact.id)
@@ -2852,7 +2852,7 @@ export const ChatWindow: React.FC = () => {
               </div>
             ) : !canSendMessages ? (
               <div className={`p-4 text-center flex items-center justify-center gap-2 border-t shrink-0 ${
-                isDark ? 'bg-[#111b21] border-[#1f2c34] text-[#8696a0]' : 'bg-gray-100 border-gray-200 text-gray-600'
+                isDark ? 'bg-[#111b21]/80 backdrop-blur-md border-[#1f2c34]/60 text-[#8696a0]' : 'bg-gray-100/80 backdrop-blur-md border-gray-200 text-gray-600'
               }`}>
                 <Lock className="w-4 h-4 text-amber-500 shrink-0" />
                 <span className="text-xs font-semibold">
@@ -2862,11 +2862,11 @@ export const ChatWindow: React.FC = () => {
                 </span>
               </div>
             ) : (
-              <form onSubmit={handleSend} className={`p-2 flex items-center gap-2 shrink-0 transition-colors ${
-                isDark ? 'bg-[#0b141a]' : 'bg-gray-100 border-t border-gray-200'
+              <form onSubmit={handleSend} className={`p-2 flex items-center gap-2 shrink-0 transition-colors z-20 ${
+                isDark ? 'bg-[#0b141a]/60 backdrop-blur-md' : 'bg-gray-100/60 backdrop-blur-md border-t border-gray-200/80'
               }`}>
                 <div className={`flex-1 rounded-full flex items-center px-3 py-1.5 gap-2 border ${
-                  isDark ? 'bg-[#202c33] border-transparent' : 'bg-white border-gray-200'
+                  isDark ? 'bg-[#202c33]/90 border-transparent shadow-sm' : 'bg-white border-gray-200/80 shadow-sm'
                 }`}>
                   <button
                     type="button"

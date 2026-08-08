@@ -1,3 +1,4 @@
+import { GoogleGenAI } from '@google/genai';
 import { CALCCHAT_SYSTEM_PROMPT } from './aiKnowledge';
 
 export interface AIMessage {
@@ -45,6 +46,22 @@ export function isCreatorQuestion(prompt: string): boolean {
 // Fixed response for creator
 export const CREATOR_RESPONSE = "I was created by Vicky Bhelave.";
 
+// Safe Client Gemini SDK initializer
+let genAIInstance: GoogleGenAI | null = null;
+function getGenAI(): GoogleGenAI | null {
+  if (genAIInstance) return genAIInstance;
+  const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || (import.meta as any).env?.GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env?.GEMINI_API_KEY : '');
+  if (apiKey) {
+    try {
+      genAIInstance = new GoogleGenAI({ apiKey });
+      return genAIInstance;
+    } catch (e) {
+      console.warn('Failed to initialize GoogleGenAI with provided key:', e);
+    }
+  }
+  return null;
+}
+
 /**
  * Streams AI chat response chunk by chunk.
  */
@@ -65,7 +82,35 @@ export async function streamAIChatResponse(
     return CREATOR_RESPONSE;
   }
 
-  // 2. Try calling backend Express API server endpoint
+  // 2. Try direct Client Gemini SDK call first if key available
+  const clientGenAI = getGenAI();
+  if (clientGenAI) {
+    try {
+      const responseStream = await clientGenAI.models.generateContentStream({
+        model: 'gemini-2.5-flash',
+        contents: userPrompt,
+        config: {
+          systemInstruction: CALCCHAT_SYSTEM_PROMPT,
+        }
+      });
+
+      let fullText = '';
+      for await (const chunk of responseStream) {
+        if (chunk.text) {
+          fullText += chunk.text;
+          onChunk(chunk.text, fullText);
+        }
+      }
+
+      if (fullText.trim()) {
+        return fullText;
+      }
+    } catch (err) {
+      console.warn('Client Gemini SDK call failed, trying backend endpoint:', err);
+    }
+  }
+
+  // 3. Try calling backend Express API server endpoint
   try {
     const response = await fetch('/api/ai/chat', {
       method: 'POST',
@@ -91,7 +136,7 @@ export async function streamAIChatResponse(
     console.warn('Backend AI API unavailable, using local knowledge base:', err);
   }
 
-  // 3. Fallback Smart Local Knowledge Generator
+  // 4. Fallback Smart Local Knowledge Generator
   return fallbackSmartResponseStream(userPrompt, onChunk);
 }
 
@@ -102,7 +147,7 @@ async function fallbackSmartResponseStream(
   prompt: string,
   onChunk: (chunk: string, fullText: string) => void
 ): Promise<string> {
-  const p = prompt.toLowerCase();
+  const p = prompt.toLowerCase().trim();
   let responseText = '';
 
   // 0. Translation helper check
@@ -118,11 +163,12 @@ async function fallbackSmartResponseStream(
     } else if (p.includes('how are you') && (p.includes('marathi') || p.includes('marathi me'))) {
       responseText = "तुम्ही कसे आहात?";
     } else {
-      // General translation handler
       responseText = `Translation:
 
 ${prompt.replace(/^translate\s+/i, '').replace(/^is\s+/i, '').replace(/\s+ko\s+hindi\s+me\s+translate\s+karo/i, '').replace(/\s+in\s+hindi/i, '')}`;
     }
+  } else if (p === 'hi' || p === 'hello' || p === 'hey' || p === 'hlo') {
+    responseText = `Hello! 👋 How can I help you today? Ask me any study question, homework problem, translation, or CalcChat app setting! 😊`;
   } else if (p.includes('kya feature') || p.includes('kya features') || p.includes('all features') || p.includes('list features') || p.includes('what can you do') || p.includes('what features')) {
     responseText = `### 🌟 CalcChat Main Features List
 
@@ -138,30 +184,57 @@ Here are all the features available in **CalcChat**:
 8. 🔐 **Privacy & Security**: Chat lock with PIN, disappearing messages, user blocking/unblocking, and encrypted backup/restore.`;
   } else if (p.includes('crypto') || p.includes('upi') || p.includes('payment') || p.includes('gps') || p.includes('live location') || p.includes('bank transfer') || p.includes('wallet')) {
     responseText = "This feature is currently not available in CalcChat.";
+  } else if (p.includes('js') || p.includes('javascript') || p.includes('what is js') || p.includes('explain javascript')) {
+    responseText = `### 🟨 What is JavaScript (JS)?
+
+**JavaScript (JS)** is a lightweight, dynamic, and high-level programming language that powers interactive behavior on web pages.
+
+**Key Concepts:**
+1. **Frontend**: DOM manipulation, event handling, animations, React, Vue, Angular.
+2. **Backend**: Node.js, Express.js for building scalable REST APIs & server applications.
+3. **Features**: First-class functions, async/await, closures, promises, JSON object notation.
+
+\`\`\`javascript
+// Example JS Code
+const greet = (name) => {
+  return \`Hello \${name}, welcome to JS!\`;
+};
+console.log(greet('Developer'));
+\`\`\``;
   } else if (p.includes('react') || p.includes('what is react')) {
     responseText = `### ⚛️ What is React?
 
-**React** (also known as React.js) is a popular open-source JavaScript library developed by Facebook/Meta for building modern, interactive User Interfaces (UIs) for web and mobile apps.
+**React** (React.js) is an open-source JavaScript library developed by Meta/Facebook for building modern interactive User Interfaces (UIs).
 
 **Key Features:**
-- **Component-Based Architecture**: UI is broken down into reusable components (like buttons, headers, modals).
-- **Virtual DOM**: Fast performance by minimizing actual browser DOM updates.
-- **JSX**: Allows writing HTML-like code inside JavaScript.
-- **Unidirectional Data Flow**: Clear data passing via props and state management.`;
+- **Component Architecture**: Reusable UI blocks.
+- **Virtual DOM**: Ultra-fast UI rendering.
+- **Hooks**: useState, useEffect, useContext for managing component state.`;
   } else if (p.includes('python') || p.includes('python kya hai')) {
     responseText = `### 🐍 What is Python?
 
-**Python** is a high-level, interpreted, dynamically-typed programming language created by Guido van Rossum in 1991. It is renowned for its simple, clean, and highly readable syntax.
+**Python** is a powerful, high-level, interpreted programming language known for its clean syntax and readability.
 
-**Main Uses:**
-1. **Web Development**: Django, Flask, FastAPI
-2. **Data Science & AI**: Machine Learning, Deep Learning (PyTorch, TensorFlow, Pandas)
-3. **Automation & Scripting**: Writing quick scripts for tasks
-4. **Backend Services & APIs**`;
+**Popular Uses:**
+1. **AI & Machine Learning**: PyTorch, TensorFlow, Scikit-learn
+2. **Data Science**: Pandas, NumPy, Matplotlib
+3. **Web Development**: Django, Flask, FastAPI
+4. **Automation**: Web scraping & scripting`;
   } else if (p.includes('javascript') || p.includes('explain javascript')) {
     responseText = `### 🟨 What is JavaScript?
 
 **JavaScript (JS)** is the core programming language of the Web. Along with HTML and CSS, JavaScript is one of the three core technologies of the World Wide Web, enabling dynamic interactive web pages, front-end frameworks (React, Vue), and server-side runtimes (Node.js).`;
+  } else if (p.includes('study') || p.includes('homework') || p.includes('exam') || p.includes('math') || p.includes('science') || p.includes('physics') || p.includes('chemistry') || p.includes('essay')) {
+    responseText = `### 📚 Study & Homework AI Assistance
+
+I can solve and explain any study subject step-by-step for you:
+
+1. 🔢 **Mathematics**: Algebra, Calculus, Trigonometry, Geometry & Word Problems.
+2. 🔬 **Science**: Physics (Laws of Motion, Electricity), Chemistry (Periodic Table, Reactions), Biology (Cells, Human Anatomy).
+3. 💻 **Computer Science & Coding**: React, JavaScript, Python, C++, HTML/CSS & Data Structures.
+4. 📝 **Writing & Languages**: Essay writing, Grammar correction, Summaries & Multi-language Translation!
+
+*Feel free to type your exact homework problem or subject question above!*`;
   } else if (p.includes('password') || p.includes('passcode')) {
     responseText = `### 🔒 How to Change Your Chat Password / Passcode
 

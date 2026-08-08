@@ -281,7 +281,15 @@ const AIChatWindowInner: React.FC<AIChatWindowProps> = ({ onClose, onClearAIChat
     const welcomeMsg: AIMessage = {
       id: 'welcome_' + Date.now(),
       sender: 'ai',
-      text: `Hello! 👋 I'm your **CalcChat AI Assistant**!\n\nI'm powered by Gemini and possess complete knowledge of **CalcChat**:\n- 🔒 **Password & Lock**: How to change passcodes, chat lock & privacy\n- 👤 **Profile & Account**: Updating usernames, avatar & status\n- 👥 **Group Management**: Creating groups, adding & removing members\n- 🎨 **Customization**: Changing wallpapers, themes & sound effects\n- 📞 **Voice & Video Calls**: Calling contacts smoothly\n- 💻 **General & Coding**: React, JS, Python, Firebase, Math, Hindi & English!\n\nAsk me anything below! 😊`,
+      text: `Hello! 👋 I'm your **CalcChat AI Assistant**!
+
+I'm powered by Gemini and ready to answer **everything** including your **Studies & Homework**:
+- 📚 **Study & Learning**: Step-by-step Math, Science (Physics, Chemistry, Biology), History & Exams
+- 💻 **Coding & Tech**: React, JavaScript, Python, C++, HTML/CSS & debugging
+- 🌐 **Translations & Languages**: Translate text to Hindi, English, Hinglish, Marathi, Spanish, etc.
+- 🔒 **CalcChat App Features**: Passcode change, group creation, wallpapers, chat lock & privacy settings
+
+Ask me any study question, translation, or CalcChat app guide below! 😊`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
@@ -497,12 +505,12 @@ const AIChatWindowInner: React.FC<AIChatWindowProps> = ({ onClose, onClearAIChat
 
   // Quick prompt suggestions
   const QUICK_PROMPTS = [
+    '📚 Help me with study & homework',
+    '🌐 Translate English to Hindi',
     '🔒 How to change password',
-    '👤 How to change username',
     '👥 How to create a group',
-    '🎨 How to change wallpaper',
-    '❓ Who created you?',
-    '💻 What is React hooks?'
+    '💻 Explain React hooks with code',
+    '❓ Who created you?'
   ];
 
   return (

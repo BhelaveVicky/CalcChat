@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, Settings as SettingsIcon } from 'lucide-react';
+import { Sparkles, Settings as SettingsIcon, Delete } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 import { useSettings } from '../context/SettingsContext';
 import { Settings as SettingsComponent } from './Settings';
@@ -39,10 +39,16 @@ export const Calculator: React.FC = () => {
     }
 
     if (val === 'C') {
-      setDisplay('0');
       if (isCalculated) {
+        setDisplay('0');
         setEquation('');
         setIsCalculated(false);
+      } else {
+        if (display.length > 1) {
+          setDisplay(display.slice(0, -1));
+        } else {
+          setDisplay('0');
+        }
       }
       return;
     }
@@ -250,8 +256,9 @@ export const Calculator: React.FC = () => {
                   ? 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
                   : 'bg-gradient-to-br from-[#ff8e6a] to-[#ff5676] hover:from-[#ff9c7b] hover:to-[#ff6785] text-white'
               }`}
+              title="Backspace"
             >
-              C
+              <Delete className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
             <button
               onClick={() => handleButtonClick('%')}

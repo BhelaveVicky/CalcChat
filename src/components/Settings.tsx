@@ -735,8 +735,8 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                 </h3>
                 <p className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                   {isFirstTimeUser 
-                    ? 'Create a secure password for your vault (minimum 4 digits)' 
-                    : 'Enter your vault password to access settings'
+                    ? 'Create a secure PIN for your vault (4-5 digits)' 
+                    : 'Enter your vault PIN to access settings'
                   }
                 </p>
               </div>
@@ -744,9 +744,17 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
             <div className="mb-4">
               <input
                 type="password"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={5}
                 value={securityPassword}
-                onChange={(e) => setSecurityPassword(e.target.value)}
-                placeholder={isFirstTimeUser ? 'Create new password' : 'Enter password'}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '' || /^\d+$/.test(val)) {
+                    setSecurityPassword(val);
+                  }
+                }}
+                placeholder={isFirstTimeUser ? 'Create 4-5 digit PIN' : 'Enter 4-5 digit PIN'}
                 className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
                   isDark ? 'bg-[#282828] border-[#383838] text-white placeholder-gray-500' : 'bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400'
                 }`}

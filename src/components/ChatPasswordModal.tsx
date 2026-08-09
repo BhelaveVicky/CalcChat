@@ -28,7 +28,7 @@ export const ChatPasswordModal: React.FC<ChatPasswordModalProps> = ({
     }
 
     if (passwordInput.length < 4) {
-      setErrorMsg('Password must be at least 4 characters or digits');
+      setErrorMsg('PIN must be 4 or 5 digits');
       return false;
     }
 
@@ -106,12 +106,18 @@ export const ChatPasswordModal: React.FC<ChatPasswordModalProps> = ({
             <div className="relative flex items-center">
               <input
                 type={showPassword ? 'text' : 'password'}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={5}
                 value={passwordInput}
                 onChange={(e) => {
-                  setPasswordInput(e.target.value);
-                  setErrorMsg(null);
+                  const val = e.target.value;
+                  if (val === '' || /^\d+$/.test(val)) {
+                    setPasswordInput(val);
+                    setErrorMsg(null);
+                  }
                 }}
-                placeholder="Enter password or PIN (min 4 chars)"
+                placeholder="Enter 4-5 digit PIN"
                 className="w-full bg-gray-50/80 border border-gray-100 focus:border-[#ff2e93] rounded-xl pl-4 pr-10 py-3 text-sm font-semibold text-gray-900 placeholder-gray-400 focus:outline-none transition-all"
               />
               <button
@@ -133,12 +139,18 @@ export const ChatPasswordModal: React.FC<ChatPasswordModalProps> = ({
             <div className="relative flex items-center">
               <input
                 type={showConfirm ? 'text' : 'password'}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={5}
                 value={confirmInput}
                 onChange={(e) => {
-                  setConfirmInput(e.target.value);
-                  setErrorMsg(null);
+                  const val = e.target.value;
+                  if (val === '' || /^\d+$/.test(val)) {
+                    setConfirmInput(val);
+                    setErrorMsg(null);
+                  }
                 }}
-                placeholder="Re-enter password or PIN"
+                placeholder="Re-enter 4-5 digit PIN"
                 className={`w-full bg-gray-50/80 border rounded-xl pl-4 pr-10 py-3 text-sm font-semibold text-gray-900 placeholder-gray-400 focus:outline-none transition-all ${
                   isMatch
                     ? 'border-emerald-500 focus:border-emerald-500'

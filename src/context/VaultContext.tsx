@@ -1692,7 +1692,12 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           snapshot.docChanges().forEach((change) => {
             if (change.type === 'added') {
               const data = change.doc.data();
-              if (data.senderId && data.senderId !== authUser.uid) {
+              
+              // Only play sound for truly new messages (within last 5 seconds) to prevent barrage on initial load
+              const msgTime = data.createdAt?.toMillis ? data.createdAt.toMillis() : 0;
+              const isNewMessage = (Date.now() - msgTime) < 5000;
+
+              if (isNewMessage && data.senderId && data.senderId !== authUser.uid) {
                 const isMuted = mutedContactIds.includes(data.senderId) || mutedContactIds.includes(targetId);
                 const senderNotif = getContactNotificationSettings(data.senderId);
                 const targetNotif = getContactNotificationSettings(targetId);

@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { checkIsAdmin, VerifiedBadge } from '../lib/adminUtils';
-import { 
-  Send, Plus, Smile, Image, Video, FileText, Trash2, ArrowLeft, ShieldCheck, 
+import {
+  Send, Plus, Smile, Image, Video, FileText, Trash2, ArrowLeft, ShieldCheck,
   Lock, CheckCheck, Check, Paperclip, Camera, Phone, Mic, MicOff, MoreVertical, X,
   Search, CheckSquare, Heart, Ban, MinusCircle, Copy, Pin, Archive, Star,
   CornerUpLeft, Play, Pause, Volume2, Edit3, Forward, Share2, Info, ChevronRight, File, PhoneCall, Tag,
@@ -50,37 +50,37 @@ const getEmojiArray = (str: string) => {
 // ------------------------------
 
 const EMOJI_LIST: string[] = [
-  '😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','😘','😗','😚','😙',
-  '😋','😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🤐','🤨','😐','😑','😶','😏','😒','🙄',
-  '😬','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🤧','🥵','🥶','🥴','😵','🤯',
-  '🤠','🥳','😎','🤓','🧐','😕','😟','🙁','☹️','😮','😯','😲','😳','🥺','😦','😧','😨','😰',
-  '😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','👿','💀',
-  '☠️','💩','🤡','👹','👺','👻','👽','👾','🤖','🎃',
-  '😺','😸','😹','😻','😼','😽','🙀','😿','😾',
-  '🙈','🙉','🙊',
-  '💋','💌','💘','💝','💖','💗','💓','💞','💕','💟','❣️','💔','❤️','🧡','💛','💚','💙','💜','🤎','🖤','🤍',
-  '👍','👎','👌','✌️','🤞','🤟','🤘','🤙','👊','✊','🤛','🤜','👏','🙌','👐','🤲','🙏',
-  '✍️','💅','🤳',
-  '👋','🤚','🖐️','✋','🖖','👈','👉','👆','👇','☝️',
-  '💪','🦾','🦵','🦶','👂','👃','🧠','🫀','🫁','🦷','🦴','👀','👁️','👅',
-  '👶','🧒','👦','👧','🧑','👱','👨','🧔','👩','🧓','👴','👵',
-  '🙍','🙎','🙅','🙆','💁','🙋','🧏','🙇','🤦','🤷',
-  '🚶','🏃','💃','🕺','🧍','🧎',
-  '🍏','🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🫐','🍒','🍑','🥭','🍍','🥥',
-  '🥝','🍅','🍆','🥑','🥦','🥬','🥒','🌶️','🫑','🌽',
-  '🍔','🍟','🍕','🌭','🥪','🌮','🌯','🥙','🧆','🥘','🍝','🍜','🍲',
-  '🍛','🍣','🍱','🥟','🍤','🍙','🍚','🍘','🍥',
-  '🍰','🎂','🍮','🍭','🍬','🍫','🍿',
-  '☕','🍵','🥤','🧃','🍺','🍻',
-  '⚽','🏀','🏈','⚾','🎾','🏐','🏉','🎱','🏓','🏸',
-  '🚗','🚕','🚙','🚌','🚎','🏎️','🚓','🚑','🚒',
-  '✈️','🚀','🚁','🚢',
-  '⌚','📱','💻','⌨️','🖥️','🖱️','💡','🔦','📷','📹',
-  '📞','☎️','📺','📻',
-  '📦','📁','📂','🗂️','📅','📆','🗓️',
-  '✏️','🖊️','🖋️','📝','📖','📚',
-  '🔒','🔓','🔑','🔨','🛠️',
-  '❤️🔥','❤️🩹','💯','✔️','❌','⚠️','🔥','✨','⭐','🌟'
+  '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '😘', '😗', '😚', '😙',
+  '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄',
+  '😬', '🤥', '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤢', '🤮', '🤧', '🥵', '🥶', '🥴', '😵', '🤯',
+  '🤠', '🥳', '😎', '🤓', '🧐', '😕', '😟', '🙁', '☹️', '😮', '😯', '😲', '😳', '🥺', '😦', '😧', '😨', '😰',
+  '😥', '😢', '😭', '😱', '😖', '😣', '😞', '😓', '😩', '😫', '🥱', '😤', '😡', '😠', '🤬', '😈', '👿', '💀',
+  '☠️', '💩', '🤡', '👹', '👺', '👻', '👽', '👾', '🤖', '🎃',
+  '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿', '😾',
+  '🙈', '🙉', '🙊',
+  '💋', '💌', '💘', '💝', '💖', '💗', '💓', '💞', '💕', '💟', '❣️', '💔', '❤️', '🧡', '💛', '💚', '💙', '💜', '🤎', '🖤', '🤍',
+  '👍', '👎', '👌', '✌️', '🤞', '🤟', '🤘', '🤙', '👊', '✊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🙏',
+  '✍️', '💅', '🤳',
+  '👋', '🤚', '🖐️', '✋', '🖖', '👈', '👉', '👆', '👇', '☝️',
+  '💪', '🦾', '🦵', '🦶', '👂', '👃', '🧠', '🫀', '🫁', '🦷', '🦴', '👀', '👁️', '👅',
+  '👶', '🧒', '👦', '👧', '🧑', '👱', '👨', '🧔', '👩', '🧓', '👴', '👵',
+  '🙍', '🙎', '🙅', '🙆', '💁', '🙋', '🧏', '🙇', '🤦', '🤷',
+  '🚶', '🏃', '💃', '🕺', '🧍', '🧎',
+  '🍏', '🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍒', '🍑', '🥭', '🍍', '🥥',
+  '🥝', '🍅', '🍆', '🥑', '🥦', '🥬', '🥒', '🌶️', '🫑', '🌽',
+  '🍔', '🍟', '🍕', '🌭', '🥪', '🌮', '🌯', '🥙', '🧆', '🥘', '🍝', '🍜', '🍲',
+  '🍛', '🍣', '🍱', '🥟', '🍤', '🍙', '🍚', '🍘', '🍥',
+  '🍰', '🎂', '🍮', '🍭', '🍬', '🍫', '🍿',
+  '☕', '🍵', '🥤', '🧃', '🍺', '🍻',
+  '⚽', '🏀', '🏈', '⚾', '🎾', '🏐', '🏉', '🎱', '🏓', '🏸',
+  '🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒',
+  '✈️', '🚀', '🚁', '🚢',
+  '⌚', '📱', '💻', '⌨️', '🖥️', '🖱️', '💡', '🔦', '📷', '📹',
+  '📞', '☎️', '📺', '📻',
+  '📦', '📁', '📂', '🗂️', '📅', '📆', '🗓️',
+  '✏️', '🖊️', '🖋️', '📝', '📖', '📚',
+  '🔒', '🔓', '🔑', '🔨', '🛠️',
+  '❤️🔥', '❤️🩹', '💯', '✔️', '❌', '⚠️', '🔥', '✨', '⭐', '🌟'
 ];
 
 // Helper to check if message was sent within 2 minutes (120,000 ms) for editing
@@ -99,8 +99,8 @@ const isMessageEditable = (m: Message | null): boolean => {
 
 export const ChatWindow: React.FC = () => {
   const navigate = useNavigate();
-  const { 
-    activeContactId, setActiveContactId, setActiveTab, contacts, messages, 
+  const {
+    activeContactId, setActiveContactId, setActiveTab, contacts, messages,
     sendMessage, editMessage, user, deleteMessage, deleteForEveryone, toggleStarMessage,
     togglePinMessage, forwardMessage, setTypingStatus, settings, updateSettings, togglePinContact,
     toggleArchiveContact, clearChatHistory, blockContact, unblockContact,
@@ -318,7 +318,7 @@ export const ChatWindow: React.FC = () => {
   const groupWallpaperInputRef = useRef<HTMLInputElement>(null);
 
   const isDark = settings.theme !== 'material-light' && settings.theme !== 'light';
-  
+
   const contact = contacts.find(c => c.id === activeContactId);
 
   const groupPerms: GroupPermissions = contact?.permissions
@@ -339,13 +339,13 @@ export const ChatWindow: React.FC = () => {
   const canAddMembers = !contact?.isGroup || isGroupAdmin || (groupPerms.addMembers !== false);
   const canShareInviteLink = !contact?.isGroup || isGroupAdmin || (groupPerms.shareInviteLink !== false);
   const hasAnyMediaPermission = canSendImages || canSendVideos || canSendFiles;
-  
+
   // Wallpaper styling - priority: 1) per-chat custom wallpaper, 2) group wallpaper, 3) global app wallpaper
   const chatWallpaper = (contact?.id && perChatWallpapers[contact.id])
     ? perChatWallpapers[contact.id]
     : (contact?.isGroup && contact?.wallpaper)
-    ? contact.wallpaper
-    : (settings?.chatWallpaper || 'default');
+      ? contact.wallpaper
+      : (settings?.chatWallpaper || 'default');
 
   const chatWallpaperBlur = (contact?.id && perChatBlurs[contact.id] !== undefined)
     ? perChatBlurs[contact.id]
@@ -356,14 +356,14 @@ export const ChatWindow: React.FC = () => {
     : (settings?.chatWallpaperBrightness ?? 100);
 
   const isCustomImage = Boolean(
-    chatWallpaper && 
-    chatWallpaper !== 'default' && 
+    chatWallpaper &&
+    chatWallpaper !== 'default' &&
     !chatWallpaper.startsWith('#') &&
     (chatWallpaper.startsWith('data:') || chatWallpaper.startsWith('http') || chatWallpaper.startsWith('blob:') || chatWallpaper.startsWith('/') || chatWallpaper.includes('.'))
   );
   const isCustomColor = Boolean(
-    chatWallpaper && 
-    chatWallpaper !== 'default' && 
+    chatWallpaper &&
+    chatWallpaper !== 'default' &&
     (chatWallpaper.startsWith('#') || chatWallpaper.startsWith('rgb') || chatWallpaper.startsWith('hsl'))
   );
 
@@ -657,7 +657,7 @@ export const ChatWindow: React.FC = () => {
     if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
     longPressTimerRef.current = setTimeout(() => {
       if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
-        try { window.navigator.vibrate(40); } catch (e) {}
+        try { window.navigator.vibrate(40); } catch (e) { }
       }
       setSelectedMsgIds(prev => {
         if (prev.includes(msg.id)) return prev;
@@ -710,7 +710,7 @@ export const ChatWindow: React.FC = () => {
       if (clampedOffset >= 48 && !hasTriggeredHapticRef.current) {
         hasTriggeredHapticRef.current = true;
         if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
-          try { window.navigator.vibrate(30); } catch (err) {}
+          try { window.navigator.vibrate(30); } catch (err) { }
         }
       }
     }
@@ -762,7 +762,7 @@ export const ChatWindow: React.FC = () => {
     }
     return '';
   };
-  
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const curMessages = (activeContactId && messages[activeContactId]) || [];
   const pinnedMessage = curMessages.find(m => m.isPinned);
@@ -778,8 +778,8 @@ export const ChatWindow: React.FC = () => {
   // Group Creator check and group management handlers
   const isGroupCreator = Boolean(
     contact?.isGroup && (
-      !contact.createdBy || 
-      contact.createdBy === authUser?.uid || 
+      !contact.createdBy ||
+      contact.createdBy === authUser?.uid ||
       contact.createdBy === user.id
     )
   );
@@ -1096,7 +1096,7 @@ export const ChatWindow: React.FC = () => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       try {
         mediaRecorderRef.current.stop();
-      } catch (e) {}
+      } catch (e) { }
     }
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach(t => t.stop());
@@ -1167,7 +1167,7 @@ export const ChatWindow: React.FC = () => {
 
     try {
       if (recorder.state !== 'inactive') {
-        try { recorder.requestData(); } catch (e) {}
+        try { recorder.requestData(); } catch (e) { }
         recorder.onstop = processAndSend;
         recorder.stop();
       } else {
@@ -1266,7 +1266,7 @@ export const ChatWindow: React.FC = () => {
         continue;
       }
 
-      const formattedSize = file.size / (1024 * 1024) > 1 
+      const formattedSize = file.size / (1024 * 1024) > 1
         ? (file.size / (1024 * 1024)).toFixed(1) + ' MB'
         : (file.size / 1024).toFixed(1) + ' KB';
 
@@ -1347,8 +1347,8 @@ export const ChatWindow: React.FC = () => {
           isViewOnce: Boolean(item.isViewOnce),
         };
 
-        const captionText = (i === 0 && mediaCaption.trim()) 
-          ? mediaCaption.trim() 
+        const captionText = (i === 0 && mediaCaption.trim())
+          ? mediaCaption.trim()
           : (item.type === 'image' ? '📷 Photo' : item.type === 'video' ? '🎥 Video' : item.type === 'audio' ? '🎵 Audio' : `Uploaded document: ${item.name}`);
 
         await sendMessage(activeContactId, captionText, media);
@@ -1425,14 +1425,13 @@ export const ChatWindow: React.FC = () => {
 
   return (
     <div className="flex-1 flex w-full h-full overflow-hidden relative font-sans select-none">
-      
+
       {/* Main Conversation Pane */}
-      <div className={`flex-1 flex flex-col overflow-hidden relative h-full min-h-0 transition-colors ${
-        isDark ? 'bg-[#0b141a] text-[#e9edef]' : 'bg-white text-gray-900'
-      }`}>
+      <div className={`flex-1 flex flex-col overflow-hidden relative h-full min-h-0 transition-colors ${isDark ? 'bg-[#0b141a] text-[#e9edef]' : 'bg-white text-gray-900'
+        }`}>
 
         {/* Wallpaper Background Layer with Blur & Brightness - Full Chat Canvas */}
-        <div 
+        <div
           className="absolute inset-0 transition-all duration-300 bg-cover bg-center bg-no-repeat pointer-events-none z-0"
           style={{
             ...(isCustomImage ? {
@@ -1468,9 +1467,8 @@ export const ChatWindow: React.FC = () => {
             onPin={handlePinMessage}
           />
         ) : (
-          <div className={`px-3 py-2.5 flex items-center justify-between shrink-0 z-20 border-b transition-colors ${
-            isDark ? 'bg-[#0b141a] border-[#1f2c34]/60 text-[#e9edef]' : 'bg-white border-gray-200 text-gray-900'
-          }`}>
+          <div className={`px-3 py-2.5 flex items-center justify-between shrink-0 z-20 border-b transition-colors ${isDark ? 'bg-[#0b141a] border-[#1f2c34]/60 text-[#e9edef]' : 'bg-white border-gray-200 text-gray-900'
+            }`}>
             <div className="flex items-center gap-2 min-w-0">
               <button
                 id="vault_nav_back_trigger"
@@ -1478,19 +1476,18 @@ export const ChatWindow: React.FC = () => {
                   e.stopPropagation();
                   setActiveContactId(null);
                 }}
-                className={`p-1 rounded-full transition-colors mr-0.5 ${
-                  isDark ? 'hover:bg-[#202c33] text-[#e9edef]' : 'hover:bg-gray-100 text-gray-700'
-                }`}
+                className={`p-1 rounded-full transition-colors mr-0.5 ${isDark ? 'hover:bg-[#202c33] text-[#e9edef]' : 'hover:bg-gray-100 text-gray-700'
+                  }`}
                 title="Back"
               >
                 <ArrowLeft className="w-6 h-6" />
               </button>
 
-              <div 
+              <div
                 onClick={(e) => {
                   e.stopPropagation();
                   navigate(`/profile/${contact.id}`);
-                }} 
+                }}
                 className="relative shrink-0 cursor-pointer group"
                 title="View Profile"
               >
@@ -1500,23 +1497,21 @@ export const ChatWindow: React.FC = () => {
                   className={`w-10 h-10 rounded-full object-cover transition-transform group-hover:scale-105 ${isDark ? 'bg-[#202c33]' : 'bg-gray-200'}`}
                 />
                 {!contact.isGroup && contact.isOnline && (
-                  <span className={`absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 ${
-                    isDark ? 'border-[#0b141a]' : 'border-white'
-                  }`}></span>
+                  <span className={`absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 ${isDark ? 'border-[#0b141a]' : 'border-white'
+                    }`}></span>
                 )}
               </div>
 
-              <div 
+              <div
                 onClick={(e) => {
                   e.stopPropagation();
                   navigate(`/profile/${contact.id}`);
-                }} 
+                }}
                 className="min-w-0 ml-1 cursor-pointer"
                 title="View Profile"
               >
-                <h2 className={`font-semibold text-base flex items-center gap-1.5 truncate ${
-                  isDark ? 'text-[#e9edef]' : 'text-gray-900'
-                }`}>
+                <h2 className={`font-semibold text-base flex items-center gap-1.5 truncate ${isDark ? 'text-[#e9edef]' : 'text-gray-900'
+                  }`}>
                   <span className="truncate">{getContactDisplayName(contact)}</span>
                   {checkIsAdmin(contact) && <VerifiedBadge className="w-4 h-4 shrink-0" />}
                   {contact.isLocked && <Lock className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
@@ -1571,7 +1566,7 @@ export const ChatWindow: React.FC = () => {
             </div>
 
             <div className={`flex items-center gap-2.5 relative ${isDark ? 'text-[#e9edef]' : 'text-gray-700'}`}>
-              <button 
+              <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1588,13 +1583,13 @@ export const ChatWindow: React.FC = () => {
                     return;
                   }
                   startCall(contact.id, 'video');
-                }} 
+                }}
                 className="hover:opacity-80 p-1.5 rounded-full transition-colors text-[#ff2e93]"
                 title="Video call"
               >
                 <Video className="w-5 h-5" />
               </button>
-              <button 
+              <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1611,7 +1606,7 @@ export const ChatWindow: React.FC = () => {
                     return;
                   }
                   startCall(contact.id, 'voice');
-                }} 
+                }}
                 className="hover:opacity-80 p-1.5 rounded-full transition-colors text-[#ff2e93]"
                 title="Voice call"
               >
@@ -1628,12 +1623,12 @@ export const ChatWindow: React.FC = () => {
               >
                 <Info className="w-5 h-5" />
               </button>
-              <button 
+              <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowHeaderMenu(!showHeaderMenu);
-                }} 
+                }}
                 className="hover:opacity-80 p-1.5 rounded-full transition-colors"
                 title="More options"
               >
@@ -1643,25 +1638,23 @@ export const ChatWindow: React.FC = () => {
               {/* 3-Dots Dropdown Menu */}
               {showHeaderMenu && (
                 <>
-                  <div 
-                    className="fixed inset-0 z-40" 
-                    onClick={() => setShowHeaderMenu(false)} 
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowHeaderMenu(false)}
                   />
-                  <div className={`absolute right-0 top-10 z-50 rounded-2xl shadow-2xl py-2 w-56 text-sm font-sans select-none animate-scale-in border transition-all ${
-                    isDark 
-                      ? 'bg-[#233138] border-[#2a3942] text-[#e9edef]' 
+                  <div className={`absolute right-0 top-10 z-50 rounded-2xl shadow-2xl py-2 w-56 text-sm font-sans select-none animate-scale-in border transition-all ${isDark
+                      ? 'bg-[#233138] border-[#2a3942] text-[#e9edef]'
                       : 'bg-white border-gray-200 text-gray-800 shadow-xl'
-                  }`}>
-                    
+                    }`}>
+
                     <button
                       type="button"
                       onClick={() => {
                         setShowHeaderMenu(false);
                         setShowNicknameModal(true);
                       }}
-                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
-                        isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                      }`}
+                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                        }`}
                     >
                       <Tag className="w-4.5 h-4.5 text-[#ff2e93]" />
                       <span className="text-[#ff2e93] font-semibold">{customNicknames[contact.id] ? 'Edit Custom Name' : 'Set Custom Name'}</span>
@@ -1673,9 +1666,8 @@ export const ChatWindow: React.FC = () => {
                         setShowHeaderMenu(false);
                         setShowWallpaperModal(true);
                       }}
-                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
-                        isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                      }`}
+                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                        }`}
                     >
                       <Image className="w-4.5 h-4.5 text-[#ff2e93]" />
                       <span className="font-semibold text-[#ff2e93]">Set Wallpaper</span>
@@ -1687,9 +1679,8 @@ export const ChatWindow: React.FC = () => {
                         setShowHeaderMenu(false);
                         setShowInChatSearch(true);
                       }}
-                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
-                        isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                      }`}
+                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                        }`}
                     >
                       <Search className="w-4.5 h-4.5 opacity-80" />
                       <span>Search messages</span>
@@ -1701,9 +1692,8 @@ export const ChatWindow: React.FC = () => {
                         setShowHeaderMenu(false);
                         setSelectedMsgIds([]);
                       }}
-                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
-                        isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                      }`}
+                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                        }`}
                     >
                       <CheckSquare className="w-4.5 h-4.5 opacity-80" />
                       <span>Select messages</span>
@@ -1716,9 +1706,8 @@ export const ChatWindow: React.FC = () => {
                         togglePinContact(contact.id);
                         showToast(contact.isPinned ? "Unpinned chat" : "Pinned chat");
                       }}
-                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
-                        isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                      }`}
+                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                        }`}
                     >
                       <Pin className="w-4.5 h-4.5 opacity-80" />
                       <span>{contact.isPinned ? "Unpin chat" : "Pin chat"}</span>
@@ -1731,9 +1720,8 @@ export const ChatWindow: React.FC = () => {
                         clearChatHistory(contact.id);
                         showToast("Cleared chat history");
                       }}
-                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
-                        isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                      }`}
+                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                        }`}
                     >
                       <MinusCircle className="w-4.5 h-4.5 opacity-80" />
                       <span>Clear messages</span>
@@ -1746,9 +1734,8 @@ export const ChatWindow: React.FC = () => {
                         setActiveContactId(null);
                         showToast("Chat closed");
                       }}
-                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
-                        isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                      }`}
+                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                        }`}
                     >
                       <XCircle className="w-4.5 h-4.5 opacity-80" />
                       <span>Close chat</span>
@@ -1761,9 +1748,8 @@ export const ChatWindow: React.FC = () => {
                           setShowHeaderMenu(false);
                           setShowUnfriendConfirmModal(true);
                         }}
-                        className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors text-rose-500 font-semibold ${
-                          isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                        }`}
+                        className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors text-rose-500 font-semibold ${isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                          }`}
                       >
                         <Ban className="w-4.5 h-4.5" />
                         <span>Unfriend Contact</span>
@@ -1783,9 +1769,8 @@ export const ChatWindow: React.FC = () => {
                           setActiveContactId(null);
                         }
                       }}
-                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
-                        blockedContactIds.includes(contact.id) ? 'text-emerald-500 font-semibold' : 'text-amber-500'
-                      } ${isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'}`}
+                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${blockedContactIds.includes(contact.id) ? 'text-emerald-500 font-semibold' : 'text-amber-500'
+                        } ${isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'}`}
                     >
                       <Ban className="w-4.5 h-4.5 opacity-80" />
                       <span>{blockedContactIds.includes(contact.id) ? `Unblock ${contact.name}` : `Block contact`}</span>
@@ -1797,9 +1782,8 @@ export const ChatWindow: React.FC = () => {
                         setShowHeaderMenu(false);
                         setShowReportModal(true);
                       }}
-                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors text-red-500 font-semibold ${
-                        isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
-                      }`}
+                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors text-red-500 font-semibold ${isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                        }`}
                     >
                       <Flag className="w-4.5 h-4.5 text-red-500" />
                       <span>Report User</span>
@@ -1827,21 +1811,19 @@ export const ChatWindow: React.FC = () => {
 
         {/* Search in Chat Overlay */}
         {showInChatSearch && (
-          <div className={`px-4 py-2 flex items-center gap-2 border-b animate-fade-in ${
-            isDark ? 'bg-[#111b21] border-[#1f2c34]' : 'bg-gray-100 border-gray-200'
-          }`}>
+          <div className={`px-4 py-2 flex items-center gap-2 border-b animate-fade-in ${isDark ? 'bg-[#111b21] border-[#1f2c34]' : 'bg-gray-100 border-gray-200'
+            }`}>
             <Search className="w-4 h-4 text-gray-400 shrink-0" />
             <input
               type="text"
               value={inChatSearchQuery}
               onChange={(e) => setInChatSearchQuery(e.target.value)}
               placeholder="Search messages in chat..."
-              className={`w-full bg-transparent border-none outline-none text-sm ${
-                isDark ? 'text-white placeholder-gray-500' : 'text-gray-900 placeholder-gray-400'
-              }`}
+              className={`w-full bg-transparent border-none outline-none text-sm ${isDark ? 'text-white placeholder-gray-500' : 'text-gray-900 placeholder-gray-400'
+                }`}
               autoFocus
             />
-            <button 
+            <button
               type="button"
               onClick={() => {
                 setShowInChatSearch(false);
@@ -1859,7 +1841,7 @@ export const ChatWindow: React.FC = () => {
         {/* Messages View Area */}
         <div className="relative z-10 flex-1 min-h-0 overflow-hidden flex flex-col bg-transparent">
           {/* Messages Container */}
-          <div 
+          <div
             onClick={() => {
               if (selectedMsgIds.length > 0 || activeReactionMsgId) {
                 setSelectedMsgIds([]);
@@ -1868,774 +1850,757 @@ export const ChatWindow: React.FC = () => {
             }}
             className="relative z-10 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 no-scrollbar min-h-0"
           >
-          {curMessages.length === 0 ? (
-            <div className={`h-full flex flex-col items-center justify-center text-center text-xs px-6 ${
-              isDark ? 'text-[#8596a0]' : 'text-gray-500'
-            }`}>
-              <div className={`p-3.5 rounded-2xl mb-3 border ${
-                isDark ? 'bg-[#182229] border-[#202c33]' : 'bg-white border-gray-200'
-              }`}>
-                <Lock className="w-6 h-6 text-[#ff2e93]" />
+            {curMessages.length === 0 ? (
+              <div className={`h-full flex flex-col items-center justify-center text-center text-xs px-6 ${isDark ? 'text-[#8596a0]' : 'text-gray-500'
+                }`}>
+                <div className={`p-3.5 rounded-2xl mb-3 border ${isDark ? 'bg-[#182229] border-[#202c33]' : 'bg-white border-gray-200'
+                  }`}>
+                  <Lock className="w-6 h-6 text-[#ff2e93]" />
+                </div>
+                <p className={`font-semibold text-sm ${isDark ? 'text-[#e9edef]' : 'text-gray-900'}`}>End-to-End Encrypted</p>
+                <p className={`max-w-xs mt-1 text-xs ${isDark ? 'text-[#8596a0]' : 'text-gray-500'}`}>Messages stay private and synchronized across all devices.</p>
               </div>
-              <p className={`font-semibold text-sm ${isDark ? 'text-[#e9edef]' : 'text-gray-900'}`}>End-to-End Encrypted</p>
-              <p className={`max-w-xs mt-1 text-xs ${isDark ? 'text-[#8596a0]' : 'text-gray-500'}`}>Messages stay private and synchronized across all devices.</p>
-            </div>
-          ) : (
-            (() => {
-              const displayedMsgs = inChatSearchQuery.trim() 
-                ? curMessages.filter(m => m.text.toLowerCase().includes(inChatSearchQuery.toLowerCase())) 
-                : curMessages;
+            ) : (
+              (() => {
+                const displayedMsgs = inChatSearchQuery.trim()
+                  ? curMessages.filter(m => m.text.toLowerCase().includes(inChatSearchQuery.toLowerCase()))
+                  : curMessages;
 
-              let lastDateLabel = '';
+                let lastDateLabel = '';
 
-              return displayedMsgs.map(msg => {
-                const rawTimestamp = msg.createdAt || msg.timestamp;
-                const dateLabel = formatChatDate(rawTimestamp);
-                const showSeparator = dateLabel !== lastDateLabel;
-                if (showSeparator) {
-                  lastDateLabel = dateLabel;
-                }
+                return displayedMsgs.map(msg => {
+                  const rawTimestamp = msg.createdAt || msg.timestamp;
+                  const dateLabel = formatChatDate(rawTimestamp);
+                  const showSeparator = dateLabel !== lastDateLabel;
+                  if (showSeparator) {
+                    lastDateLabel = dateLabel;
+                  }
 
-                const isMe = msg.senderId === user.id;
-                const isSelected = selectedMsgIds.includes(msg.id);
-                const speed = audioPlaybackSpeeds[msg.id] || 1;
-                const formattedTime = formatMessageTime(rawTimestamp, msg.timestamp);
+                  const isMe = msg.senderId === user.id;
+                  const isSelected = selectedMsgIds.includes(msg.id);
+                  const speed = audioPlaybackSpeeds[msg.id] || 1;
+                  const formattedTime = formatMessageTime(rawTimestamp, msg.timestamp);
 
-                if (msg.type === 'system' || msg.systemAction) {
-                  const displayText = msg.systemText || msg.text;
+                  if (msg.type === 'system' || msg.systemAction) {
+                    const displayText = msg.systemText || msg.text;
+                    return (
+                      <React.Fragment key={msg.id}>
+                        {showSeparator && (
+                          <DateSeparator dateLabel={dateLabel} isDark={isDark} />
+                        )}
+                        <div id={`msg_${msg.id}`} className="w-full flex justify-center items-center my-2.5 px-4 select-none">
+                          <div className={`px-4 py-1.5 rounded-xl text-xs font-semibold text-center max-w-[90%] sm:max-w-[75%] shadow-xs border flex items-center justify-center gap-2 flex-wrap transition-all ${isDark
+                              ? 'bg-[#182229]/90 border-[#202c33] text-[#8696a0]'
+                              : 'bg-[#f0f2f5] border-gray-200 text-gray-600'
+                            }`}>
+                            <span className="leading-relaxed">{displayText}</span>
+                            {formattedTime && (
+                              <span className={`text-[10px] font-normal opacity-75 shrink-0 ${isDark ? 'text-[#8696a0]' : 'text-gray-500'
+                                }`}>
+                                • {formattedTime}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </React.Fragment>
+                    );
+                  }
+
+                  const isEmojiOnlyMsg = isOnlyEmojis(msg.text) && !msg.media && !msg.replyTo && !msg.statusReply && !msg.statusReaction && !msg.callInfo && msg.type !== 'voice_call' && msg.type !== 'video_call' && !msg.deletedForEveryone && !msg.statusMention && msg.type !== 'status_mention' && !msg.isForwarded;
+
                   return (
                     <React.Fragment key={msg.id}>
                       {showSeparator && (
                         <DateSeparator dateLabel={dateLabel} isDark={isDark} />
                       )}
-                      <div id={`msg_${msg.id}`} className="w-full flex justify-center items-center my-2.5 px-4 select-none">
-                        <div className={`px-4 py-1.5 rounded-xl text-xs font-semibold text-center max-w-[90%] sm:max-w-[75%] shadow-xs border flex items-center justify-center gap-2 flex-wrap transition-all ${
-                          isDark 
-                            ? 'bg-[#182229]/90 border-[#202c33] text-[#8696a0]' 
-                            : 'bg-[#f0f2f5] border-gray-200 text-gray-600'
-                        }`}>
-                          <span className="leading-relaxed">{displayText}</span>
-                          {formattedTime && (
-                            <span className={`text-[10px] font-normal opacity-75 shrink-0 ${
-                              isDark ? 'text-[#8696a0]' : 'text-gray-500'
-                            }`}>
-                              • {formattedTime}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </React.Fragment>
-                  );
-                }
-
-                const isEmojiOnlyMsg = isOnlyEmojis(msg.text) && !msg.media && !msg.replyTo && !msg.statusReply && !msg.statusReaction && !msg.callInfo && msg.type !== 'voice_call' && msg.type !== 'video_call' && !msg.deletedForEveryone && !msg.statusMention && msg.type !== 'status_mention' && !msg.isForwarded;
-
-                return (
-                  <React.Fragment key={msg.id}>
-                    {showSeparator && (
-                      <DateSeparator dateLabel={dateLabel} isDark={isDark} />
-                    )}
-                    <div
-                      id={`msg_${msg.id}`}
-                      className={`flex flex-col group ${isMe ? 'items-end' : 'items-start'} relative my-1`}
-                    >
-                      {activeReactionMsgId === msg.id && (
-                        <EmojiReactionBar
-                          isDark={isDark}
-                          currentReaction={msg.reactions?.[authUser?.uid || user.id]}
-                          onSelectEmoji={(emoji) => handleSelectReaction(msg.id, emoji)}
-                          onClose={() => setActiveReactionMsgId(null)}
-                        />
-                      )}
-
-                      {/* Swipeable Message Bubble Wrapper */}
-                      <div className={`relative max-w-[85%] sm:max-w-[75%] ${isEmojiOnlyMsg ? 'w-auto' : ''}`}>
-                        {/* Swipe to Reply Icon Indicator */}
-                        {swipingMsgId === msg.id && swipeOffset > 3 && (
-                          <div 
-                            className="absolute -left-9 top-1/2 -translate-y-1/2 flex items-center justify-center w-8 h-8 rounded-full bg-[#ea4c89] text-white shadow-md pointer-events-none z-10"
-                            style={{
-                              opacity: Math.min(swipeOffset / 30, 1),
-                              transform: `translateY(-50%) scale(${Math.min(0.5 + (swipeOffset / 45) * 0.5, 1.1)})`
-                            }}
-                          >
-                            <CornerUpLeft className="w-4 h-4 stroke-[2.5]" />
-                          </div>
-                        )}
-
-                        <div
-                          onTouchStart={(e) => handleTouchStartMessage(e, msg)}
-                          onTouchMove={(e) => handleTouchMoveMessage(e, msg)}
-                          onTouchEnd={() => handleTouchEndMessage(msg)}
-                          onTouchCancel={() => handleTouchEndMessage(msg)}
-                          style={{
-                            transform: swipingMsgId === msg.id ? `translateX(${swipeOffset}px)` : 'translateX(0px)',
-                            transition: swipingMsgId === msg.id ? 'none' : 'transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
-                          }}
-                          onContextMenu={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            if (!isSelectMode) {
-                              setSelectedMsgIds([msg.id]);
-                              setActiveReactionMsgId(msg.id);
-                            }
-                          }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (isSelectMode) {
-                              if (isSelected) {
-                                const remaining = selectedMsgIds.filter(id => id !== msg.id);
-                                setSelectedMsgIds(remaining);
-                                if (activeReactionMsgId === msg.id || remaining.length === 0) {
-                                  setActiveReactionMsgId(null);
-                                }
-                              } else {
-                                setSelectedMsgIds([...selectedMsgIds, msg.id]);
-                              }
-                            } else if (activeReactionMsgId) {
-                              setActiveReactionMsgId(null);
-                            }
-                          }}
-                          className={`w-full text-sm relative transition-all select-none ${
-                            isEmojiOnlyMsg
-                              ? 'bg-transparent border-transparent shadow-none px-0 py-0'
-                              : isMe
-                                ? 'rounded-2xl rounded-br-xs border-2 border-[#ff2e93] bg-[#2a1226] text-white shadow-[0_4px_20px_-2px_rgba(255,46,147,0.35)] shadow-md px-4 py-2.5'
-                                : 'rounded-2xl rounded-bl-xs border-2 border-[#3b82f6] bg-[#121630] text-white shadow-[0_4px_20px_-2px_rgba(59,130,246,0.35)] shadow-md px-4 py-2.5'
-                          } ${
-                            isSelectMode ? 'cursor-pointer' : ''
-                          } ${
-                            isSelected && !isEmojiOnlyMsg ? 'ring-2 ring-pink-500 bg-pink-500/20 scale-[1.01]' : (isSelected && isEmojiOnlyMsg ? 'scale-[1.05] drop-shadow-[0_0_15px_rgba(255,46,147,0.8)]' : '')
-                          } ${
-                            highlightedMsgId === msg.id && !isEmojiOnlyMsg ? 'ring-2 ring-pink-500 bg-pink-500/20 animate-pulse' : ''
-                          }`}
-                        >
-                    {/* Speech Bubble Tail - Outgoing (Pink corner wedge matching user screenshot) */}
-                    {isMe && !isEmojiOnlyMsg && (
-                      <svg
-                        className="absolute -bottom-[2px] -right-[7px] w-3.5 h-3.5 text-[#ff2e93] fill-[#ff2e93] pointer-events-none drop-shadow-xs z-10"
-                        viewBox="0 0 10 10"
+                      <div
+                        id={`msg_${msg.id}`}
+                        className={`flex flex-col group ${isMe ? 'items-end' : 'items-start'} relative my-1`}
                       >
-                        <path d="M0 0 L10 10 L0 10 Z" />
-                      </svg>
-                    )}
-
-                    {/* Speech Bubble Tail - Incoming (Blue corner wedge matching Image 2 screenshot) */}
-                    {!isMe && !isEmojiOnlyMsg && (
-                      <svg
-                        className="absolute -bottom-[2px] -left-[7px] w-3.5 h-3.5 text-[#3b82f6] fill-[#3b82f6] pointer-events-none drop-shadow-xs z-10"
-                        viewBox="0 0 10 10"
-                      >
-                        <path d="M10 0 L10 10 L0 10 Z" />
-                      </svg>
-                    )}
-                    {msg.deletedForEveryone ? (
-                      <div className="py-1 px-1 flex items-center gap-2 text-[#8596a0] italic text-xs select-none min-w-[160px]">
-                        <Ban className="w-4 h-4 text-[#8596a0] shrink-0" />
-                        <span>{isMe ? 'You deleted this message' : 'This message was deleted'}</span>
-                      </div>
-                    ) : (
-                      <>
-                        {/* Forwarded Header Indicator */}
-                        {msg.isForwarded && (
-                          <div className={`flex items-center gap-1.5 text-[13px] italic mb-1 select-none ${
-                            isMe ? 'text-white/85' : (isDark ? 'text-[#8696a0]' : 'text-[#667781]')
-                          }`}>
-                            <svg 
-                              viewBox="0 0 20 16" 
-                              className="w-4 h-4 shrink-0 fill-current opacity-90"
-                            >
-                              <path d="M3 13.5C3 9 6.2 6.5 11.5 6.5V3L17.5 8L11.5 13V9.5C8 9.5 5 10.5 3 13.5Z" />
-                              <path d="M13 3L19 8L13 13V10.5L16 8L13 5.5V3Z" />
-                            </svg>
-                            <span className="font-normal tracking-tight">Forwarded</span>
-                          </div>
-                        )}
-
-                        {/* Group Member Sender Name */}
-                        {contact?.isGroup && !isMe && (
-                          <div className="text-[11px] font-bold text-[#ea4c89] mb-1 truncate flex items-center gap-1">
-                            <span className="truncate">{msg.senderName || 'Group Member'}</span>
-                            {checkIsAdmin(msg.senderId || msg.senderName) && <VerifiedBadge className="w-3.5 h-3.5 shrink-0 text-[#ff2e93]" />}
-                          </div>
-                        )}
-
-                        {/* Status Reply / Status Reaction Card - Dedicated WhatsApp Style Component */}
-                        {(msg.statusReply || msg.statusReaction || msg.type === 'status_reply' || msg.type === 'status_reaction') ? (
-                          <StatusReplyCard
-                            statusReply={msg.statusReply}
-                            statusReaction={msg.statusReaction}
-                            isMe={isMe}
+                        {activeReactionMsgId === msg.id && (
+                          <EmojiReactionBar
                             isDark={isDark}
-                            onOpenStatus={handleOpenStatusFromReply}
+                            currentReaction={msg.reactions?.[authUser?.uid || user.id]}
+                            onSelectEmoji={(emoji) => handleSelectReaction(msg.id, emoji)}
+                            onClose={() => setActiveReactionMsgId(null)}
                           />
-                        ) : (
-                          /* Quoted Reply Context for standard messages */
-                          msg.replyTo && (
-                            <div 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (msg.replyTo?.id) {
-                                  scrollToMessage(msg.replyTo.id);
-                                }
-                              }}
-                              className={`p-2 rounded-lg border-l-4 mb-2 text-xs border-[#ff2e93] cursor-pointer hover:opacity-90 transition-opacity ${
-                                isDark ? 'bg-black/20' : 'bg-black/5'
-                              }`}
-                            >
-                              <p className="font-semibold text-[#ff2e93]">{msg.replyTo.senderName}</p>
-                              <p className="truncate opacity-80 flex items-center gap-1">
-                                {msg.replyTo.text === 'This message was deleted' || msg.replyTo.text.includes('deleted') ? (
-                                  <span className="italic text-gray-400 flex items-center gap-1">
-                                    <Ban className="w-3 h-3 text-gray-400 inline" /> Deleted message
-                                  </span>
-                                ) : (
-                                  renderTextWithLinks(msg.replyTo.text)
-                                )}
-                              </p>
-                            </div>
-                          )
                         )}
 
-                        {/* Attached Media Render */}
-                        {msg.media && !(msg.statusReply || msg.statusReaction || msg.type === 'status_reply' || msg.type === 'status_reaction') && (
-                          <div className="mb-2 mt-0.5 overflow-hidden rounded-xl bg-black/30 border border-white/5">
-                            {msg.media.isViewOnce ? (
-                              <div className="p-1">
-                                {(msg.media.opened || msg.opened) ? (
-                                  /* Opened View Once Card */
-                                  <div 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      showToast('This photo/video has expired');
-                                    }}
-                                    className={`p-3 rounded-xl flex items-center gap-3 select-none cursor-pointer transition-colors ${
-                                      isMe ? 'bg-white/10 text-white/80' : 'bg-black/20 text-[#8596a0]'
-                                    }`}
-                                  >
-                                    <div className="w-8 h-8 rounded-full border border-gray-400/50 flex items-center justify-center text-xs font-bold shrink-0 text-gray-400">
-                                      1
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="font-semibold text-xs flex items-center gap-1.5">
-                                        <span>{msg.media.type === 'video' ? 'Video' : 'Photo'}</span>
-                                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-gray-500/20 text-gray-400 font-normal">Opened</span>
-                                      </div>
-                                      <p className="text-[11px] opacity-70">Expired</p>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  /* Unopened View Once Card */
-                                  <div 
-                                    onClick={async (e) => {
-                                      e.stopPropagation();
-                                      if (isMe) {
-                                        showToast(`You sent a view once ${msg.media?.type === 'video' ? 'video' : 'photo'}`);
-                                        return;
-                                      }
-                                      if (msg.media) {
-                                        setViewOnceActiveMedia({ msg, media: msg.media });
-                                        await markViewOnceOpened(contact.id, msg.id);
-                                      }
-                                    }}
-                                    className={`p-3 rounded-xl flex items-center gap-3 cursor-pointer transition-all active:scale-98 ${
-                                      isMe 
-                                        ? 'bg-white/15 hover:bg-white/20 text-white' 
-                                        : 'bg-[#111b21] hover:bg-[#1f2c34] text-[#e9edef]'
-                                    }`}
-                                  >
-                                    <div className="w-9 h-9 rounded-full border-2 border-[#ff2e93] bg-[#ff2e93]/20 flex items-center justify-center font-extrabold text-xs text-[#ff2e93] shrink-0 shadow">
-                                      1
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="font-bold text-xs flex items-center gap-1.5 text-[#ff2e93]">
-                                        <span>{msg.media.type === 'video' ? 'Video' : 'Photo'}</span>
-                                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#ff2e93]/20 text-[#ff2e93] font-medium">View Once</span>
-                                      </div>
-                                      <p className="text-[11px] text-[#8596a0] font-medium truncate mt-0.5">
-                                        {isMe ? 'Sent • Recipient can view 1 time' : 'Tap to view photo/video'}
-                                      </p>
-                                    </div>
-                                  </div>
-                                )}
+                        {/* Swipeable Message Bubble Wrapper */}
+                        <div className={`relative max-w-[85%] sm:max-w-[75%] ${isEmojiOnlyMsg ? 'w-auto' : ''}`}>
+                          {/* Swipe to Reply Icon Indicator */}
+                          {swipingMsgId === msg.id && swipeOffset > 3 && (
+                            <div
+                              className="absolute -left-9 top-1/2 -translate-y-1/2 flex items-center justify-center w-8 h-8 rounded-full bg-[#ea4c89] text-white shadow-md pointer-events-none z-10"
+                              style={{
+                                opacity: Math.min(swipeOffset / 30, 1),
+                                transform: `translateY(-50%) scale(${Math.min(0.5 + (swipeOffset / 45) * 0.5, 1.1)})`
+                              }}
+                            >
+                              <CornerUpLeft className="w-4 h-4 stroke-[2.5]" />
+                            </div>
+                          )}
+
+                          <div
+                            onTouchStart={(e) => handleTouchStartMessage(e, msg)}
+                            onTouchMove={(e) => handleTouchMoveMessage(e, msg)}
+                            onTouchEnd={() => handleTouchEndMessage(msg)}
+                            onTouchCancel={() => handleTouchEndMessage(msg)}
+                            style={{
+                              transform: swipingMsgId === msg.id ? `translateX(${swipeOffset}px)` : 'translateX(0px)',
+                              transition: swipingMsgId === msg.id ? 'none' : 'transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+                            }}
+                            onContextMenu={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (!isSelectMode) {
+                                setSelectedMsgIds([msg.id]);
+                                setActiveReactionMsgId(msg.id);
+                              }
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (isSelectMode) {
+                                if (isSelected) {
+                                  const remaining = selectedMsgIds.filter(id => id !== msg.id);
+                                  setSelectedMsgIds(remaining);
+                                  if (activeReactionMsgId === msg.id || remaining.length === 0) {
+                                    setActiveReactionMsgId(null);
+                                  }
+                                } else {
+                                  setSelectedMsgIds([...selectedMsgIds, msg.id]);
+                                }
+                              } else if (activeReactionMsgId) {
+                                setActiveReactionMsgId(null);
+                              }
+                            }}
+                            className={`w-full text-sm relative transition-all select-none ${isEmojiOnlyMsg
+                                ? 'bg-transparent border-transparent shadow-none px-0 py-0'
+                                : isMe
+                                  ? 'rounded-2xl rounded-br-xs border-2 border-[#ff2e93] bg-[#2a1226] text-white shadow-[0_4px_20px_-2px_rgba(255,46,147,0.35)] shadow-md px-4 py-2.5'
+                                  : 'rounded-2xl rounded-bl-xs border-2 border-[#3b82f6] bg-[#121630] text-white shadow-[0_4px_20px_-2px_rgba(59,130,246,0.35)] shadow-md px-4 py-2.5'
+                              } ${isSelectMode ? 'cursor-pointer' : ''
+                              } ${isSelected && !isEmojiOnlyMsg ? 'ring-2 ring-pink-500 bg-pink-500/20 scale-[1.01]' : (isSelected && isEmojiOnlyMsg ? 'scale-[1.05] drop-shadow-[0_0_15px_rgba(255,46,147,0.8)]' : '')
+                              } ${highlightedMsgId === msg.id && !isEmojiOnlyMsg ? 'ring-2 ring-pink-500 bg-pink-500/20 animate-pulse' : ''
+                              }`}
+                          >
+                            {/* Speech Bubble Tail - Outgoing (Pink corner wedge matching user screenshot) */}
+                            {isMe && !isEmojiOnlyMsg && (
+                              <svg
+                                className="absolute -bottom-[2px] -right-[7px] w-3.5 h-3.5 text-[#ff2e93] fill-[#ff2e93] pointer-events-none drop-shadow-xs z-10"
+                                viewBox="0 0 10 10"
+                              >
+                                <path d="M0 0 L10 10 L0 10 Z" />
+                              </svg>
+                            )}
+
+                            {/* Speech Bubble Tail - Incoming (Blue corner wedge matching Image 2 screenshot) */}
+                            {!isMe && !isEmojiOnlyMsg && (
+                              <svg
+                                className="absolute -bottom-[2px] -left-[7px] w-3.5 h-3.5 text-[#3b82f6] fill-[#3b82f6] pointer-events-none drop-shadow-xs z-10"
+                                viewBox="0 0 10 10"
+                              >
+                                <path d="M10 0 L10 10 L0 10 Z" />
+                              </svg>
+                            )}
+                            {msg.deletedForEveryone ? (
+                              <div className="py-1 px-1 flex items-center gap-2 text-[#8596a0] italic text-xs select-none min-w-[160px]">
+                                <Ban className="w-4 h-4 text-[#8596a0] shrink-0" />
+                                <span>{isMe ? 'You deleted this message' : 'This message was deleted'}</span>
                               </div>
                             ) : (
                               <>
-                                {msg.media.type === 'image' && (
-                                  <img
-                                    src={msg.media.url}
-                                    alt={msg.media.name}
-                                    onClick={() => setPreviewMedia({ url: msg.media!.url, type: 'image', name: msg.media!.name })}
-                                    className="max-h-64 w-full object-cover cursor-pointer hover:opacity-95 transition-opacity"
-                                  />
+                                {/* Forwarded Header Indicator */}
+                                {msg.isForwarded && (
+                                  <div className={`flex items-center gap-1.5 text-[13px] italic mb-1 select-none ${isMe ? 'text-white/85' : (isDark ? 'text-[#8696a0]' : 'text-[#667781]')
+                                    }`}>
+                                    <svg
+                                      viewBox="0 0 20 16"
+                                      className="w-4 h-4 shrink-0 fill-current opacity-90"
+                                    >
+                                      <path d="M3 13.5C3 9 6.2 6.5 11.5 6.5V3L17.5 8L11.5 13V9.5C8 9.5 5 10.5 3 13.5Z" />
+                                      <path d="M13 3L19 8L13 13V10.5L16 8L13 5.5V3Z" />
+                                    </svg>
+                                    <span className="font-normal tracking-tight">Forwarded</span>
+                                  </div>
                                 )}
 
-                                {msg.media.type === 'video' && (
-                                  <VideoMessagePlayer
-                                    src={msg.media.url}
-                                    mediaId={msg.media.id}
-                                    thumbnailUrl={msg.media.thumbnailUrl}
-                                    duration={msg.media.duration}
-                                    name={msg.media.name}
+                                {/* Group Member Sender Name */}
+                                {contact?.isGroup && !isMe && (
+                                  <div className="text-[11px] font-bold text-[#ea4c89] mb-1 truncate flex items-center gap-1">
+                                    <span className="truncate">{msg.senderName || 'Group Member'}</span>
+                                    {checkIsAdmin(msg.senderId || msg.senderName) && <VerifiedBadge className="w-3.5 h-3.5 shrink-0 text-[#ff2e93]" />}
+                                  </div>
+                                )}
+
+                                {/* Status Reply / Status Reaction Card - Dedicated WhatsApp Style Component */}
+                                {(msg.statusReply || msg.statusReaction || msg.type === 'status_reply' || msg.type === 'status_reaction') ? (
+                                  <StatusReplyCard
+                                    statusReply={msg.statusReply}
+                                    statusReaction={msg.statusReaction}
                                     isMe={isMe}
-                                    onOpenLightbox={(url) => setPreviewMedia({ url, type: 'video', name: msg.media?.name })}
+                                    isDark={isDark}
+                                    onOpenStatus={handleOpenStatusFromReply}
                                   />
+                                ) : (
+                                  /* Quoted Reply Context for standard messages */
+                                  msg.replyTo && (
+                                    <div
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (msg.replyTo?.id) {
+                                          scrollToMessage(msg.replyTo.id);
+                                        }
+                                      }}
+                                      className={`p-2 rounded-lg border-l-4 mb-2 text-xs border-[#ff2e93] cursor-pointer hover:opacity-90 transition-opacity ${isDark ? 'bg-black/20' : 'bg-black/5'
+                                        }`}
+                                    >
+                                      <p className="font-semibold text-[#ff2e93]">{msg.replyTo.senderName}</p>
+                                      <p className="truncate opacity-80 flex items-center gap-1">
+                                        {msg.replyTo.text === 'This message was deleted' || msg.replyTo.text.includes('deleted') ? (
+                                          <span className="italic text-gray-400 flex items-center gap-1">
+                                            <Ban className="w-3 h-3 text-gray-400 inline" /> Deleted message
+                                          </span>
+                                        ) : (
+                                          renderTextWithLinks(msg.replyTo.text)
+                                        )}
+                                      </p>
+                                    </div>
+                                  )
+                                )}
+
+                                {/* Attached Media Render */}
+                                {msg.media && !(msg.statusReply || msg.statusReaction || msg.type === 'status_reply' || msg.type === 'status_reaction') && (
+                                  <div className="mb-2 mt-0.5 overflow-hidden rounded-xl bg-black/30 border border-white/5">
+                                    {msg.media.isViewOnce ? (
+                                      <div className="p-1">
+                                        {(msg.media.opened || msg.opened) ? (
+                                          /* Opened View Once Card */
+                                          <div
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              showToast('This photo/video has expired');
+                                            }}
+                                            className={`p-3 rounded-xl flex items-center gap-3 select-none cursor-pointer transition-colors ${isMe ? 'bg-white/10 text-white/80' : 'bg-black/20 text-[#8596a0]'
+                                              }`}
+                                          >
+                                            <div className="w-8 h-8 rounded-full border border-gray-400/50 flex items-center justify-center text-xs font-bold shrink-0 text-gray-400">
+                                              1
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                              <div className="font-semibold text-xs flex items-center gap-1.5">
+                                                <span>{msg.media.type === 'video' ? 'Video' : 'Photo'}</span>
+                                                <span className="text-[10px] px-1.5 py-0.2 rounded bg-gray-500/20 text-gray-400 font-normal">Opened</span>
+                                              </div>
+                                              <p className="text-[11px] opacity-70">Expired</p>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          /* Unopened View Once Card */
+                                          <div
+                                            onClick={async (e) => {
+                                              e.stopPropagation();
+                                              if (isMe) {
+                                                showToast(`You sent a view once ${msg.media?.type === 'video' ? 'video' : 'photo'}`);
+                                                return;
+                                              }
+                                              if (msg.media) {
+                                                setViewOnceActiveMedia({ msg, media: msg.media });
+                                                await markViewOnceOpened(contact.id, msg.id);
+                                              }
+                                            }}
+                                            className={`p-3 rounded-xl flex items-center gap-3 cursor-pointer transition-all active:scale-98 ${isMe
+                                                ? 'bg-white/15 hover:bg-white/20 text-white'
+                                                : 'bg-[#111b21] hover:bg-[#1f2c34] text-[#e9edef]'
+                                              }`}
+                                          >
+                                            <div className="w-9 h-9 rounded-full border-2 border-[#ff2e93] bg-[#ff2e93]/20 flex items-center justify-center font-extrabold text-xs text-[#ff2e93] shrink-0 shadow">
+                                              1
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                              <div className="font-bold text-xs flex items-center gap-1.5 text-[#ff2e93]">
+                                                <span>{msg.media.type === 'video' ? 'Video' : 'Photo'}</span>
+                                                <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#ff2e93]/20 text-[#ff2e93] font-medium">View Once</span>
+                                              </div>
+                                              <p className="text-[11px] text-[#8596a0] font-medium truncate mt-0.5">
+                                                {isMe ? 'Sent • Recipient can view 1 time' : 'Tap to view photo/video'}
+                                              </p>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <>
+                                        {msg.media.type === 'image' && (
+                                          <img
+                                            src={msg.media.url}
+                                            alt={msg.media.name}
+                                            onClick={() => setPreviewMedia({ url: msg.media!.url, type: 'image', name: msg.media!.name })}
+                                            className="max-h-64 w-full object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                                          />
+                                        )}
+
+                                        {msg.media.type === 'video' && (
+                                          <VideoMessagePlayer
+                                            src={msg.media.url}
+                                            mediaId={msg.media.id}
+                                            thumbnailUrl={msg.media.thumbnailUrl}
+                                            duration={msg.media.duration}
+                                            name={msg.media.name}
+                                            isMe={isMe}
+                                            onOpenLightbox={(url) => setPreviewMedia({ url, type: 'video', name: msg.media?.name })}
+                                          />
+                                        )}
+                                      </>
+                                    )}
+
+                                    {msg.media.type === 'audio' && (() => {
+                                      const isPlayingThis = playingAudioMsgId === msg.id;
+                                      const prog = audioProgress[msg.id];
+                                      const currentTime = isPlayingThis && prog ? prog.currentTime : 0;
+                                      const totalDuration = prog && prog.duration ? prog.duration : 0;
+                                      const percent = isPlayingThis && totalDuration > 0
+                                        ? Math.min(100, (currentTime / totalDuration) * 100)
+                                        : 0;
+                                      const speed = audioPlaybackSpeeds[msg.id] || 1;
+
+                                      const formatSecs = (s: number) => {
+                                        if (!s || isNaN(s)) return '0:00';
+                                        const m = Math.floor(s / 60);
+                                        const sec = Math.floor(s % 60);
+                                        return `${m}:${sec < 10 ? '0' : ''}${sec}`;
+                                      };
+
+                                      const waveformHeights = [30, 60, 40, 85, 55, 95, 70, 45, 90, 65, 35, 80, 50, 100, 65, 40, 75, 45, 85, 50];
+
+                                      const handleWaveformSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+                                        e.stopPropagation();
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        const clickX = e.clientX - rect.left;
+                                        const ratio = Math.max(0, Math.min(1, clickX / rect.width));
+
+                                        if (playingAudioMsgId === msg.id && audioElementRef.current) {
+                                          const newTime = ratio * (audioElementRef.current.duration || 0);
+                                          audioElementRef.current.currentTime = newTime;
+                                          setAudioProgress(prev => ({
+                                            ...prev,
+                                            [msg.id]: {
+                                              currentTime: newTime,
+                                              duration: audioElementRef.current?.duration || 1,
+                                            }
+                                          }));
+                                        } else {
+                                          setPlayingAudioMsgId(msg.id);
+                                          setTimeout(() => {
+                                            if (audioElementRef.current) {
+                                              const newTime = ratio * (audioElementRef.current.duration || 0);
+                                              audioElementRef.current.currentTime = newTime;
+                                            }
+                                          }, 100);
+                                        }
+                                      };
+
+                                      return (
+                                        <div className="p-3 flex items-center gap-3 min-w-[240px]">
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              if (playingAudioMsgId === msg.id) {
+                                                if (audioElementRef.current) {
+                                                  audioElementRef.current.pause();
+                                                }
+                                                setPlayingAudioMsgId(null);
+                                              } else {
+                                                setPlayingAudioMsgId(msg.id);
+                                              }
+                                            }}
+                                            className="w-10 h-10 rounded-full bg-[#ff2e93] text-[#0b141a] flex items-center justify-center shrink-0 hover:scale-105 active:scale-95 transition-transform cursor-pointer shadow"
+                                            title={isPlayingThis ? "Pause" : "Play Voice Note"}
+                                          >
+                                            {isPlayingThis ? (
+                                              <Pause className="w-5 h-5 fill-current" />
+                                            ) : (
+                                              <Play className="w-5 h-5 fill-current ml-0.5" />
+                                            )}
+                                          </button>
+
+                                          <div className="flex-1 min-w-0">
+                                            {/* Waveform Bar */}
+                                            <div
+                                              onClick={handleWaveformSeek}
+                                              className="h-7 flex items-end gap-[2px] cursor-pointer mb-1 group/wave"
+                                              title="Click to seek"
+                                            >
+                                              {waveformHeights.map((h, idx) => {
+                                                const barPercent = (idx / waveformHeights.length) * 100;
+                                                const isFilled = barPercent <= percent;
+                                                return (
+                                                  <div
+                                                    key={idx}
+                                                    className={`flex-1 rounded-full transition-colors ${isFilled ? 'bg-[#ff2e93]' : 'bg-white/30 group-hover/wave:bg-white/50'
+                                                      }`}
+                                                    style={{ height: `${h}%` }}
+                                                  />
+                                                );
+                                              })}
+                                            </div>
+
+                                            <div className="flex items-center justify-between text-[10px] text-[#8596a0] font-mono">
+                                              <span>{isPlayingThis ? formatSecs(currentTime) : (msg.media.duration || '0:15')}</span>
+                                              <span className="flex items-center gap-1">
+                                                <Mic className="w-3 h-3 text-[#ff2e93]" /> Voice Note
+                                              </span>
+                                            </div>
+                                          </div>
+
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              toggleAudioSpeed(msg.id);
+                                            }}
+                                            className="px-2 py-1 rounded-lg bg-black/30 hover:bg-black/50 text-[10px] font-bold text-[#e9edef] transition-colors cursor-pointer border border-white/10 shrink-0"
+                                          >
+                                            {speed}x
+                                          </button>
+                                        </div>
+                                      );
+                                    })()}
+
+                                    {msg.media.type === 'file' && (
+                                      <div
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleOpenDocument(msg.media!);
+                                        }}
+                                        className="p-3 flex items-center justify-between gap-3 min-w-[230px] cursor-pointer hover:bg-black/20 rounded-xl transition-all group/doc select-none"
+                                        title="Tap to open document"
+                                      >
+                                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                                          <div className="p-2.5 bg-[#ff2e93]/20 text-[#ff2e93] rounded-xl shrink-0 font-mono text-xs font-bold group-hover/doc:scale-105 transition-transform">
+                                            <FileText className="w-5 h-5" />
+                                          </div>
+                                          <div className="min-w-0 flex-1">
+                                            <p className="font-semibold truncate text-sm text-[#e9edef] group-hover/doc:text-[#ff2e93] transition-colors">{msg.media.name}</p>
+                                            <p className="text-xs text-[#8596a0] font-mono flex items-center gap-1 mt-0.5">
+                                              <span>{msg.media.size || 'Document'}</span>
+                                              <span>•</span>
+                                              <span className="text-emerald-400 font-sans text-[11px] underline font-medium">Tap to open</span>
+                                            </p>
+                                          </div>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleOpenDocument(msg.media!);
+                                          }}
+                                          className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-[#ff2e93] transition-colors shrink-0 cursor-pointer active:scale-95 shadow-xs"
+                                          title="Open Document"
+                                        >
+                                          <Download className="w-4 h-4" />
+                                        </button>
+                                      </div>
+                                    )}
+
+                                    {msg.media.type === 'location' && (
+                                      <div className="p-3 flex flex-col gap-2 min-w-[240px]">
+                                        <div className="flex items-center gap-2.5 text-emerald-400 font-semibold text-xs">
+                                          <MapPin className="w-5 h-5 shrink-0" />
+                                          <span>{msg.media.name || 'Shared Location'}</span>
+                                        </div>
+                                        {msg.media.locationData?.address && (
+                                          <p className="text-xs text-gray-300 font-mono pl-7">{msg.media.locationData.address}</p>
+                                        )}
+                                        <a
+                                          href={msg.media.url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          onClick={(e) => e.stopPropagation()}
+                                          className="mt-1 w-full py-1.5 px-3 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-xs font-semibold text-center transition-colors flex items-center justify-center gap-1.5"
+                                        >
+                                          <span>View on Google Maps</span>
+                                        </a>
+                                      </div>
+                                    )}
+
+                                    {msg.media.type === 'contact' && (
+                                      <div className="p-3 flex flex-col gap-3 min-w-[230px]">
+                                        <div className="flex items-center gap-3">
+                                          {msg.media.contactData?.avatar ? (
+                                            <img src={msg.media.contactData.avatar} alt="Contact" className="w-10 h-10 rounded-full object-cover border border-white/20" />
+                                          ) : (
+                                            <div className="w-10 h-10 rounded-full bg-[#ff2e93]/20 text-pink-400 flex items-center justify-center font-bold">
+                                              <User className="w-5 h-5" />
+                                            </div>
+                                          )}
+                                          <div className="min-w-0 flex-1">
+                                            <p className="font-bold text-sm text-[#e9edef] truncate">{msg.media.contactData?.name || msg.media.name}</p>
+                                            <p className="text-xs text-[#8596a0] truncate">{msg.media.contactData?.phone || 'Contact Details'}</p>
+                                          </div>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (msg.media?.contactData?.id) {
+                                              setActiveContactId(msg.media.contactData.id);
+                                            } else {
+                                              showToast(`Contact card for ${msg.media?.contactData?.name || msg.media?.name}`);
+                                            }
+                                          }}
+                                          className="w-full py-1.5 rounded-lg bg-[#ff2e93]/20 hover:bg-[#ff2e93]/30 text-pink-400 text-xs font-semibold text-center transition-colors"
+                                        >
+                                          Message Contact
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Call Card Render */}
+                                {(msg.callInfo || msg.type === 'voice_call' || msg.type === 'video_call') && (
+                                  <div className="my-1.5 p-3 rounded-2xl bg-black/20 border border-white/10 flex flex-col gap-2.5 min-w-[220px]">
+                                    <div className="flex items-center gap-3">
+                                      <div className={`p-2.5 rounded-full shrink-0 ${msg.callInfo?.status === 'missed' || msg.callInfo?.status === 'rejected'
+                                          ? 'bg-rose-500/20 text-rose-400'
+                                          : 'bg-emerald-500/20 text-emerald-400'
+                                        }`}>
+                                        {msg.type === 'video_call' || msg.callInfo?.type === 'video' ? (
+                                          <Video className="w-5 h-5" />
+                                        ) : (
+                                          <Phone className="w-5 h-5" />
+                                        )}
+                                      </div>
+
+                                      <div className="flex-1 min-w-0">
+                                        <h4 className="font-semibold text-sm flex items-center gap-1.5 text-white truncate">
+                                          {msg.callInfo?.type === 'video' || msg.type === 'video_call' ? 'Video Call' : 'Voice Call'}
+                                          {msg.callInfo?.status === 'missed' && <span className="text-[10px] text-rose-400 font-bold px-1.5 py-0.2 rounded bg-rose-500/20">Missed</span>}
+                                          {msg.callInfo?.status === 'rejected' && <span className="text-[10px] text-rose-400 font-bold px-1.5 py-0.2 rounded bg-rose-500/20">Rejected</span>}
+                                        </h4>
+
+                                        <div className="flex items-center gap-2 text-xs text-slate-300 mt-0.5">
+                                          <span>{msg.callInfo?.direction === 'outgoing' || isMe ? 'Outgoing' : 'Incoming'}</span>
+                                          {msg.callInfo?.duration && msg.callInfo.duration !== '00:00' && (
+                                            <>
+                                              <span>•</span>
+                                              <span className="font-mono">{msg.callInfo.duration}</span>
+                                            </>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        startCall(contact.id, msg.callInfo?.type || (msg.type === 'video_call' ? 'video' : 'voice'));
+                                      }}
+                                      className="w-full py-1.5 px-3 rounded-xl bg-[#ff2e93]/30 hover:bg-[#ff2e93]/50 text-pink-300 border border-[#ff2e93]/30 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                                    >
+                                      <PhoneCall className="w-3.5 h-3.5" />
+                                      <span>Call Again</span>
+                                    </button>
+                                  </div>
+                                )}
+
+                                {/* Status Mention / Reshare Card in Chat */}
+                                {(msg.statusMention || msg.type === 'status_mention' || (msg.text && (msg.text.toLowerCase().includes('mentioned you in') || msg.text.toLowerCase().includes('added your status')))) && (
+                                  <div
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const targetStatusId = msg.statusMention?.statusId || msg.statusReply?.statusId;
+                                      const ownerId = msg.statusMention?.statusOwnerId || msg.senderId;
+                                      if (targetStatusId) {
+                                        handleOpenStatusFromReply(targetStatusId, ownerId);
+                                      }
+                                    }}
+                                    className="mb-2 p-3 rounded-2xl bg-gradient-to-br from-[#18252d] to-[#0f171d] border border-[#00a8ff]/40 shadow-xl cursor-pointer hover:border-[#00a8ff] transition-all group shrink-0"
+                                  >
+                                    <div className="flex items-center justify-between gap-2 mb-2 pb-1.5 border-b border-white/10">
+                                      <span className="text-xs font-bold text-[#00a8ff] flex items-center gap-1.5">
+                                        <Sparkles className="w-3.5 h-3.5 text-yellow-300 fill-current animate-pulse" />
+                                        <span>{msg.text?.includes('Added your status') ? 'Status Reshared' : 'Status Mention'}</span>
+                                      </span>
+                                      <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                                        Instagram Story Style
+                                      </span>
+                                    </div>
+
+                                    <div className="flex items-center gap-3">
+                                      {msg.statusMention?.statusThumbnail || msg.statusMention?.statusMediaUrl ? (
+                                        <img
+                                          src={msg.statusMention.statusThumbnail || msg.statusMention.statusMediaUrl}
+                                          alt="Status Mention"
+                                          className="w-14 h-14 rounded-xl object-cover border border-white/20 shrink-0 shadow-md"
+                                        />
+                                      ) : (
+                                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-pink-500 via-purple-500 to-cyan-500 flex items-center justify-center text-white font-extrabold text-[11px] shrink-0 p-1 text-center truncate shadow-md">
+                                          {msg.statusMention?.statusText || 'Status'}
+                                        </div>
+                                      )}
+
+                                      <div className="min-w-0 flex-1">
+                                        <p className="text-xs font-bold text-white truncate">
+                                          {msg.text?.includes('Added your status')
+                                            ? `${msg.senderName || 'User'} added your status to their Status! 🎉`
+                                            : `${msg.statusMention?.statusOwnerName || msg.senderName || 'User'} mentioned you in Status`}
+                                        </p>
+                                        <p className="text-[11px] text-gray-300 line-clamp-1 mt-0.5">
+                                          {msg.statusMention?.statusText || 'Tap to view status'}
+                                        </p>
+                                        <p className="text-[10px] text-emerald-400 font-bold mt-1 underline group-hover:text-emerald-300 flex items-center gap-1">
+                                          <span>Tap to View Status</span>
+                                          <ChevronRight className="w-3 h-3" />
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Message Text */}
+                                {!(msg.callInfo || msg.type === 'voice_call' || msg.type === 'video_call') && (
+                                  isEmojiOnlyMsg ? (
+                                    <div className="grid gap-x-1 gap-y-1 w-max mt-1 mb-1" style={{ gridTemplateColumns: `repeat(${Math.min(4, getEmojiArray(msg.text!).length)}, minmax(0, 1fr))` }}>
+                                      {getEmojiArray(msg.text!).map((emoji, i) => (
+                                        <span key={i} className="text-[2.5rem] leading-[1.1] text-center drop-shadow-md">{emoji}</span>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <p className="leading-normal whitespace-pre-wrap break-words text-[15px]">{renderTextWithLinks(msg.text)}</p>
+                                  )
                                 )}
                               </>
                             )}
 
-                            {msg.media.type === 'audio' && (() => {
-                              const isPlayingThis = playingAudioMsgId === msg.id;
-                              const prog = audioProgress[msg.id];
-                              const currentTime = isPlayingThis && prog ? prog.currentTime : 0;
-                              const totalDuration = prog && prog.duration ? prog.duration : 0;
-                              const percent = isPlayingThis && totalDuration > 0 
-                                ? Math.min(100, (currentTime / totalDuration) * 100) 
-                                : 0;
-                              const speed = audioPlaybackSpeeds[msg.id] || 1;
+                            {/* Footer Timestamp & Status */}
+                            <div className={`flex items-center justify-end gap-1 mt-1 text-[11px] ${isEmojiOnlyMsg ? 'bg-black/40 backdrop-blur-md rounded-full px-2 py-0.5 w-max ml-auto text-white/90 shadow-sm' : (isMe ? 'text-white/85' : 'text-[#8596a0]')
+                              }`}>
+                              {msg.isStarred && !msg.deletedForEveryone && <Star className="w-3 h-3 text-amber-300 fill-amber-300 shrink-0" />}
+                              {msg.isEdited && !msg.deletedForEveryone && <span className="italic text-[9px] opacity-80">edited</span>}
+                              <span>{formattedTime}</span>
 
-                              const formatSecs = (s: number) => {
-                                if (!s || isNaN(s)) return '0:00';
-                                const m = Math.floor(s / 60);
-                                const sec = Math.floor(s % 60);
-                                return `${m}:${sec < 10 ? '0' : ''}${sec}`;
-                              };
+                              {/* Delivery Status Indicator */}
+                              {isMe && (
+                                (msg.isRead || msg.seen) ? (
+                                  <CheckCheck className={`w-4 h-4 shrink-0 font-extrabold drop-shadow-xs stroke-[2.5] ${isEmojiOnlyMsg ? 'text-[#53bdeb]' : 'text-[#34b7f1]'}`} />
+                                ) : (msg.isDelivered || msg.isSent) ? (
+                                  <CheckCheck className={`w-3.5 h-3.5 shrink-0 stroke-[2] ${isEmojiOnlyMsg ? 'text-white/80' : 'text-white/70'}`} />
+                                ) : (
+                                  <Check className={`w-3.5 h-3.5 shrink-0 stroke-[2] ${isEmojiOnlyMsg ? 'text-white/80' : 'text-white/70'}`} />
+                                )
+                              )}
+                            </div>
 
-                              const waveformHeights = [30, 60, 40, 85, 55, 95, 70, 45, 90, 65, 35, 80, 50, 100, 65, 40, 75, 45, 85, 50];
+                            {/* Quick Hover Action Menu Trigger */}
+                            {!msg.deletedForEveryone ? (
+                              <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-black/40 rounded-lg p-0.5 backdrop-blur-sm">
+                                <button
+                                  onClick={() => setReplyingToMsg(msg)}
+                                  className="p-1 hover:bg-white/20 rounded text-white"
+                                  title="Reply"
+                                >
+                                  <CornerUpLeft className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={() => toggleStarMessage(contact.id, msg.id)}
+                                  className="p-1 hover:bg-white/20 rounded text-amber-300"
+                                  title="Star"
+                                >
+                                  <Star className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setForwardingMsg(msg);
+                                    setForwardContactIds([]);
+                                  }}
+                                  className="p-1 hover:bg-white/20 rounded text-white"
+                                  title="Forward"
+                                >
+                                  <Forward className="w-3 h-3" />
+                                </button>
 
-                              const handleWaveformSeek = (e: React.MouseEvent<HTMLDivElement>) => {
-                                e.stopPropagation();
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                const clickX = e.clientX - rect.left;
-                                const ratio = Math.max(0, Math.min(1, clickX / rect.width));
-
-                                if (playingAudioMsgId === msg.id && audioElementRef.current) {
-                                  const newTime = ratio * (audioElementRef.current.duration || 0);
-                                  audioElementRef.current.currentTime = newTime;
-                                  setAudioProgress(prev => ({
-                                    ...prev,
-                                    [msg.id]: {
-                                      currentTime: newTime,
-                                      duration: audioElementRef.current?.duration || 1,
-                                    }
-                                  }));
-                                } else {
-                                  setPlayingAudioMsgId(msg.id);
-                                  setTimeout(() => {
-                                    if (audioElementRef.current) {
-                                      const newTime = ratio * (audioElementRef.current.duration || 0);
-                                      audioElementRef.current.currentTime = newTime;
-                                    }
-                                  }, 100);
-                                }
-                              };
-
-                              return (
-                                <div className="p-3 flex items-center gap-3 min-w-[240px]">
+                                {isMe && isMessageEditable(msg) && (
                                   <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (playingAudioMsgId === msg.id) {
-                                        if (audioElementRef.current) {
-                                          audioElementRef.current.pause();
-                                        }
-                                        setPlayingAudioMsgId(null);
-                                      } else {
-                                        setPlayingAudioMsgId(msg.id);
-                                      }
+                                    onClick={() => {
+                                      setEditingMsg(msg);
+                                      setInputText(msg.text);
                                     }}
-                                    className="w-10 h-10 rounded-full bg-[#ff2e93] text-[#0b141a] flex items-center justify-center shrink-0 hover:scale-105 active:scale-95 transition-transform cursor-pointer shadow"
-                                    title={isPlayingThis ? "Pause" : "Play Voice Note"}
+                                    className="p-1 hover:bg-white/20 rounded text-emerald-300"
+                                    title="Edit (Available within 2 mins)"
                                   >
-                                    {isPlayingThis ? (
-                                      <Pause className="w-5 h-5 fill-current" />
-                                    ) : (
-                                      <Play className="w-5 h-5 fill-current ml-0.5" />
-                                    )}
+                                    <Edit3 className="w-3 h-3" />
                                   </button>
-                                  
-                                  <div className="flex-1 min-w-0">
-                                    {/* Waveform Bar */}
-                                    <div 
-                                      onClick={handleWaveformSeek}
-                                      className="h-7 flex items-end gap-[2px] cursor-pointer mb-1 group/wave"
-                                      title="Click to seek"
-                                    >
-                                      {waveformHeights.map((h, idx) => {
-                                        const barPercent = (idx / waveformHeights.length) * 100;
-                                        const isFilled = barPercent <= percent;
-                                        return (
-                                          <div
-                                            key={idx}
-                                            className={`flex-1 rounded-full transition-colors ${
-                                              isFilled ? 'bg-[#ff2e93]' : 'bg-white/30 group-hover/wave:bg-white/50'
-                                            }`}
-                                            style={{ height: `${h}%` }}
-                                          />
-                                        );
-                                      })}
-                                    </div>
+                                )}
 
-                                    <div className="flex items-center justify-between text-[10px] text-[#8596a0] font-mono">
-                                      <span>{isPlayingThis ? formatSecs(currentTime) : (msg.media.duration || '0:15')}</span>
-                                      <span className="flex items-center gap-1">
-                                        <Mic className="w-3 h-3 text-[#ff2e93]" /> Voice Note
-                                      </span>
-                                    </div>
-                                  </div>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeleteModalMsg(msg);
+                                    setDeleteConfirmType(null);
+                                  }}
+                                  className="p-1 hover:bg-white/20 rounded text-rose-300"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-black/40 rounded-lg p-0.5 backdrop-blur-sm">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeleteModalMsg(msg);
+                                    setDeleteConfirmType(null);
+                                  }}
+                                  className="p-1 hover:bg-white/20 rounded text-rose-300"
+                                  title="Delete for me"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            )}
 
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      toggleAudioSpeed(msg.id);
-                                    }}
-                                    className="px-2 py-1 rounded-lg bg-black/30 hover:bg-black/50 text-[10px] font-bold text-[#e9edef] transition-colors cursor-pointer border border-white/10 shrink-0"
-                                  >
-                                    {speed}x
-                                  </button>
-                                </div>
-                              );
-                            })()}
-
-                            {msg.media.type === 'file' && (
-                              <div 
+                            {/* Reactions badge */}
+                            {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+                              <div
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleOpenDocument(msg.media!);
+                                  setActiveReactionMsgId(activeReactionMsgId === msg.id ? null : msg.id);
                                 }}
-                                className="p-3 flex items-center justify-between gap-3 min-w-[230px] cursor-pointer hover:bg-black/20 rounded-xl transition-all group/doc select-none"
-                                title="Tap to open document"
+                                className={`absolute -bottom-2.5 ${isMe ? 'right-2' : 'left-2'} flex items-center gap-0.5 ${isDark ? 'bg-[#202c33] border-[#2a3942] text-white' : 'bg-white border-gray-200 text-gray-800'
+                                  } border rounded-full px-1.5 py-0.5 text-xs shadow-md z-10 cursor-pointer hover:scale-105 transition-transform`}
                               >
-                                <div className="flex items-center gap-3 min-w-0 flex-1">
-                                  <div className="p-2.5 bg-[#ff2e93]/20 text-[#ff2e93] rounded-xl shrink-0 font-mono text-xs font-bold group-hover/doc:scale-105 transition-transform">
-                                    <FileText className="w-5 h-5" />
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <p className="font-semibold truncate text-sm text-[#e9edef] group-hover/doc:text-[#ff2e93] transition-colors">{msg.media.name}</p>
-                                    <p className="text-xs text-[#8596a0] font-mono flex items-center gap-1 mt-0.5">
-                                      <span>{msg.media.size || 'Document'}</span>
-                                      <span>•</span>
-                                      <span className="text-emerald-400 font-sans text-[11px] underline font-medium">Tap to open</span>
-                                    </p>
-                                  </div>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenDocument(msg.media!);
-                                  }}
-                                  className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-[#ff2e93] transition-colors shrink-0 cursor-pointer active:scale-95 shadow-xs"
-                                  title="Open Document"
-                                >
-                                  <Download className="w-4 h-4" />
-                                </button>
-                              </div>
-                            )}
-
-                            {msg.media.type === 'location' && (
-                              <div className="p-3 flex flex-col gap-2 min-w-[240px]">
-                                <div className="flex items-center gap-2.5 text-emerald-400 font-semibold text-xs">
-                                  <MapPin className="w-5 h-5 shrink-0" />
-                                  <span>{msg.media.name || 'Shared Location'}</span>
-                                </div>
-                                {msg.media.locationData?.address && (
-                                  <p className="text-xs text-gray-300 font-mono pl-7">{msg.media.locationData.address}</p>
-                                )}
-                                <a
-                                  href={msg.media.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="mt-1 w-full py-1.5 px-3 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-xs font-semibold text-center transition-colors flex items-center justify-center gap-1.5"
-                                >
-                                  <span>View on Google Maps</span>
-                                </a>
-                              </div>
-                            )}
-
-                            {msg.media.type === 'contact' && (
-                              <div className="p-3 flex flex-col gap-3 min-w-[230px]">
-                                <div className="flex items-center gap-3">
-                                  {msg.media.contactData?.avatar ? (
-                                    <img src={msg.media.contactData.avatar} alt="Contact" className="w-10 h-10 rounded-full object-cover border border-white/20" />
-                                  ) : (
-                                    <div className="w-10 h-10 rounded-full bg-[#ff2e93]/20 text-pink-400 flex items-center justify-center font-bold">
-                                      <User className="w-5 h-5" />
-                                    </div>
-                                  )}
-                                  <div className="min-w-0 flex-1">
-                                    <p className="font-bold text-sm text-[#e9edef] truncate">{msg.media.contactData?.name || msg.media.name}</p>
-                                    <p className="text-xs text-[#8596a0] truncate">{msg.media.contactData?.phone || 'Contact Details'}</p>
-                                  </div>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (msg.media?.contactData?.id) {
-                                      setActiveContactId(msg.media.contactData.id);
-                                    } else {
-                                      showToast(`Contact card for ${msg.media?.contactData?.name || msg.media?.name}`);
-                                    }
-                                  }}
-                                  className="w-full py-1.5 rounded-lg bg-[#ff2e93]/20 hover:bg-[#ff2e93]/30 text-pink-400 text-xs font-semibold text-center transition-colors"
-                                >
-                                  Message Contact
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Call Card Render */}
-                        {(msg.callInfo || msg.type === 'voice_call' || msg.type === 'video_call') && (
-                          <div className="my-1.5 p-3 rounded-2xl bg-black/20 border border-white/10 flex flex-col gap-2.5 min-w-[220px]">
-                            <div className="flex items-center gap-3">
-                              <div className={`p-2.5 rounded-full shrink-0 ${
-                                msg.callInfo?.status === 'missed' || msg.callInfo?.status === 'rejected'
-                                  ? 'bg-rose-500/20 text-rose-400'
-                                  : 'bg-emerald-500/20 text-emerald-400'
-                              }`}>
-                                {msg.type === 'video_call' || msg.callInfo?.type === 'video' ? (
-                                  <Video className="w-5 h-5" />
-                                ) : (
-                                  <Phone className="w-5 h-5" />
+                                {Array.from(new Set(Object.values(msg.reactions))).slice(0, 3).map((emoji, idx) => (
+                                  <span key={idx}>{emoji}</span>
+                                ))}
+                                {Object.keys(msg.reactions).length > 1 && (
+                                  <span className="text-[10px] opacity-80 font-semibold ml-0.5">
+                                    {Object.keys(msg.reactions).length}
+                                  </span>
                                 )}
                               </div>
+                            )}
 
-                              <div className="flex-1 min-w-0">
-                                <h4 className="font-semibold text-sm flex items-center gap-1.5 text-white truncate">
-                                  {msg.callInfo?.type === 'video' || msg.type === 'video_call' ? 'Video Call' : 'Voice Call'}
-                                  {msg.callInfo?.status === 'missed' && <span className="text-[10px] text-rose-400 font-bold px-1.5 py-0.2 rounded bg-rose-500/20">Missed</span>}
-                                  {msg.callInfo?.status === 'rejected' && <span className="text-[10px] text-rose-400 font-bold px-1.5 py-0.2 rounded bg-rose-500/20">Rejected</span>}
-                                </h4>
-
-                                <div className="flex items-center gap-2 text-xs text-slate-300 mt-0.5">
-                                  <span>{msg.callInfo?.direction === 'outgoing' || isMe ? 'Outgoing' : 'Incoming'}</span>
-                                  {msg.callInfo?.duration && msg.callInfo.duration !== '00:00' && (
-                                    <>
-                                      <span>•</span>
-                                      <span className="font-mono">{msg.callInfo.duration}</span>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                startCall(contact.id, msg.callInfo?.type || (msg.type === 'video_call' ? 'video' : 'voice'));
-                              }}
-                              className="w-full py-1.5 px-3 rounded-xl bg-[#ff2e93]/30 hover:bg-[#ff2e93]/50 text-pink-300 border border-[#ff2e93]/30 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-95"
-                            >
-                              <PhoneCall className="w-3.5 h-3.5" />
-                              <span>Call Again</span>
-                            </button>
                           </div>
-                        )}
-
-                        {/* Status Mention / Reshare Card in Chat */}
-                        {(msg.statusMention || msg.type === 'status_mention' || (msg.text && (msg.text.toLowerCase().includes('mentioned you in') || msg.text.toLowerCase().includes('added your status')))) && (
-                          <div 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const targetStatusId = msg.statusMention?.statusId || msg.statusReply?.statusId;
-                              const ownerId = msg.statusMention?.statusOwnerId || msg.senderId;
-                              if (targetStatusId) {
-                                handleOpenStatusFromReply(targetStatusId, ownerId);
-                              }
-                            }}
-                            className="mb-2 p-3 rounded-2xl bg-gradient-to-br from-[#18252d] to-[#0f171d] border border-[#00a8ff]/40 shadow-xl cursor-pointer hover:border-[#00a8ff] transition-all group shrink-0"
-                          >
-                            <div className="flex items-center justify-between gap-2 mb-2 pb-1.5 border-b border-white/10">
-                              <span className="text-xs font-bold text-[#00a8ff] flex items-center gap-1.5">
-                                <Sparkles className="w-3.5 h-3.5 text-yellow-300 fill-current animate-pulse" />
-                                <span>{msg.text?.includes('Added your status') ? 'Status Reshared' : 'Status Mention'}</span>
-                              </span>
-                              <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                                Instagram Story Style
-                              </span>
-                            </div>
-
-                            <div className="flex items-center gap-3">
-                              {msg.statusMention?.statusThumbnail || msg.statusMention?.statusMediaUrl ? (
-                                <img
-                                  src={msg.statusMention.statusThumbnail || msg.statusMention.statusMediaUrl}
-                                  alt="Status Mention"
-                                  className="w-14 h-14 rounded-xl object-cover border border-white/20 shrink-0 shadow-md"
-                                />
-                              ) : (
-                                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-pink-500 via-purple-500 to-cyan-500 flex items-center justify-center text-white font-extrabold text-[11px] shrink-0 p-1 text-center truncate shadow-md">
-                                  {msg.statusMention?.statusText || 'Status'}
-                                </div>
-                              )}
-
-                              <div className="min-w-0 flex-1">
-                                <p className="text-xs font-bold text-white truncate">
-                                  {msg.text?.includes('Added your status') 
-                                    ? `${msg.senderName || 'User'} added your status to their Status! 🎉`
-                                    : `${msg.statusMention?.statusOwnerName || msg.senderName || 'User'} mentioned you in Status`}
-                                </p>
-                                <p className="text-[11px] text-gray-300 line-clamp-1 mt-0.5">
-                                  {msg.statusMention?.statusText || 'Tap to view status'}
-                                </p>
-                                <p className="text-[10px] text-emerald-400 font-bold mt-1 underline group-hover:text-emerald-300 flex items-center gap-1">
-                                  <span>Tap to View Status</span>
-                                  <ChevronRight className="w-3 h-3" />
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Message Text */}
-                        {!(msg.callInfo || msg.type === 'voice_call' || msg.type === 'video_call') && (
-                          isEmojiOnlyMsg ? (
-                            <div className="grid gap-x-1 gap-y-1 w-max mt-1 mb-1" style={{ gridTemplateColumns: `repeat(${Math.min(4, getEmojiArray(msg.text!).length)}, minmax(0, 1fr))` }}>
-                              {getEmojiArray(msg.text!).map((emoji, i) => (
-                                <span key={i} className="text-[2.5rem] leading-[1.1] text-center drop-shadow-md">{emoji}</span>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="leading-normal whitespace-pre-wrap break-words text-[15px]">{renderTextWithLinks(msg.text)}</p>
-                          )
-                        )}
-                      </>
-                    )}
-
-                    {/* Footer Timestamp & Status */}
-                    <div className={`flex items-center justify-end gap-1 mt-1 text-[11px] ${
-                      isEmojiOnlyMsg ? 'bg-black/40 backdrop-blur-md rounded-full px-2 py-0.5 w-max ml-auto text-white/90 shadow-sm' : (isMe ? 'text-white/85' : 'text-[#8596a0]')
-                    }`}>
-                      {msg.isStarred && !msg.deletedForEveryone && <Star className="w-3 h-3 text-amber-300 fill-amber-300 shrink-0" />}
-                      {msg.isEdited && !msg.deletedForEveryone && <span className="italic text-[9px] opacity-80">edited</span>}
-                      <span>{formattedTime}</span>
-
-                      {/* Delivery Status Indicator */}
-                      {isMe && (
-                        (msg.isRead || msg.seen) ? (
-                          <CheckCheck className={`w-4 h-4 shrink-0 font-extrabold drop-shadow-xs stroke-[2.5] ${isEmojiOnlyMsg ? 'text-[#53bdeb]' : 'text-[#34b7f1]'}`} />
-                        ) : (msg.isDelivered || msg.isSent) ? (
-                          <CheckCheck className={`w-3.5 h-3.5 shrink-0 stroke-[2] ${isEmojiOnlyMsg ? 'text-white/80' : 'text-white/70'}`} />
-                        ) : (
-                          <Check className={`w-3.5 h-3.5 shrink-0 stroke-[2] ${isEmojiOnlyMsg ? 'text-white/80' : 'text-white/70'}`} />
-                        )
-                      )}
-                    </div>
-
-                    {/* Quick Hover Action Menu Trigger */}
-                    {!msg.deletedForEveryone ? (
-                      <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-black/40 rounded-lg p-0.5 backdrop-blur-sm">
-                        <button
-                          onClick={() => setReplyingToMsg(msg)}
-                          className="p-1 hover:bg-white/20 rounded text-white"
-                          title="Reply"
-                        >
-                          <CornerUpLeft className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={() => toggleStarMessage(contact.id, msg.id)}
-                          className="p-1 hover:bg-white/20 rounded text-amber-300"
-                          title="Star"
-                        >
-                          <Star className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setForwardingMsg(msg);
-                            setForwardContactIds([]);
-                          }}
-                          className="p-1 hover:bg-white/20 rounded text-white"
-                          title="Forward"
-                        >
-                          <Forward className="w-3 h-3" />
-                        </button>
-
-                        {isMe && isMessageEditable(msg) && (
-                          <button
-                            onClick={() => {
-                              setEditingMsg(msg);
-                              setInputText(msg.text);
-                            }}
-                            className="p-1 hover:bg-white/20 rounded text-emerald-300"
-                            title="Edit (Available within 2 mins)"
-                          >
-                            <Edit3 className="w-3 h-3" />
-                          </button>
-                        )}
-
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteModalMsg(msg);
-                            setDeleteConfirmType(null);
-                          }}
-                          className="p-1 hover:bg-white/20 rounded text-rose-300"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
+                        </div>
                       </div>
-                    ) : (
-                      <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 bg-black/40 rounded-lg p-0.5 backdrop-blur-sm">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteModalMsg(msg);
-                            setDeleteConfirmType(null);
-                          }}
-                          className="p-1 hover:bg-white/20 rounded text-rose-300"
-                          title="Delete for me"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Reactions badge */}
-                    {msg.reactions && Object.keys(msg.reactions).length > 0 && (
-                      <div 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveReactionMsgId(activeReactionMsgId === msg.id ? null : msg.id);
-                        }}
-                        className={`absolute -bottom-2.5 ${isMe ? 'right-2' : 'left-2'} flex items-center gap-0.5 ${
-                          isDark ? 'bg-[#202c33] border-[#2a3942] text-white' : 'bg-white border-gray-200 text-gray-800'
-                        } border rounded-full px-1.5 py-0.5 text-xs shadow-md z-10 cursor-pointer hover:scale-105 transition-transform`}
-                      >
-                        {Array.from(new Set(Object.values(msg.reactions))).slice(0, 3).map((emoji, idx) => (
-                          <span key={idx}>{emoji}</span>
-                        ))}
-                        {Object.keys(msg.reactions).length > 1 && (
-                          <span className="text-[10px] opacity-80 font-semibold ml-0.5">
-                            {Object.keys(msg.reactions).length}
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                  </div>
-                </div>
-              </div>
-              </React.Fragment>
-            );
-          });
-        })()
-      )}
-          <div ref={messagesEndRef} />
+                    </React.Fragment>
+                  );
+                });
+              })()
+            )}
+            <div ref={messagesEndRef} />
+          </div>
         </div>
-      </div>
 
         {/* Replying Banner above Input */}
         {replyingToMsg && (
-          <div className={`px-4 py-2 flex items-center justify-between border-t border-[#ff2e93]/30 text-xs animate-fade-in z-20 ${
-            isDark ? 'bg-[#182229]/80 backdrop-blur-md text-[#e9edef]' : 'bg-pink-50/80 backdrop-blur-md text-pink-900'
-          }`}>
+          <div className={`px-4 py-2 flex items-center justify-between border-t border-[#ff2e93]/30 text-xs animate-fade-in z-20 ${isDark ? 'bg-[#182229]/80 backdrop-blur-md text-[#e9edef]' : 'bg-pink-50/80 backdrop-blur-md text-pink-900'
+            }`}>
             <div className="flex items-center gap-2 border-l-2 border-[#ff2e93] pl-2 truncate">
               <CornerUpLeft className="w-3.5 h-3.5 text-[#ff2e93] shrink-0" />
               <div className="truncate">
@@ -2653,9 +2618,8 @@ export const ChatWindow: React.FC = () => {
 
         {/* Editing Banner above Input */}
         {editingMsg && (
-          <div className={`px-4 py-2 flex items-center justify-between border-t border-amber-500/30 text-xs animate-fade-in z-20 ${
-            isDark ? 'bg-[#182229]/80 backdrop-blur-md text-[#e9edef]' : 'bg-amber-50/80 backdrop-blur-md text-amber-900'
-          }`}>
+          <div className={`px-4 py-2 flex items-center justify-between border-t border-amber-500/30 text-xs animate-fade-in z-20 ${isDark ? 'bg-[#182229]/80 backdrop-blur-md text-[#e9edef]' : 'bg-amber-50/80 backdrop-blur-md text-amber-900'
+            }`}>
             <div className="flex items-center gap-2 border-l-2 border-amber-500 pl-2 truncate">
               <Edit3 className="w-3.5 h-3.5 text-amber-500 shrink-0" />
               <span className="font-semibold text-amber-500">Editing message</span>
@@ -2668,9 +2632,8 @@ export const ChatWindow: React.FC = () => {
 
         {/* Voice Note Recorder Tray */}
         {isRecording ? (
-          <div className={`p-3 flex items-center justify-between gap-3 border-t animate-fade-in z-20 ${
-            isDark ? 'bg-[#111b21]/80 backdrop-blur-md border-[#222e35]/60' : 'bg-white/80 backdrop-blur-md border-gray-200'
-          }`}>
+          <div className={`p-3 flex items-center justify-between gap-3 border-t animate-fade-in z-20 ${isDark ? 'bg-[#111b21]/80 backdrop-blur-md border-[#222e35]/60' : 'bg-white/80 backdrop-blur-md border-gray-200'
+            }`}>
             <div className="flex items-center gap-3 text-rose-500 font-mono font-bold text-sm">
               <span className="w-3 h-3 bg-rose-500 rounded-full animate-ping shrink-0" />
               <span>
@@ -2708,9 +2671,8 @@ export const ChatWindow: React.FC = () => {
             </div>
           </div>
         ) : !isFriend(contact.id) ? (
-          <div className={`p-4 border-t flex items-center justify-between gap-3 text-xs font-semibold shrink-0 z-20 ${
-            isDark ? 'bg-[#182229]/90 backdrop-blur-md border-[#2a3942]/60 text-amber-400' : 'bg-amber-50/90 backdrop-blur-md border-amber-200 text-amber-800'
-          }`}>
+          <div className={`p-4 border-t flex items-center justify-between gap-3 text-xs font-semibold shrink-0 z-20 ${isDark ? 'bg-[#182229]/90 backdrop-blur-md border-[#2a3942]/60 text-amber-400' : 'bg-amber-50/90 backdrop-blur-md border-amber-200 text-amber-800'
+            }`}>
             <div className="flex items-center gap-2">
               <Lock className="w-4 h-4 shrink-0 text-amber-400" />
               <span>You must be friends to chat.</span>
@@ -2756,9 +2718,8 @@ export const ChatWindow: React.FC = () => {
           <div className="flex flex-col w-full z-20">
             {/* Attachment Options Popover */}
             {showAttachModal && (
-              <div className={`p-4 border-t animate-slide-up grid grid-cols-3 gap-3 shadow-2xl justify-items-center ${
-                isDark ? 'bg-[#111b21]/90 backdrop-blur-md border-[#222e35]' : 'bg-white/90 backdrop-blur-md border-gray-200'
-              }`}>
+              <div className={`p-4 border-t animate-slide-up grid grid-cols-3 gap-3 shadow-2xl justify-items-center ${isDark ? 'bg-[#111b21]/90 backdrop-blur-md border-[#222e35]' : 'bg-white/90 backdrop-blur-md border-gray-200'
+                }`}>
                 {/* Photos */}
                 {canSendImages && (
                   <button
@@ -2825,9 +2786,8 @@ export const ChatWindow: React.FC = () => {
 
             {/* Emoji Picker Tray */}
             {showEmojiPicker && (
-              <div className={`p-3 border-t animate-slide-up flex flex-col h-64 max-h-72 shadow-2xl transition-all ${
-                isDark ? 'bg-[#111b21]/95 backdrop-blur-md border-[#222e35]' : 'bg-slate-50/95 backdrop-blur-md border-gray-200'
-              }`}>
+              <div className={`p-3 border-t animate-slide-up flex flex-col h-64 max-h-72 shadow-2xl transition-all ${isDark ? 'bg-[#111b21]/95 backdrop-blur-md border-[#222e35]' : 'bg-slate-50/95 backdrop-blur-md border-gray-200'
+                }`}>
                 <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-500/20 px-1">
                   <div className="flex items-center gap-2">
                     <Smile className="w-4 h-4 text-[#ff2e93]" />
@@ -2863,9 +2823,8 @@ export const ChatWindow: React.FC = () => {
 
             {/* Bottom Input Bar or Blocked Notice */}
             {(blockedContactIds.includes(contact.id) || blockedByContactIds.includes(contact.id)) ? (
-              <div className={`p-4 text-center flex flex-col items-center justify-center gap-2 border-t shrink-0 ${
-                isDark ? 'bg-[#111b21]/80 backdrop-blur-md border-[#1f2c34]/60 text-[#8696a0]' : 'bg-gray-100/80 backdrop-blur-md border-gray-200 text-gray-600'
-              }`}>
+              <div className={`p-4 text-center flex flex-col items-center justify-center gap-2 border-t shrink-0 ${isDark ? 'bg-[#111b21]/80 backdrop-blur-md border-[#1f2c34]/60 text-[#8696a0]' : 'bg-gray-100/80 backdrop-blur-md border-gray-200 text-gray-600'
+                }`}>
                 <p className="text-xs font-medium">
                   {blockedContactIds.includes(contact.id)
                     ? "You blocked this contact. Tap below to unblock."
@@ -2885,9 +2844,8 @@ export const ChatWindow: React.FC = () => {
                 )}
               </div>
             ) : !canSendMessages ? (
-              <div className={`p-4 text-center flex items-center justify-center gap-2 border-t shrink-0 ${
-                isDark ? 'bg-[#111b21]/80 backdrop-blur-md border-[#1f2c34]/60 text-[#8696a0]' : 'bg-gray-100/80 backdrop-blur-md border-gray-200 text-gray-600'
-              }`}>
+              <div className={`p-4 text-center flex items-center justify-center gap-2 border-t shrink-0 ${isDark ? 'bg-[#111b21]/80 backdrop-blur-md border-[#1f2c34]/60 text-[#8696a0]' : 'bg-gray-100/80 backdrop-blur-md border-gray-200 text-gray-600'
+                }`}>
                 <Lock className="w-4 h-4 text-amber-500 shrink-0" />
                 <span className="text-xs font-semibold">
                   {groupPerms.onlyAdminsSend
@@ -2896,23 +2854,20 @@ export const ChatWindow: React.FC = () => {
                 </span>
               </div>
             ) : (
-              <form onSubmit={handleSend} className={`p-2 sm:p-2.5 flex items-center gap-2 shrink-0 w-full min-w-0 transition-colors z-20 ${
-                isDark ? 'bg-[#111b21] border-t border-[#202c33]' : 'bg-[#f0f2f5] border-t border-gray-200'
-              }`}>
-                <div className={`flex-1 min-w-0 rounded-full flex items-center px-3 py-1.5 gap-2 border ${
-                  isDark ? 'bg-[#202c33]/90 border-transparent shadow-sm' : 'bg-white border-gray-200/80 shadow-sm'
+              <form onSubmit={handleSend} className={`p-2 sm:p-2.5 flex items-center gap-2 shrink-0 w-full min-w-0 transition-colors z-20 ${isDark ? 'bg-[#111b21] border-t border-[#202c33]' : 'bg-[#f0f2f5] border-t border-gray-200'
                 }`}>
+                <div className={`flex-1 min-w-0 rounded-full flex items-center px-3 py-1.5 gap-2 border ${isDark ? 'bg-[#202c33]/90 border-transparent shadow-sm' : 'bg-white border-gray-200/80 shadow-sm'
+                  }`}>
                   <button
                     type="button"
                     onClick={() => {
                       setShowEmojiPicker(!showEmojiPicker);
                       setShowAttachModal(false);
                     }}
-                    className={`p-1.5 shrink-0 transition-colors ${
-                      showEmojiPicker 
-                        ? 'text-[#ff2e93]' 
+                    className={`p-1.5 shrink-0 transition-colors ${showEmojiPicker
+                        ? 'text-[#ff2e93]'
                         : (isDark ? 'text-[#8596a0] hover:text-[#e9edef]' : 'text-gray-500 hover:text-gray-800')
-                    }`}
+                      }`}
                     title="Emojis"
                   >
                     <Smile className="w-6 h-6" />
@@ -2923,9 +2878,8 @@ export const ChatWindow: React.FC = () => {
                     placeholder="Message"
                     value={inputText}
                     onChange={handleInputChange}
-                    className={`flex-1 min-w-0 w-full bg-transparent focus:outline-none text-base py-1 ${
-                      isDark ? 'text-[#e9edef] placeholder-[#8596a0]' : 'text-gray-900 placeholder-gray-400'
-                    }`}
+                    className={`flex-1 min-w-0 w-full bg-transparent focus:outline-none text-base py-1 ${isDark ? 'text-[#e9edef] placeholder-[#8596a0]' : 'text-gray-900 placeholder-gray-400'
+                      }`}
                   />
 
                   <button
@@ -2938,11 +2892,10 @@ export const ChatWindow: React.FC = () => {
                       setShowAttachModal(!showAttachModal);
                       setShowEmojiPicker(false);
                     }}
-                    className={`p-1.5 transition-colors -rotate-45 ${
-                      showAttachModal 
-                        ? 'text-[#ff2e93]' 
+                    className={`p-1.5 transition-colors -rotate-45 ${showAttachModal
+                        ? 'text-[#ff2e93]'
                         : (isDark ? 'text-[#8596a0] hover:text-[#e9edef]' : 'text-gray-500 hover:text-gray-800')
-                    }`}
+                      }`}
                     title="Attach"
                   >
                     <Paperclip className="w-5 h-5" />
@@ -2957,9 +2910,8 @@ export const ChatWindow: React.FC = () => {
                       }
                       setActiveTab('gallery');
                     }}
-                    className={`p-1.5 transition-colors hidden sm:block ${
-                      isDark ? 'text-[#8596a0] hover:text-[#e9edef]' : 'text-gray-500 hover:text-gray-800'
-                    }`}
+                    className={`p-1.5 transition-colors hidden sm:block ${isDark ? 'text-[#8596a0] hover:text-[#e9edef]' : 'text-gray-500 hover:text-gray-800'
+                      }`}
                     title="Camera"
                   >
                     <Camera className="w-5 h-5" />
@@ -2999,20 +2951,19 @@ export const ChatWindow: React.FC = () => {
 
       {/* Right Contact Info Sidebar Modal / Drawer */}
       {showRightSidebar && (
-        <div 
+        <div
           onClick={() => setShowRightSidebar(false)}
           className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex justify-end animate-fade-in"
         >
-          <div 
+          <div
             onClick={(e) => e.stopPropagation()}
-            className={`w-full max-w-sm sm:w-80 h-full overflow-y-auto p-5 shadow-2xl flex flex-col border-l animate-slide-left ${
-              isDark ? 'bg-[#111b21] border-[#222e35] text-white' : 'bg-white border-gray-200 text-gray-900'
-            }`}
+            className={`w-full max-w-sm sm:w-80 h-full overflow-y-auto p-5 shadow-2xl flex flex-col border-l animate-slide-left ${isDark ? 'bg-[#111b21] border-[#222e35] text-white' : 'bg-white border-gray-200 text-gray-900'
+              }`}
           >
             <div className="flex items-center justify-between mb-6">
               <h3 className="font-bold text-base">{contact?.isGroup ? 'Group Info' : 'Contact Info'}</h3>
-              <button 
-                onClick={() => setShowRightSidebar(false)} 
+              <button
+                onClick={() => setShowRightSidebar(false)}
                 className="p-1.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-colors"
               >
                 <X className="w-5 h-5" />
@@ -3159,9 +3110,8 @@ export const ChatWindow: React.FC = () => {
                         </p>
                       ) : (
                         groupMembersList.map((m, idx) => (
-                          <div key={idx} className={`p-2.5 rounded-xl text-xs flex items-center justify-between border transition-all ${
-                            isDark ? 'bg-[#182229] border-[#202c33]' : 'bg-gray-50 border-gray-200'
-                          }`}>
+                          <div key={idx} className={`p-2.5 rounded-xl text-xs flex items-center justify-between border transition-all ${isDark ? 'bg-[#182229] border-[#202c33]' : 'bg-gray-50 border-gray-200'
+                            }`}>
                             <div className="flex items-center gap-2.5 min-w-0">
                               {m.avatar ? (
                                 <img src={m.avatar} alt={m.name} className="w-7 h-7 rounded-full object-cover shrink-0 border border-[#ff2e93]/30" />
@@ -3172,13 +3122,12 @@ export const ChatWindow: React.FC = () => {
                               )}
                               <span className="font-semibold text-xs truncate">{m.name}</span>
                             </div>
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${
-                              m.role === 'Creator'
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${m.role === 'Creator'
                                 ? 'bg-[#ff2e93]/20 text-[#ff2e93] border border-[#ff2e93]/30'
                                 : m.role === 'Admin'
                                   ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
                                   : 'bg-emerald-500/15 text-emerald-400'
-                            }`}>
+                              }`}>
                               {m.role}
                             </span>
                           </div>
@@ -3216,20 +3165,19 @@ export const ChatWindow: React.FC = () => {
       {/* Forward Message Modal */}
       {forwardingMsg && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 animate-fade-in">
-          <div className={`w-full max-w-sm rounded-3xl p-5 shadow-2xl animate-scale-in flex flex-col max-h-[85vh] ${
-            isDark ? 'bg-[#111b21] border border-[#222e35] text-white' : 'bg-white text-gray-900'
-          }`}>
+          <div className={`w-full max-w-sm rounded-3xl p-5 shadow-2xl animate-scale-in flex flex-col max-h-[85vh] ${isDark ? 'bg-[#111b21] border border-[#222e35] text-white' : 'bg-white text-gray-900'
+            }`}>
             <div className="flex items-center justify-between mb-3 shrink-0">
               <div className="flex items-center gap-2">
                 <Forward className="w-5 h-5 text-[#ff2e93]" />
                 <h3 className="font-bold text-base">Forward Message</h3>
               </div>
-              <button 
+              <button
                 onClick={() => {
                   setForwardingMsg(null);
                   setForwardSearch('');
                   setForwardContactIds([]);
-                }} 
+                }}
                 className="p-1 hover:bg-black/10 rounded-full text-gray-400 hover:text-white"
               >
                 <X className="w-5 h-5" />
@@ -3237,9 +3185,8 @@ export const ChatWindow: React.FC = () => {
             </div>
 
             {/* Message Preview Box */}
-            <div className={`p-3 rounded-2xl mb-3 text-xs shrink-0 border ${
-              isDark ? 'bg-[#202c33] border-[#2a3942]/60 text-[#8696a0]' : 'bg-gray-100 border-gray-200 text-gray-600'
-            }`}>
+            <div className={`p-3 rounded-2xl mb-3 text-xs shrink-0 border ${isDark ? 'bg-[#202c33] border-[#2a3942]/60 text-[#8696a0]' : 'bg-gray-100 border-gray-200 text-gray-600'
+              }`}>
               <span className="font-bold block text-[#ff2e93] mb-0.5">Message Content</span>
               <p className="line-clamp-2 text-xs font-medium text-current">
                 {renderTextWithLinks(forwardingMsg.text) || (forwardingMsg.media ? `[${forwardingMsg.media.type}] ${forwardingMsg.media.name || ''}` : 'Media Attachment')}
@@ -3253,11 +3200,10 @@ export const ChatWindow: React.FC = () => {
                 placeholder="Search contacts..."
                 value={forwardSearch}
                 onChange={e => setForwardSearch(e.target.value)}
-                className={`w-full px-3.5 py-2 rounded-xl text-xs focus:outline-none border ${
-                  isDark
+                className={`w-full px-3.5 py-2 rounded-xl text-xs focus:outline-none border ${isDark
                     ? 'bg-[#202c33] border-[#2a3942] text-white placeholder-gray-400 focus:border-[#ff2e93]'
                     : 'bg-gray-100 border-gray-300 text-gray-900 placeholder-gray-500 focus:border-[#ff2e93]'
-                }`}
+                  }`}
               />
             </div>
 
@@ -3279,11 +3225,10 @@ export const ChatWindow: React.FC = () => {
                           prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
                         );
                       }}
-                      className={`p-2.5 rounded-2xl flex items-center justify-between cursor-pointer border transition-colors ${
-                        isSelected
+                      className={`p-2.5 rounded-2xl flex items-center justify-between cursor-pointer border transition-colors ${isSelected
                           ? 'bg-[#ff2e93]/20 border-[#ff2e93]'
                           : (isDark ? 'bg-[#202c33] border-transparent hover:bg-[#2a3942]' : 'bg-gray-100 border-gray-200 hover:bg-gray-200')
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <img src={c.avatar} className="w-8 h-8 rounded-full object-cover shrink-0" />
@@ -3331,7 +3276,7 @@ export const ChatWindow: React.FC = () => {
       />
 
       {/* Custom Contact Nickname Modal */}
-      <NicknameModal 
+      <NicknameModal
         contact={contact}
         isOpen={showNicknameModal}
         onClose={() => setShowNicknameModal(false)}
@@ -3339,17 +3284,16 @@ export const ChatWindow: React.FC = () => {
 
       {/* WhatsApp-Style Delete Message Bottom Sheet / Modal */}
       {deleteModalMsg && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/70 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in"
           onClick={() => {
             setDeleteModalMsg(null);
             setDeleteConfirmType(null);
           }}
         >
-          <div 
-            className={`w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden transition-all transform animate-slide-up ${
-              isDark ? 'bg-[#1f2c34] text-[#e9edef] border border-[#2a3942]' : 'bg-white text-gray-900 border border-gray-200'
-            }`}
+          <div
+            className={`w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden transition-all transform animate-slide-up ${isDark ? 'bg-[#1f2c34] text-[#e9edef] border border-[#2a3942]' : 'bg-white text-gray-900 border border-gray-200'
+              }`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Mobile Drag Indicator */}
@@ -3361,7 +3305,7 @@ export const ChatWindow: React.FC = () => {
                   <h3 className="font-bold text-base flex items-center gap-2">
                     <Trash2 className="w-5 h-5 text-rose-500" /> Delete message?
                   </h3>
-                  <button 
+                  <button
                     type="button"
                     onClick={() => setDeleteModalMsg(null)}
                     className="p-1 text-gray-400 hover:bg-gray-500/10 rounded-full transition-colors"
@@ -3380,9 +3324,8 @@ export const ChatWindow: React.FC = () => {
                         setEditingMsg(targetMsg);
                         setInputText(targetMsg.text);
                       }}
-                      className={`w-full p-3.5 rounded-xl flex items-center justify-between font-medium text-sm transition-all cursor-pointer ${
-                        isDark ? 'hover:bg-[#2a3942] bg-[#111b21]' : 'hover:bg-emerald-50 bg-emerald-50/50 text-emerald-700'
-                      }`}
+                      className={`w-full p-3.5 rounded-xl flex items-center justify-between font-medium text-sm transition-all cursor-pointer ${isDark ? 'hover:bg-[#2a3942] bg-[#111b21]' : 'hover:bg-emerald-50 bg-emerald-50/50 text-emerald-700'
+                        }`}
                     >
                       <div className="flex items-center gap-3">
                         <div className="p-2 rounded-lg bg-emerald-500/15 text-emerald-400">
@@ -3401,9 +3344,8 @@ export const ChatWindow: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setDeleteConfirmType('everyone')}
-                      className={`w-full p-3.5 rounded-xl flex items-center justify-between font-medium text-sm transition-all cursor-pointer ${
-                        isDark ? 'hover:bg-[#2a3942] bg-[#111b21]' : 'hover:bg-rose-50 bg-rose-50/50 text-rose-700'
-                      }`}
+                      className={`w-full p-3.5 rounded-xl flex items-center justify-between font-medium text-sm transition-all cursor-pointer ${isDark ? 'hover:bg-[#2a3942] bg-[#111b21]' : 'hover:bg-rose-50 bg-rose-50/50 text-rose-700'
+                        }`}
                     >
                       <div className="flex items-center gap-3">
                         <div className="p-2 rounded-lg bg-rose-500/15 text-rose-400">
@@ -3421,9 +3363,8 @@ export const ChatWindow: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setDeleteConfirmType('me')}
-                    className={`w-full p-3.5 rounded-xl flex items-center justify-between font-medium text-sm transition-all cursor-pointer ${
-                      isDark ? 'hover:bg-[#2a3942] bg-[#111b21]' : 'hover:bg-amber-50 bg-amber-50/50 text-amber-800'
-                    }`}
+                    className={`w-full p-3.5 rounded-xl flex items-center justify-between font-medium text-sm transition-all cursor-pointer ${isDark ? 'hover:bg-[#2a3942] bg-[#111b21]' : 'hover:bg-amber-50 bg-amber-50/50 text-amber-800'
+                      }`}
                   >
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-lg bg-amber-500/15 text-amber-400">
@@ -3440,9 +3381,8 @@ export const ChatWindow: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setDeleteModalMsg(null)}
-                    className={`w-full py-3 rounded-xl font-semibold text-sm transition-colors cursor-pointer mt-1 ${
-                      isDark ? 'bg-[#2a3942] text-gray-300 hover:bg-[#324450]' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                    className={`w-full py-3 rounded-xl font-semibold text-sm transition-colors cursor-pointer mt-1 ${isDark ? 'bg-[#2a3942] text-gray-300 hover:bg-[#324450]' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
                   >
                     Cancel
                   </button>
@@ -3464,9 +3404,8 @@ export const ChatWindow: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setDeleteConfirmType(null)}
-                    className={`px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-colors ${
-                      isDark ? 'bg-[#2a3942] text-gray-300 hover:bg-[#324450]' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
+                    className={`px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-colors ${isDark ? 'bg-[#2a3942] text-gray-300 hover:bg-[#324450]' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
                   >
                     Cancel
                   </button>
@@ -3505,14 +3444,13 @@ export const ChatWindow: React.FC = () => {
 
       {/* Unfriend Confirmation Modal */}
       {showUnfriendConfirmModal && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/75 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in"
           onClick={() => setShowUnfriendConfirmModal(false)}
         >
-          <div 
-            className={`w-full max-w-sm rounded-3xl p-6 shadow-2xl border transition-all animate-scale-up ${
-              isDark ? 'bg-[#111b21] text-white border-[#202c33]' : 'bg-white text-slate-900 border-slate-200'
-            }`}
+          <div
+            className={`w-full max-w-sm rounded-3xl p-6 shadow-2xl border transition-all animate-scale-up ${isDark ? 'bg-[#111b21] text-white border-[#202c33]' : 'bg-white text-slate-900 border-slate-200'
+              }`}
             onClick={e => e.stopPropagation()}
           >
             <h3 className="font-extrabold text-lg mb-2">Remove this friend?</h3>
@@ -3524,9 +3462,8 @@ export const ChatWindow: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowUnfriendConfirmModal(false)}
-                className={`flex-1 py-2.5 rounded-xl font-bold text-xs border transition-colors cursor-pointer ${
-                  isDark ? 'bg-[#202c33] hover:bg-[#2a3942] border-[#2a3942] text-white' : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-800'
-                }`}
+                className={`flex-1 py-2.5 rounded-xl font-bold text-xs border transition-colors cursor-pointer ${isDark ? 'bg-[#202c33] hover:bg-[#2a3942] border-[#2a3942] text-white' : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-800'
+                  }`}
               >
                 Cancel
               </button>
@@ -3548,14 +3485,13 @@ export const ChatWindow: React.FC = () => {
 
       {/* Microphone Permission Blocked Help Modal */}
       {showMicBlockedModal && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/75 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in"
           onClick={() => setShowMicBlockedModal(false)}
         >
-          <div 
-            className={`w-full max-w-md rounded-2xl p-6 shadow-2xl border transition-all animate-scale-up ${
-              isDark ? 'bg-[#1f2c34] text-[#e9edef] border-[#2a3942]' : 'bg-white text-gray-900 border-gray-200'
-            }`}
+          <div
+            className={`w-full max-w-md rounded-2xl p-6 shadow-2xl border transition-all animate-scale-up ${isDark ? 'bg-[#1f2c34] text-[#e9edef] border-[#2a3942]' : 'bg-white text-gray-900 border-gray-200'
+              }`}
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 mb-4">
@@ -3591,9 +3527,8 @@ export const ChatWindow: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowMicBlockedModal(false)}
-                className={`px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-colors ${
-                  isDark ? 'bg-[#2a3942] text-gray-300 hover:bg-[#324450]' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-colors ${isDark ? 'bg-[#2a3942] text-gray-300 hover:bg-[#324450]' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
               >
                 Close
               </button>
@@ -3756,17 +3691,16 @@ export const ChatWindow: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => {
-                        setPendingMediaList(prev => prev.map((item, i) => 
+                        setPendingMediaList(prev => prev.map((item, i) =>
                           i === activeMediaIndex ? { ...item, isViewOnce: !item.isViewOnce } : item
                         ));
                         const nextState = !activeItem.isViewOnce;
                         showToast(nextState ? 'Photo/Video set to view once' : 'View once turned off');
                       }}
-                      className={`w-7 h-7 rounded-full flex items-center justify-center font-extrabold text-xs transition-all cursor-pointer shrink-0 border-2 ${
-                        activeItem.isViewOnce
+                      className={`w-7 h-7 rounded-full flex items-center justify-center font-extrabold text-xs transition-all cursor-pointer shrink-0 border-2 ${activeItem.isViewOnce
                           ? 'bg-[#ff2e93] text-[#0b141a] border-[#ff2e93] shadow-md scale-105'
                           : 'border-[#8596a0] text-[#8596a0] hover:border-[#ff2e93] hover:text-[#ff2e93]'
-                      }`}
+                        }`}
                       title={activeItem.isViewOnce ? "View once is active (Recipient can view only 1 time)" : "Set to View Once"}
                     >
                       1
@@ -3786,9 +3720,8 @@ export const ChatWindow: React.FC = () => {
                     key={item.id}
                     type="button"
                     onClick={() => setActiveMediaIndex(idx)}
-                    className={`relative w-14 h-14 rounded-xl overflow-hidden shrink-0 border-2 transition-all cursor-pointer ${
-                      activeMediaIndex === idx ? 'border-[#ff2e93] scale-105 shadow-lg' : 'border-transparent opacity-60 hover:opacity-100'
-                    }`}
+                    className={`relative w-14 h-14 rounded-xl overflow-hidden shrink-0 border-2 transition-all cursor-pointer ${activeMediaIndex === idx ? 'border-[#ff2e93] scale-105 shadow-lg' : 'border-transparent opacity-60 hover:opacity-100'
+                      }`}
                   >
                     {item.type === 'image' ? (
                       <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
@@ -3858,14 +3791,13 @@ export const ChatWindow: React.FC = () => {
 
       {/* WhatsApp Contact Picker Modal */}
       {showContactPickerModal && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/75 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in"
           onClick={() => setShowContactPickerModal(false)}
         >
-          <div 
-            className={`w-full max-w-md rounded-2xl shadow-2xl border transition-all animate-scale-up overflow-hidden ${
-              isDark ? 'bg-[#111b21] text-[#e9edef] border-[#222e35]' : 'bg-white text-gray-900 border-gray-200'
-            }`}
+          <div
+            className={`w-full max-w-md rounded-2xl shadow-2xl border transition-all animate-scale-up overflow-hidden ${isDark ? 'bg-[#111b21] text-[#e9edef] border-[#222e35]' : 'bg-white text-gray-900 border-gray-200'
+              }`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -4119,11 +4051,10 @@ export const ChatWindow: React.FC = () => {
                     setCameraViewOnce(prev => !prev);
                     showToast(!cameraViewOnce ? 'View once photo enabled' : 'View once disabled');
                   }}
-                  className={`w-11 h-11 rounded-full flex items-center justify-center font-extrabold text-sm transition-all cursor-pointer border-2 ${
-                    cameraViewOnce
+                  className={`w-11 h-11 rounded-full flex items-center justify-center font-extrabold text-sm transition-all cursor-pointer border-2 ${cameraViewOnce
                       ? 'bg-[#ff2e93] text-[#0b141a] border-[#ff2e93] shadow-lg scale-105'
                       : 'border-white/40 text-white hover:border-[#ff2e93] hover:text-[#ff2e93]'
-                  }`}
+                    }`}
                   title={cameraViewOnce ? "View once is active" : "Set photo to View Once"}
                 >
                   1
@@ -4155,7 +4086,7 @@ export const ChatWindow: React.FC = () => {
 
       {/* View Once Fullscreen Viewer Modal */}
       {viewOnceActiveMedia && (
-        <div 
+        <div
           className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex flex-col justify-between p-4 sm:p-6 animate-fade-in text-white select-none"
           onClick={() => setViewOnceActiveMedia(null)}
         >
@@ -4172,9 +4103,9 @@ export const ChatWindow: React.FC = () => {
                 <span className="text-xs text-gray-400">Opened • This media will disappear when closed</span>
               </div>
             </div>
-            <button 
+            <button
               type="button"
-              onClick={() => setViewOnceActiveMedia(null)} 
+              onClick={() => setViewOnceActiveMedia(null)}
               className="p-2 hover:bg-white/10 rounded-full transition-colors text-white cursor-pointer"
               title="Close View Once"
             >
@@ -4185,17 +4116,17 @@ export const ChatWindow: React.FC = () => {
           {/* Media Container */}
           <div className="flex-1 flex items-center justify-center p-2 max-w-3xl mx-auto w-full my-auto" onClick={e => e.stopPropagation()}>
             {viewOnceActiveMedia.media.type === 'video' ? (
-              <video 
-                src={viewOnceActiveMedia.media.url} 
-                controls 
-                autoPlay 
-                className="max-w-full max-h-[75vh] w-auto h-auto object-contain rounded-2xl shadow-2xl border border-white/10" 
+              <video
+                src={viewOnceActiveMedia.media.url}
+                controls
+                autoPlay
+                className="max-w-full max-h-[75vh] w-auto h-auto object-contain rounded-2xl shadow-2xl border border-white/10"
               />
             ) : (
-              <img 
-                src={viewOnceActiveMedia.media.url} 
-                alt="View Once Photo" 
-                className="max-w-full max-h-[75vh] w-auto h-auto object-contain rounded-2xl shadow-2xl border border-white/10" 
+              <img
+                src={viewOnceActiveMedia.media.url}
+                alt="View Once Photo"
+                className="max-w-full max-h-[75vh] w-auto h-auto object-contain rounded-2xl shadow-2xl border border-white/10"
               />
             )}
           </div>
@@ -4235,11 +4166,10 @@ export const ChatWindow: React.FC = () => {
       {/* Edit Group Name Modal */}
       {showEditGroupNameModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <form 
-            onSubmit={handleSaveGroupName} 
-            className={`w-full max-w-sm rounded-2xl p-5 shadow-2xl border ${
-              isDark ? 'bg-[#1f2c34] border-[#2a3942] text-white' : 'bg-white border-gray-200 text-gray-900'
-            }`}
+          <form
+            onSubmit={handleSaveGroupName}
+            className={`w-full max-w-sm rounded-2xl p-5 shadow-2xl border ${isDark ? 'bg-[#1f2c34] border-[#2a3942] text-white' : 'bg-white border-gray-200 text-gray-900'
+              }`}
           >
             <h3 className="font-bold text-base mb-3 flex items-center gap-2">
               <Edit3 className="w-5 h-5 text-[#ff2e93]" />
@@ -4250,9 +4180,8 @@ export const ChatWindow: React.FC = () => {
               value={newGroupNameInput}
               onChange={(e) => setNewGroupNameInput(e.target.value)}
               placeholder="Enter new group name..."
-              className={`w-full p-3 rounded-xl text-sm font-medium border focus:outline-hidden focus:ring-2 focus:ring-[#ff2e93] mb-4 ${
-                isDark ? 'bg-[#111b21] border-[#2a3942] text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
-              }`}
+              className={`w-full p-3 rounded-xl text-sm font-medium border focus:outline-hidden focus:ring-2 focus:ring-[#ff2e93] mb-4 ${isDark ? 'bg-[#111b21] border-[#2a3942] text-white' : 'bg-gray-100 border-gray-300 text-gray-900'
+                }`}
               autoFocus
             />
             <div className="flex justify-end gap-2">
@@ -4278,9 +4207,8 @@ export const ChatWindow: React.FC = () => {
       {/* Delete Group Confirmation Modal */}
       {showDeleteGroupConfirmModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className={`w-full max-w-sm rounded-2xl p-5 shadow-2xl border ${
-            isDark ? 'bg-[#1f2c34] border-[#2a3942] text-white' : 'bg-white border-gray-200 text-gray-900'
-          }`}>
+          <div className={`w-full max-w-sm rounded-2xl p-5 shadow-2xl border ${isDark ? 'bg-[#1f2c34] border-[#2a3942] text-white' : 'bg-white border-gray-200 text-gray-900'
+            }`}>
             <div className="flex items-center gap-3 text-rose-500 mb-3">
               <Trash2 className="w-6 h-6" />
               <h3 className="font-bold text-base">Delete Group for Everyone?</h3>

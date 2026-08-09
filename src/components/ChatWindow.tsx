@@ -2896,8 +2896,8 @@ export const ChatWindow: React.FC = () => {
                 </span>
               </div>
             ) : (
-              <form onSubmit={handleSend} className={`p-2 flex items-center gap-2 shrink-0 w-full min-w-0 transition-colors z-20 ${
-                isDark ? 'bg-[#0b141a]/60 backdrop-blur-md' : 'bg-gray-100/60 backdrop-blur-md border-t border-gray-200/80'
+              <form onSubmit={handleSend} className={`p-2 sm:p-2.5 flex items-center gap-2 shrink-0 w-full min-w-0 transition-colors z-20 ${
+                isDark ? 'bg-[#111b21] border-t border-[#202c33]' : 'bg-[#f0f2f5] border-t border-gray-200'
               }`}>
                 <div className={`flex-1 min-w-0 rounded-full flex items-center px-3 py-1.5 gap-2 border ${
                   isDark ? 'bg-[#202c33]/90 border-transparent shadow-sm' : 'bg-white border-gray-200/80 shadow-sm'

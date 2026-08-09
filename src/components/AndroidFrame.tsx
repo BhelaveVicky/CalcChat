@@ -22,8 +22,8 @@ export const AndroidFrame: React.FC<{ children: React.ReactNode }> = ({ children
 
   if (!settings.showAndroidFrame) {
     return (
-      <div className="h-[100dvh] bg-[#0b141a] text-[#e9edef] flex flex-col relative font-sans w-full overflow-hidden select-none">
-        <div className="flex-1 flex flex-col w-full h-full overflow-hidden min-h-0">
+      <div className="h-[100dvh] max-h-[100dvh] bg-[#0b141a] text-[#e9edef] flex flex-col relative font-sans w-full overflow-hidden select-none">
+        <div className="flex-1 min-h-0 flex flex-col w-full h-full overflow-hidden">
           {children}
         </div>
       </div>
@@ -31,9 +31,9 @@ export const AndroidFrame: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   return (
-    <div className="min-h-[100dvh] bg-slate-950 flex flex-col items-center justify-center p-0 sm:p-6 font-sans select-none overflow-x-hidden w-full">
+    <div className="h-[100dvh] max-h-[100dvh] bg-slate-950 flex flex-col items-center justify-between p-1 sm:p-4 font-sans select-none overflow-hidden w-full">
       {/* Top Controller Bar */}
-      <div className="w-full max-w-sm my-2 flex items-center justify-between px-3 text-xs text-slate-400">
+      <div className="w-full max-w-md shrink-0 py-1 px-3 flex items-center justify-between text-xs text-slate-400">
         <div className="flex items-center gap-2">
           <span className="flex h-2 w-2 relative">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -45,7 +45,7 @@ export const AndroidFrame: React.FC<{ children: React.ReactNode }> = ({ children
           {isUnlocked && (
             <button
               onClick={lockVault}
-              className="flex items-center gap-1 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 px-2 py-1 rounded-md transition-colors border border-rose-500/30 text-[11px] sm:text-xs"
+              className="flex items-center gap-1 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 px-2 py-1 rounded-md transition-colors border border-rose-500/30 text-[11px] sm:text-xs cursor-pointer"
             >
               <Shield className="w-3 h-3" />
               Lock
@@ -53,7 +53,7 @@ export const AndroidFrame: React.FC<{ children: React.ReactNode }> = ({ children
           )}
           <button
             onClick={toggleFrame}
-            className="flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded-md transition-colors border border-slate-700 text-[11px] sm:text-xs"
+            className="flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded-md transition-colors border border-slate-700 text-[11px] sm:text-xs cursor-pointer"
             title="Expand to Full Responsive View"
           >
             <Maximize2 className="w-3 h-3 text-emerald-400" />
@@ -62,56 +62,55 @@ export const AndroidFrame: React.FC<{ children: React.ReactNode }> = ({ children
         </div>
       </div>
 
-      {/* Responsive Viewport Wrapper - Full width/height on mobile, expands on tablet/desktop */}
-      <div className="relative w-full h-[100dvh] sm:h-full sm:flex-1 bg-black sm:rounded-[32px] sm:my-2 p-0 sm:p-2 sm:shadow-[0_0_40px_-10px_rgba(16,185,129,0.2)] sm:border-[2px] border-slate-800 flex flex-col overflow-hidden max-w-[1920px] mx-auto w-full">
+      {/* Responsive Viewport Wrapper - Perfectly scaled for any device/Vercel preview */}
+      <div className="relative w-full flex-1 min-h-0 bg-black sm:rounded-[32px] p-0 sm:p-1.5 sm:shadow-[0_0_40px_-10px_rgba(16,185,129,0.2)] sm:border-[2px] border-slate-800 flex flex-col overflow-hidden max-w-lg mx-auto">
         
         {/* Inner AMOLED Screen */}
-        <div className="relative w-full h-full bg-slate-950 sm:rounded-[24px] overflow-hidden flex flex-col sm:border border-slate-900/80 shadow-inner">
+        <div className="relative w-full h-full min-h-0 bg-slate-950 sm:rounded-[24px] overflow-hidden flex flex-col sm:border border-slate-900/80 shadow-inner">
           
           {/* Android Status Bar */}
-          <div className="w-full h-8 px-6 pt-1 flex items-center justify-between text-slate-200 text-xs font-medium z-40 bg-transparent shrink-0">
+          <div className="w-full h-7 px-4 pt-1 flex items-center justify-between text-slate-200 text-xs font-medium z-40 bg-black/40 shrink-0">
             {/* Left: Time & notification icon */}
             <div className="flex items-center gap-2">
-              <span className="font-semibold tracking-tight">{currentTime}</span>
+              <span className="font-semibold tracking-tight text-[11px]">{currentTime}</span>
               <Shield className="w-3 h-3 text-emerald-500 opacity-80" />
             </div>
 
-            {/* Center: Punch Hole Camera Cutout (hidden on large screens to avoid obscuring UI) */}
-            <div className="hidden sm:flex absolute left-1/2 -translate-x-1/2 top-2 w-4 h-4 bg-black rounded-full border border-slate-800/80 items-center justify-center pointer-events-none">
+            {/* Center: Punch Hole Camera Cutout (hidden on very small screens) */}
+            <div className="hidden sm:flex absolute left-1/2 -translate-x-1/2 top-1.5 w-3.5 h-3.5 bg-black rounded-full border border-slate-800 items-center justify-center pointer-events-none">
               <div className="w-1.5 h-1.5 bg-slate-900 rounded-full border border-slate-800"></div>
             </div>
 
             {/* Right: Status Icons */}
             <div className="flex items-center gap-1.5 text-slate-300">
-              <Signal className="w-3.5 h-3.5" />
-              <Wifi className="w-3.5 h-3.5" />
+              <Signal className="w-3 h-3" />
+              <Wifi className="w-3 h-3" />
               <div className="flex items-center gap-0.5 ml-0.5">
                 <span className="text-[10px] font-mono">88%</span>
-                <Battery className="w-4 h-4 text-emerald-400 fill-emerald-400/20" />
+                <Battery className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400/20" />
               </div>
             </div>
           </div>
 
           {/* App Body Viewport */}
-          <div className="flex-1 w-full h-full overflow-hidden flex flex-col relative">
+          <div className="flex-1 min-h-0 w-full overflow-hidden flex flex-col relative">
             {children}
           </div>
 
           {/* Android Bottom Navigation Bar */}
-          <div className="w-full h-11 bg-black/90 backdrop-blur border-t border-slate-900/60 flex items-center justify-around px-8 text-slate-400 shrink-0 z-40">
+          <div className="w-full h-10 bg-black/95 border-t border-slate-900/80 flex items-center justify-around px-8 text-slate-400 shrink-0 z-40">
             {/* Back Button */}
             <button
               onClick={() => {
                 if (isUnlocked) {
-                  // If in chat window, back to chat list
                   const backBtn = document.getElementById('vault_nav_back_trigger');
                   if (backBtn) backBtn.click();
                 }
               }}
-              className="p-2 hover:text-white hover:bg-white/5 rounded-full transition-colors active:scale-95"
+              className="p-1.5 hover:text-white hover:bg-white/5 rounded-full transition-colors active:scale-95 cursor-pointer"
               title="Android Back"
             >
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M15 18l-6-6 6-6"/>
               </svg>
             </button>
@@ -121,22 +120,21 @@ export const AndroidFrame: React.FC<{ children: React.ReactNode }> = ({ children
               onClick={() => {
                 if (isUnlocked) lockVault();
               }}
-              className="p-2 hover:text-white hover:bg-white/5 rounded-full transition-colors active:scale-95"
+              className="p-1.5 hover:text-white hover:bg-white/5 rounded-full transition-colors active:scale-95 cursor-pointer"
               title="Android Home (Return to Calculator)"
             >
-              <div className="w-4 h-4 rounded-full border-2 border-currentColor"></div>
+              <div className="w-3.5 h-3.5 rounded-full border-2 border-currentColor"></div>
             </button>
 
             {/* App Switcher / Recents */}
             <button
               onClick={() => {
-                // Hint for passcode
                 alert(`🔐 Disguise Hint:\nDefault Passcode is "${settings.passcode}" followed by "="\n\nExample: Type 1234= to enter secret chat vault.`);
               }}
-              className="p-2 hover:text-white hover:bg-white/5 rounded-full transition-colors active:scale-95"
+              className="p-1.5 hover:text-white hover:bg-white/5 rounded-full transition-colors active:scale-95 cursor-pointer"
               title="Android Recents (Show Passcode Hint)"
             >
-              <div className="w-3.5 h-3.5 rounded-sm border-2 border-currentColor"></div>
+              <div className="w-3.5 h-3.5 rounded-xs border-2 border-currentColor"></div>
             </button>
           </div>
 
@@ -144,7 +142,7 @@ export const AndroidFrame: React.FC<{ children: React.ReactNode }> = ({ children
       </div>
 
       {/* Footer Info */}
-      <div className="mt-3 text-center text-xs text-slate-500 max-w-sm">
+      <div className="py-1 text-center text-[11px] text-slate-500 max-w-sm shrink-0 hidden sm:block">
         💡 <span className="text-slate-400">Tip:</span> Type passcode <strong className="text-emerald-400 font-mono">{settings.passcode}=</strong> on the calculator to unlock secret chats.
       </div>
     </div>

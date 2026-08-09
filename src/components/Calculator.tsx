@@ -178,12 +178,12 @@ export const Calculator: React.FC = () => {
   }
 
   return (
-    <div className={`flex-1 flex flex-col items-center justify-center p-0 select-none w-full h-full min-h-[100dvh] transition-colors duration-300 ${
+    <div className={`flex-1 flex flex-col items-center justify-center p-0 select-none w-full h-full min-h-0 transition-colors duration-300 ${
       appSettings.darkMode ? 'bg-slate-900' : 'bg-slate-100'
     }`}>
       
       {/* Device wrapper - full height/width responsive */}
-      <div className="w-full h-full min-h-[100dvh] sm:min-h-0 sm:h-full relative flex flex-col bg-gradient-to-b from-[#ff8e6a] to-[#ff5676] overflow-hidden">
+      <div className="w-full h-full min-h-0 relative flex flex-col bg-gradient-to-b from-[#ff8e6a] to-[#ff5676] overflow-hidden">
         
         {/* Desktop Device Notch (Optional / Hidden for fully responsive) */}
         <div className="hidden absolute top-0 left-1/2 -translate-x-1/2 z-20 w-40 h-6 bg-slate-950 rounded-b-2xl"></div>

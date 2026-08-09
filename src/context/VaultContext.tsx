@@ -2147,37 +2147,49 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const localCustomAvatar = localStorage.getItem(`calcchat_custom_avatar_${authUser.uid}`);
     const photoURL = user.avatar || localCustomAvatar || authUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
 
-    await runTransaction(db, async (transaction) => {
-      const usernameRef = doc(db, 'usernames', uLower);
-      const usernameSnap = await transaction.get(usernameRef);
+    try {
+      await runTransaction(db, async (transaction) => {
+        const usernameRef = doc(db, 'usernames', uLower);
+        const usernameSnap = await transaction.get(usernameRef);
 
-      if (usernameSnap.exists() && usernameSnap.data()?.uid !== authUser.uid) {
-        throw new Error('Username is already taken');
-      }
+        if (usernameSnap.exists() && usernameSnap.data()?.uid !== authUser.uid) {
+          throw new Error('Username is already taken');
+        }
 
-      transaction.set(usernameRef, {
-        uid: authUser.uid,
-        username: uLower,
-        createdAt: serverTimestamp(),
+        transaction.set(usernameRef, {
+          uid: authUser.uid,
+          username: uLower,
+          createdAt: serverTimestamp(),
+        });
+
+        transaction.set(userRef, {
+          uid: authUser.uid,
+          username: uLower,
+          usernameLower: uLower,
+          displayName: displayName || uLower,
+          photoURL,
+          avatar: photoURL,
+          email: authUser.email || '',
+          hasUsername: true,
+          createdAt: serverTimestamp(),
+          lastLogin: serverTimestamp(),
+          lastSeen: 'Online',
+          online: true,
+          status: 'Available on Secret Vault',
+          about: 'Available on CalcChat',
+        }, { merge: true });
       });
-
-      transaction.set(userRef, {
-        uid: authUser.uid,
-        username: uLower,
-        usernameLower: uLower,
-        displayName: displayName || uLower,
-        photoURL,
-        avatar: photoURL,
-        email: authUser.email || '',
-        hasUsername: true,
-        createdAt: serverTimestamp(),
-        lastLogin: serverTimestamp(),
-        lastSeen: 'Online',
-        online: true,
-        status: 'Available on Secret Vault',
-        about: 'Available on CalcChat',
-      }, { merge: true });
-    });
+    } catch (err: any) {
+      if (err.message === 'Username is already taken') {
+        throw err;
+      }
+      if (err?.message?.toLowerCase().includes('quota') || err?.code?.includes('quota') || err?.message?.toLowerCase().includes('exceeded')) {
+        console.warn('Firebase Quota Exceeded. Bypassing database update for local usage.', err);
+      } else {
+        console.error('Error during username setup transaction:', err);
+        throw err; // Re-throw other unexpected errors
+      }
+    }
 
     try {
       localStorage.setItem(`calcchat_username_${authUser.uid}`, uLower);

@@ -19,7 +19,7 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
     updateSettings: updateVaultSettings,
     signOutGoogle,
     authUser,
-    profile,
+    user: profile,
     lockVault,
     clearAllChatHistory,
     completeChatPasswordSetup

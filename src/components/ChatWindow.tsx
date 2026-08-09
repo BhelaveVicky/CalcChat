@@ -340,12 +340,18 @@ export const ChatWindow: React.FC = () => {
   const canShareInviteLink = !contact?.isGroup || isGroupAdmin || (groupPerms.shareInviteLink !== false);
   const hasAnyMediaPermission = canSendImages || canSendVideos || canSendFiles;
 
-  // Wallpaper styling - priority: 1) per-chat custom wallpaper, 2) group wallpaper, 3) global app wallpaper
-  const chatWallpaper = (contact?.id && perChatWallpapers[contact.id])
+  // Wallpaper styling
+  let chatWallpaper = (contact?.id && perChatWallpapers[contact.id])
     ? perChatWallpapers[contact.id]
     : (contact?.isGroup && contact?.wallpaper)
       ? contact.wallpaper
       : (settings?.chatWallpaper || 'default');
+
+  if (contact?.isGroup && chatWallpaper === 'default') {
+    chatWallpaper = '/group-chat-bg.jpg';
+  } else if (!contact?.isGroup && chatWallpaper === 'default') {
+    chatWallpaper = '/default-chat-bg.jpg';
+  }
 
   const chatWallpaperBlur = (contact?.id && perChatBlurs[contact.id] !== undefined)
     ? perChatBlurs[contact.id]

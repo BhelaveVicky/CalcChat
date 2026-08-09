@@ -492,14 +492,16 @@ const ChatsSubView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
           </button>
 
           {/* Active Preview */}
-          {vaultSettings?.chatWallpaper && vaultSettings.chatWallpaper !== 'default' && (
+          {vaultSettings?.chatWallpaper !== undefined && (
             <div className="mb-4 p-3 rounded-2xl bg-[#111b21] border border-[#2a3942] flex items-center gap-3">
               <div 
                 className="w-12 h-12 rounded-xl border border-gray-600 shadow-sm shrink-0 overflow-hidden relative"
                 style={
-                  vaultSettings.chatWallpaper.startsWith('data:') || vaultSettings.chatWallpaper.startsWith('http') || vaultSettings.chatWallpaper.startsWith('blob:')
-                    ? { backgroundImage: `url("${vaultSettings.chatWallpaper}")`, backgroundSize: 'cover', backgroundPosition: 'center' }
-                    : { backgroundColor: vaultSettings.chatWallpaper }
+                  vaultSettings?.chatWallpaper && vaultSettings.chatWallpaper !== 'default'
+                    ? vaultSettings.chatWallpaper.startsWith('data:') || vaultSettings.chatWallpaper.startsWith('http') || vaultSettings.chatWallpaper.startsWith('blob:') || vaultSettings.chatWallpaper.startsWith('/') || vaultSettings.chatWallpaper.includes('.')
+                      ? { backgroundImage: `url("${vaultSettings.chatWallpaper}")`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                      : { backgroundColor: vaultSettings.chatWallpaper }
+                    : { backgroundImage: 'url("/default-chat-bg.jpg")', backgroundSize: 'cover', backgroundPosition: 'center' }
                 }
               >
                 <div className="absolute inset-0 bg-black/20 flex items-center justify-center">

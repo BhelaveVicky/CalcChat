@@ -6,7 +6,7 @@ import {
   Move, ZoomIn, ZoomOut, Sliders, RefreshCw, Maximize2, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Loader2
 } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
-import { StatusUpdate } from '../types';
+import { StatusUpdate, Contact } from '../types';
 import { StatusCard } from './Status/StatusCard';
 import { StatusViewer } from './Status/StatusViewer';
 import { compressImage } from '../lib/mediaCompressor';

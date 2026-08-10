@@ -22,7 +22,8 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
     user: profile,
     lockVault,
     clearAllChatHistory,
-    completeChatPasswordSetup
+    completeChatPasswordSetup,
+    pushOverlayHandler
   } = useVault();
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [showHistoryView, setShowHistoryView] = useState(false);
@@ -51,6 +52,37 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
   const [showForgotConfirmPass, setShowForgotConfirmPass] = useState(false);
   const [forgotError, setForgotError] = useState<string | null>(null);
   const [isResettingPass, setIsResettingPass] = useState(false);
+
+  // Register pushOverlayHandler for modal & step overlays so physical back button closes them cleanly
+  useEffect(() => {
+    if (forgotStep !== 'none') {
+      return pushOverlayHandler('forgotStep', () => setForgotStep('none'));
+    }
+  }, [forgotStep, pushOverlayHandler]);
+
+  useEffect(() => {
+    if (showLanguageModal) {
+      return pushOverlayHandler('showLanguageModal', () => setShowLanguageModal(false));
+    }
+  }, [showLanguageModal, pushOverlayHandler]);
+
+  useEffect(() => {
+    if (showHistoryView) {
+      return pushOverlayHandler('showHistoryView', () => setShowHistoryView(false));
+    }
+  }, [showHistoryView, pushOverlayHandler]);
+
+  useEffect(() => {
+    if (showSecurityModal) {
+      return pushOverlayHandler('showSecurityModal', () => setShowSecurityModal(false));
+    }
+  }, [showSecurityModal, pushOverlayHandler]);
+
+  useEffect(() => {
+    if (showLogoutConfirm) {
+      return pushOverlayHandler('showLogoutConfirm', () => setShowLogoutConfirm(false));
+    }
+  }, [showLogoutConfirm, pushOverlayHandler]);
 
   // Sync default target email if authUser becomes available
   useEffect(() => {

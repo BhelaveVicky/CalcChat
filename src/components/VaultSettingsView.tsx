@@ -805,13 +805,25 @@ const ChatsSubView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
 /* ─── Main Settings View ──────────────────────────────────── */
 export const VaultSettingsView: React.FC = () => {
-  const { user, signOutGoogle, lockVault, settings: vaultSettings, updateSettings: updateVaultSettings } = useVault();
+  const { user, signOutGoogle, lockVault, settings: vaultSettings, updateSettings: updateVaultSettings, pushOverlayHandler } = useVault();
   const { settings, updateSettings, t } = useSettings();
 
   const [search, setSearch] = useState('');
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [subView, setSubView] = useState<null | 'history' | 'security' | 'chats'>(null);
   const [snack, setSnack] = useState('');
+
+  useEffect(() => {
+    if (subView !== null) {
+      return pushOverlayHandler('subView', () => setSubView(null));
+    }
+  }, [subView, pushOverlayHandler]);
+
+  useEffect(() => {
+    if (showLanguageModal) {
+      return pushOverlayHandler('showLanguageModal', () => setShowLanguageModal(false));
+    }
+  }, [showLanguageModal, pushOverlayHandler]);
 
   const showSnack = (msg: string) => {
     setSnack(msg);

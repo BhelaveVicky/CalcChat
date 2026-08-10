@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MessageSquare, Image, User, Settings, ShieldAlert, Sparkles, UserPlus, Phone, Crown } from 'lucide-react';
 import { useVault, SUPER_ADMIN_EMAIL, ADMIN_EMAIL } from '../context/VaultContext';
 import { FriendRequestsModal } from './FriendRequestsModal';
@@ -8,10 +8,18 @@ import { CCLogo, CalcChatTitle } from './CalcChatBrand';
 export const VaultNavbar: React.FC = () => {
   const { 
     activeTab, setActiveTab, lockVault, user, authUser, unreadTotal, unseenStatusCount, missedCallCount,
-    pendingFriendRequests, acceptFriendRequest, rejectFriendRequest 
+    pendingFriendRequests, acceptFriendRequest, rejectFriendRequest, pushOverlayHandler
   } = useVault();
   const [isRequestsOpen, setIsRequestsOpen] = useState(false);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
+
+  useEffect(() => {
+    if (isRequestsOpen) return pushOverlayHandler('isRequestsOpen', () => setIsRequestsOpen(false));
+  }, [isRequestsOpen, pushOverlayHandler]);
+
+  useEffect(() => {
+    if (isAdminPanelOpen) return pushOverlayHandler('isAdminPanelOpen', () => setIsAdminPanelOpen(false));
+  }, [isAdminPanelOpen, pushOverlayHandler]);
 
   const userEmail = (authUser?.email || user.email || '').toLowerCase();
   const showAdminBtn = userEmail === SUPER_ADMIN_EMAIL || userEmail === ADMIN_EMAIL || user.isAdmin || user.isSuperAdmin;

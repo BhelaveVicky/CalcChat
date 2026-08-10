@@ -111,7 +111,8 @@ export const ChatWindow: React.FC = () => {
     addReactionMessage, removeReactionMessage, deleteMultipleMessages, authUser,
     updateGroupDetails, deleteGroup, adminWallpapers,
     statusUpdates, likeStatusUpdate, markStatusAsSeen, replyToStatus, reactToStatus,
-    deleteStatusUpdate, reshareStatus, getSeenRecords, getLikeRecords, allRegisteredUsers
+    deleteStatusUpdate, reshareStatus, getSeenRecords, getLikeRecords, allRegisteredUsers,
+    pushOverlayHandler
   } = useVault();
 
   // Status Viewer from Chat Reply / Reaction State
@@ -500,8 +501,54 @@ export const ChatWindow: React.FC = () => {
   const [contactSearchQuery, setContactSearchQuery] = useState<string>('');
 
   // Lightbox Zoom / Rotate
-  const [zoomScale, setZoomScale] = useState<number>(1);
-  const [imageRotation, setImageRotation] = useState<number>(0);
+  // Register overlay handlers so mobile hardware back button closes overlays step-by-step
+  useEffect(() => {
+    if (showRightSidebar) return pushOverlayHandler('showRightSidebar', () => setShowRightSidebar(false));
+  }, [showRightSidebar, pushOverlayHandler]);
+
+  useEffect(() => {
+    if (showFullAvatar) return pushOverlayHandler('showFullAvatar', () => setShowFullAvatar(false));
+  }, [showFullAvatar, pushOverlayHandler]);
+
+  useEffect(() => {
+    if (showHeaderMenu) return pushOverlayHandler('showHeaderMenu', () => setShowHeaderMenu(false));
+  }, [showHeaderMenu, pushOverlayHandler]);
+
+  useEffect(() => {
+    if (showAttachModal) return pushOverlayHandler('showAttachModal', () => setShowAttachModal(false));
+  }, [showAttachModal, pushOverlayHandler]);
+
+  useEffect(() => {
+    if (showEmojiPicker) return pushOverlayHandler('showEmojiPicker', () => setShowEmojiPicker(false));
+  }, [showEmojiPicker, pushOverlayHandler]);
+
+  useEffect(() => {
+    if (showCameraModal) return pushOverlayHandler('showCameraModal', () => setShowCameraModal(false));
+  }, [showCameraModal, pushOverlayHandler]);
+
+  useEffect(() => {
+    if (showNicknameModal) return pushOverlayHandler('showNicknameModal', () => setShowNicknameModal(false));
+  }, [showNicknameModal, pushOverlayHandler]);
+
+  useEffect(() => {
+    if (showWallpaperModal) return pushOverlayHandler('showWallpaperModal', () => setShowWallpaperModal(false));
+  }, [showWallpaperModal, pushOverlayHandler]);
+
+  useEffect(() => {
+    if (showAddMembersModal) return pushOverlayHandler('showAddMembersModal', () => setShowAddMembersModal(false));
+  }, [showAddMembersModal, pushOverlayHandler]);
+
+  useEffect(() => {
+    if (showReportModal) return pushOverlayHandler('showReportModal', () => setShowReportModal(false));
+  }, [showReportModal, pushOverlayHandler]);
+
+  useEffect(() => {
+    if (showContactPickerModal) return pushOverlayHandler('showContactPickerModal', () => setShowContactPickerModal(false));
+  }, [showContactPickerModal, pushOverlayHandler]);
+
+  useEffect(() => {
+    if (previewMedia) return pushOverlayHandler('previewMedia', () => setPreviewMedia(null));
+  }, [previewMedia, pushOverlayHandler]);
 
   useEffect(() => {
     if (showCameraModal && cameraStream && cameraVideoRef.current) {

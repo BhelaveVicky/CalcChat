@@ -48,6 +48,7 @@ export const ChatList: React.FC = () => {
     blockContact,
     unblockContact,
     unfriendContact,
+    pushOverlayHandler,
   } = useVault();
 
   const isDark = settings.theme !== 'material-light' && settings.theme !== 'light';
@@ -104,6 +105,35 @@ export const ChatList: React.FC = () => {
       setAiConversations([]);
     }
   };
+
+  // Register overlay handlers so mobile hardware back button closes modals & popups step-by-step
+  useEffect(() => {
+    if (showAddModal) return pushOverlayHandler('showAddModal', () => setShowAddModal(false));
+  }, [showAddModal, pushOverlayHandler]);
+
+  useEffect(() => {
+    if (showCreateGroupModal) return pushOverlayHandler('showCreateGroupModal', () => setShowCreateGroupModal(false));
+  }, [showCreateGroupModal, pushOverlayHandler]);
+
+  useEffect(() => {
+    if (previewContact) return pushOverlayHandler('previewContact', () => setPreviewContact(null));
+  }, [previewContact, pushOverlayHandler]);
+
+  useEffect(() => {
+    if (fullImageContact) return pushOverlayHandler('fullImageContact', () => setFullImageContact(null));
+  }, [fullImageContact, pushOverlayHandler]);
+
+  useEffect(() => {
+    if (targetLockId) return pushOverlayHandler('targetLockId', () => setTargetLockId(null));
+  }, [targetLockId, pushOverlayHandler]);
+
+  useEffect(() => {
+    if (openMenuId) return pushOverlayHandler('openMenuId', () => setOpenMenuId(null));
+  }, [openMenuId, pushOverlayHandler]);
+
+  useEffect(() => {
+    if (showAIChat) return pushOverlayHandler('showAIChat', () => setShowAIChat(false));
+  }, [showAIChat, pushOverlayHandler]);
 
   useEffect(() => {
     reloadAiConvs();

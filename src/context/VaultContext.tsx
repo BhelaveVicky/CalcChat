@@ -100,6 +100,7 @@ interface VaultContextType {
   maximizeCall: () => void;
   minimizeCall: () => void;
   setCallFilter: (filterId: string) => Promise<void>;
+  pushOverlayHandler: (id: string, closeFn: () => void) => () => void;
   callPermissionError: string | null;
   clearCallPermissionError: () => void;
   activeContactId: string | null;
@@ -273,6 +274,7 @@ const fallbackVaultContext: VaultContextType = {
   maximizeCall: () => {},
   minimizeCall: () => {},
   setCallFilter: async () => {},
+  pushOverlayHandler: () => () => {},
   callPermissionError: null,
   clearCallPermissionError: () => {},
   activeContactId: null,
@@ -899,7 +901,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Hardware & Browser Mobile Back Button Handling (Vercel PWA / Mobile Web)
   const isUnlockedRef = useRef(isUnlocked);
   const activeContactIdRef = useRef(activeContactId);
+  const activeTabRef = useRef(activeTab);
   const isCallMinimizedRef = useRef(isCallMinimized);
+  const overlayStackRef = useRef<Array<{ id: string; closeFn: () => void }>>([]);
 
   useEffect(() => {
     isUnlockedRef.current = isUnlocked;
@@ -910,32 +914,65 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [activeContactId]);
 
   useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+
+  useEffect(() => {
     isCallMinimizedRef.current = isCallMinimized;
   }, [isCallMinimized]);
+
+  const pushOverlayHandler = useCallback((id: string, closeFn: () => void) => {
+    const entry = { id, closeFn };
+    overlayStackRef.current.push(entry);
+    try {
+      window.history.pushState({ calcchatType: 'overlay', overlayId: id }, '');
+    } catch (e) {}
+
+    return () => {
+      overlayStackRef.current = overlayStackRef.current.filter(item => item !== entry);
+    };
+  }, []);
 
   useEffect(() => {
     if (isUnlocked) {
       if (activeContactId) {
-        window.history.pushState({ calcchatState: 'chat', contactId: activeContactId }, '');
+        window.history.pushState({ calcchatType: 'chat', contactId: activeContactId }, '');
+      } else if (activeTab !== 'chats') {
+        window.history.pushState({ calcchatType: 'tab', tab: activeTab }, '');
       } else {
-        window.history.pushState({ calcchatState: 'vault' }, '');
+        window.history.pushState({ calcchatType: 'vault' }, '');
       }
     }
 
     const handlePopState = (e: PopStateEvent) => {
-      // 1. If active call is ongoing & expanded, minimize call view instead of dropping call
+      // 1. If an overlay / modal / menu is active in overlayStackRef, close the topmost overlay!
+      if (overlayStackRef.current.length > 0) {
+        const topOverlay = overlayStackRef.current.pop();
+        if (topOverlay && typeof topOverlay.closeFn === 'function') {
+          topOverlay.closeFn();
+          return;
+        }
+      }
+
+      // 2. If active call is ongoing & expanded, minimize call view instead of dropping call
       if (activeCallRef.current && !isCallMinimizedRef.current) {
         setIsCallMinimized(true);
         return;
       }
 
-      // 2. If inside a chat contact, return to Chat List
+      // 3. If inside a chat contact, return to Chat List
       if (activeContactIdRef.current) {
         setActiveContactId(null);
         return;
       }
 
-      // 3. If inside secret vault, lock vault and return to Calculator screen
+      // 4. If inside a tab other than 'chats' (e.g. 'settings', 'profile', 'calls', 'gallery'), return to 'chats' tab!
+      if (isUnlockedRef.current && activeTabRef.current !== 'chats') {
+        setActiveTab('chats');
+        return;
+      }
+
+      // 5. If inside secret vault on 'chats' tab, lock vault and return to Calculator screen
       if (isUnlockedRef.current) {
         setIsUnlocked(false);
         setActiveContactId(null);
@@ -948,7 +985,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [isUnlocked, activeContactId]);
+  }, [isUnlocked, activeContactId, activeTab]);
 
   const clearCallPermissionError = () => setCallPermissionError(null);
 
@@ -6396,6 +6433,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       maximizeCall,
       minimizeCall,
       setCallFilter,
+      pushOverlayHandler,
       toggleMuteCall,
       toggleVideoCall,
       toggleSpeakerCall,

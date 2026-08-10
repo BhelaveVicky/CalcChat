@@ -1480,7 +1480,11 @@ export const ChatWindow: React.FC = () => {
                 id="vault_nav_back_trigger"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setActiveContactId(null);
+                  if (window.history.state?.calcchatState === 'chat') {
+                    window.history.back();
+                  } else {
+                    setActiveContactId(null);
+                  }
                 }}
                 className={`p-1 rounded-full transition-colors mr-0.5 ${isDark ? 'hover:bg-[#202c33] text-[#e9edef]' : 'hover:bg-gray-100 text-gray-700'
                   }`}

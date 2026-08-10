@@ -890,11 +890,59 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return callTime > lastSeenCallsTabAt;
   }).length;
 
+  // Hardware & Browser Mobile Back Button Handling (Vercel PWA / Mobile Web)
+  const isUnlockedRef = useRef(isUnlocked);
+  const activeContactIdRef = useRef(activeContactId);
+  const isCallMinimizedRef = useRef(isCallMinimized);
+
   useEffect(() => {
-    if (activeTab === 'calls') {
-      clearMissedCallsBadge();
+    isUnlockedRef.current = isUnlocked;
+  }, [isUnlocked]);
+
+  useEffect(() => {
+    activeContactIdRef.current = activeContactId;
+  }, [activeContactId]);
+
+  useEffect(() => {
+    isCallMinimizedRef.current = isCallMinimized;
+  }, [isCallMinimized]);
+
+  useEffect(() => {
+    if (isUnlocked) {
+      if (activeContactId) {
+        window.history.pushState({ calcchatState: 'chat', contactId: activeContactId }, '');
+      } else {
+        window.history.pushState({ calcchatState: 'vault' }, '');
+      }
     }
-  }, [activeTab]);
+
+    const handlePopState = (e: PopStateEvent) => {
+      // 1. If active call is ongoing & expanded, minimize call view instead of dropping call
+      if (activeCallRef.current && !isCallMinimizedRef.current) {
+        setIsCallMinimized(true);
+        return;
+      }
+
+      // 2. If inside a chat contact, return to Chat List
+      if (activeContactIdRef.current) {
+        setActiveContactId(null);
+        return;
+      }
+
+      // 3. If inside secret vault, lock vault and return to Calculator screen
+      if (isUnlockedRef.current) {
+        setIsUnlocked(false);
+        setActiveContactId(null);
+        setActiveTab('chats');
+        return;
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [isUnlocked, activeContactId]);
 
   const clearCallPermissionError = () => setCallPermissionError(null);
 

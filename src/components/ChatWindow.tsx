@@ -501,6 +501,9 @@ export const ChatWindow: React.FC = () => {
   const [contactSearchQuery, setContactSearchQuery] = useState<string>('');
 
   // Lightbox Zoom / Rotate
+  const [zoomScale, setZoomScale] = useState<number>(1);
+  const [imageRotation, setImageRotation] = useState<number>(0);
+
   // Register overlay handlers so mobile hardware back button closes overlays step-by-step
   useEffect(() => {
     if (showRightSidebar) return pushOverlayHandler('showRightSidebar', () => setShowRightSidebar(false));

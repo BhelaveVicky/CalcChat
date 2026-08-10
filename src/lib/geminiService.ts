@@ -44,7 +44,7 @@ export function isCreatorQuestion(prompt: string): boolean {
 }
 
 // Fixed response for creator
-export const CREATOR_RESPONSE = "I was created by Vicky Bhelave.";
+export const CREATOR_RESPONSE = "I was created by Vicky Ashok Bhelave.";
 
 // Safe Client Gemini SDK initializer
 let genAIInstance: GoogleGenAI | null = null;

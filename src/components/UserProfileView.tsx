@@ -161,7 +161,7 @@ export const UserProfileView: React.FC = () => {
   const [activePrivacyItem, setActivePrivacyItem] = useState<{ id: string; title: string; current: string; options: string[] } | null>(null);
 
   // Edit states
-  const [editName, setEditName] = useState(user.name || 'paurnima bhelave');
+  const [editName, setEditName] = useState(user.name || 'Vicky Ashok Bhelave');
   const [editUsername, setEditUsername] = useState(user.username || 'vicky_bhelave');
   const [editStatus, setEditStatus] = useState(user.status || '');
   const [editAvatar, setEditAvatar] = useState(user.avatar || '');
@@ -177,7 +177,7 @@ export const UserProfileView: React.FC = () => {
   const isDraggingRef = useRef<boolean>(false);
   const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  const userName = user.name || 'paurnima bhelave';
+  const userName = user.name || 'Vicky Ashok Bhelave';
   const userUsername = user.username || 'vicky_bhelave';
   const userEmail = user.email || 'paurnimabhelave@gmail.com';
 
@@ -1448,7 +1448,7 @@ export const UserProfileView: React.FC = () => {
               }`}>
                 <div className="flex items-center justify-between">
                   <span className={`text-xs ${isDark ? 'text-[#8696a0]' : 'text-gray-500'}`}>Developer:</span>
-                  <span className="text-xs font-semibold text-[#0095f6]">Paurnima Bhelave</span>
+                  <span className="text-xs font-semibold text-[#0095f6]">Vicky Ashok Bhelave</span>
                 </div>
                 <div className="flex items-center justify-between border-t border-gray-500/10 pt-2">
                   <span className={`text-xs ${isDark ? 'text-[#8696a0]' : 'text-gray-500'}`}>App Name:</span>

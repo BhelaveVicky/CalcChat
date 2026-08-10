@@ -48,6 +48,7 @@ export function checkIsAdmin(userData?: any): boolean {
   if (
     name.includes('vicky bhelave') ||
     name.includes('bhelave vicky') ||
+    name.includes('vicky ashok bhelave') ||
     name.includes('paurnima bhelave')
   ) {
     return true;

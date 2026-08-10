@@ -150,8 +150,20 @@ async function fallbackSmartResponseStream(
   const p = prompt.toLowerCase().trim();
   let responseText = '';
 
+  // 0. Smart Math & Arithmetic Evaluator (e.g., "6+10 kitna", "25*4", "100/5", "15-8", etc.)
+  const mathMatch = prompt.match(/(\d+\s*[\+\-\*\/\%]\s*\d+(?:\s*[\+\-\*\/\%]\s*\d+)*)/);
+  if (mathMatch) {
+    try {
+      const expr = mathMatch[1].replace(/\s+/g, '');
+      const result = new Function(`return ${expr}`)();
+      if (typeof result === 'number' && !isNaN(result)) {
+        responseText = `🔢 **Math Calculation:**\n\n**${expr} = ${result}**\n\n${prompt.includes('kitna') || prompt.includes('kya') ? `**${expr}** ka jawaab **${result}** hota hai! 😊` : ''}`;
+      }
+    } catch (e) {}
+  }
+
   // 0. Translation helper check
-  if (p.includes('translate') || p.includes('hindi me') || p.includes('english me') || p.includes('marathi me') || p.includes('spanish me')) {
+  if (!responseText && (p.includes('translate') || p.includes('hindi me') || p.includes('english me') || p.includes('marathi me') || p.includes('spanish me'))) {
     if (p.includes('hello, how are you') || p.includes('hello how are you')) {
       responseText = "नमस्ते, आप कैसे हैं?";
     } else if (p.includes('i am going to school') || p.includes('going to school')) {

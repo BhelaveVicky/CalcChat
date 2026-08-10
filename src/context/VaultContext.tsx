@@ -863,7 +863,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   });
 
-  const clearMissedCallsBadge = () => {
+  const clearMissedCallsBadge = useCallback(() => {
     const now = Date.now();
     setLastSeenCallsTabAt(now);
     try {
@@ -871,9 +871,15 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (e) {
       console.warn('Failed to save lastSeenCallsTabAt', e);
     }
-  };
+  }, []);
 
-  const missedCallCount = callLogs.filter(log => {
+  useEffect(() => {
+    if (activeTab === 'calls') {
+      clearMissedCallsBadge();
+    }
+  }, [activeTab, callLogs.length, clearMissedCallsBadge]);
+
+  const missedCallCount = activeTab === 'calls' ? 0 : callLogs.filter(log => {
     const isIncoming = log.direction === 'incoming' || (log.receiverId === user?.id || (log.callerId && log.callerId !== user?.id));
     const isMissed = log.status === 'missed' || log.status === 'rejected' || log.status === 'busy' || log.status === 'cancelled' || log.status === 'failed';
     if (!isIncoming || !isMissed) return false;

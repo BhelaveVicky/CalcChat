@@ -3,7 +3,7 @@ import { MessageSquare, CircleDashed, Phone, User, ArrowRightCircle } from 'luci
 import { useVault } from '../context/VaultContext';
 
 export const WhatsAppBottomBar: React.FC = () => {
-  const { activeTab, setActiveTab, unreadTotal, unseenStatusCount, missedCallCount, lockVault, settings: vaultSettings } = useVault();
+  const { activeTab, setActiveTab, unreadTotal, unseenStatusCount, missedCallCount, clearMissedCallsBadge, lockVault, settings: vaultSettings } = useVault();
 
   const isDark = vaultSettings.theme !== 'material-light' && vaultSettings.theme !== 'light';
 
@@ -52,7 +52,10 @@ export const WhatsAppBottomBar: React.FC = () => {
 
       {/* 3. Calls */}
       <button
-        onClick={() => setActiveTab('calls')}
+        onClick={() => {
+          setActiveTab('calls');
+          clearMissedCallsBadge();
+        }}
         className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all group ${activeTab === 'calls' ? 'text-[#ff2e93] font-semibold' : (isDark ? 'text-[#8596a0] hover:text-[#d1d7db]' : 'text-gray-500 hover:text-gray-800')
           }`}
       >

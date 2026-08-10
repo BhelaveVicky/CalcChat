@@ -35,18 +35,18 @@ export const WhatsAppTopBar: React.FC = () => {
         <div className="w-10"></div>
 
         {/* Brand / Tab Title */}
-        <div className="flex items-center justify-center gap-2 cursor-pointer" onClick={() => setActiveTab('chats')}>
+        <div className="flex items-center justify-center gap-2.5 cursor-pointer hover:scale-105 transition-transform" onClick={() => setActiveTab('chats')}>
           {activeTab === 'chats' ? (
-            <div className="flex items-center gap-2">
-              <CCLogo className="w-7 h-7" />
-              <CalcChatTitle size="sm" />
+            <div className="flex items-center gap-2.5">
+              <CCLogo className="w-9 h-9 sm:w-10 sm:h-10" />
+              <CalcChatTitle size="md" />
             </div>
           ) : activeTab === 'gallery' ? (
-            <StoriTitle size="sm" />
+            <StoriTitle size="md" />
           ) : activeTab === 'calls' ? (
-            <CallsTitle size="sm" />
+            <CallsTitle size="md" />
           ) : activeTab === 'profile' ? (
-            <ProfileTitle size="sm" />
+            <ProfileTitle size="md" />
           ) : (
             <h1 className={`font-bold text-xl sm:text-2xl tracking-normal ${isDark ? 'text-white' : 'text-gray-900'
               }`}>

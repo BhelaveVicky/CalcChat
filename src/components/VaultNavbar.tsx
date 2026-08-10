@@ -30,11 +30,11 @@ export const VaultNavbar: React.FC = () => {
         
         {/* Brand & Friend Request badge */}
         <div className="flex items-center gap-2.5">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => setActiveTab('chats')}>
-            <CCLogo className="w-8 h-8" />
+          <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => setActiveTab('chats')}>
+            <CCLogo className="w-10 h-10" />
             <div>
               <div className="flex items-center gap-1.5">
-                <CalcChatTitle size="sm" />
+                <CalcChatTitle size="md" />
                 <span className="text-[10px] bg-[#ff2e93]/20 text-[#ff2e93] font-mono px-1 rounded font-bold">SECURE</span>
               </div>
               <p className="text-[10px] text-slate-400 truncate max-w-[120px] sm:max-w-[180px]">

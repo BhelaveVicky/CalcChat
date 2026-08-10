@@ -3,7 +3,7 @@ import { Wifi, Battery, Signal, Shield, Smartphone, Maximize2, Minimize2 } from 
 import { useVault } from '../context/VaultContext';
 
 export const AndroidFrame: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { settings, updateSettings, lockVault, isUnlocked } = useVault();
+  const { settings, updateSettings, lockVault, isUnlocked, user } = useVault();
   const [currentTime, setCurrentTime] = useState<string>('09:41');
 
   useEffect(() => {
@@ -129,7 +129,8 @@ export const AndroidFrame: React.FC<{ children: React.ReactNode }> = ({ children
             {/* App Switcher / Recents */}
             <button
               onClick={() => {
-                alert(`🔐 Disguise Hint:\nDefault Passcode is "${settings.passcode}" followed by "="\n\nExample: Type 1234= to enter secret chat vault.`);
+                const pass = user?.passcode || settings.passcode || '1234';
+                alert(`🔐 Disguise Hint:\nYour Secret Passcode is "${pass}" followed by "="\n\nExample: Type ${pass}= to enter secret chat vault.`);
               }}
               className="p-1.5 hover:text-white hover:bg-white/5 rounded-full transition-colors active:scale-95 cursor-pointer"
               title="Android Recents (Show Passcode Hint)"

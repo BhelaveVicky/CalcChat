@@ -345,7 +345,8 @@ export const ChatList: React.FC = () => {
 
   const verifyChatPin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (lockPinAttempt === settings.passcode || lockPinAttempt === '1234') {
+    const activePass = settings.passcode || user.passcode || '1234';
+    if (lockPinAttempt === activePass) {
       if (targetLockId) {
         unlockChatLock(targetLockId);
         setActiveContactId(targetLockId);

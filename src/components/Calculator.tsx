@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, Settings as SettingsIcon, Delete } from 'lucide-react';
+import { Sparkles, Settings as SettingsIcon, Delete, Lock, X } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 import { useSettings } from '../context/SettingsContext';
 import { Settings as SettingsComponent } from './Settings';
@@ -29,6 +29,20 @@ export const Calculator: React.FC = () => {
   const [unlocking, setUnlocking] = useState<boolean>(false);
   const [isCalculated, setIsCalculated] = useState<boolean>(false);
   const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [showFirstTimeHint, setShowFirstTimeHint] = useState<boolean>(() => {
+    try {
+      return !localStorage.getItem('calcchat_calculator_first_time_hint_seen');
+    } catch {
+      return true;
+    }
+  });
+
+  const dismissFirstTimeHint = () => {
+    setShowFirstTimeHint(false);
+    try {
+      localStorage.setItem('calcchat_calculator_first_time_hint_seen', 'true');
+    } catch (e) {}
+  };
 
   const handleButtonClick = (val: string) => {
     if (val === 'AC') {
@@ -69,10 +83,10 @@ export const Calculator: React.FC = () => {
     if (val === '=') {
       if (isCalculated) return;
 
-      // SECRET CHECK: Check if display matches secret passcode!
-      // Use settings.passcode first, then user.passcode (Firestore), then default '1234'
-      const activePasscode = settings.passcode || user.passcode || '1234';
+      // Check user passcode first, then settings passcode, then fallback '1234'
+      const activePasscode = user.passcode || settings.passcode || '1234';
       if (display === activePasscode || equation + display === activePasscode) {
+        dismissFirstTimeHint();
         setUnlocking(true);
         setTimeout(() => {
           unlockVault(activePasscode);
@@ -212,6 +226,30 @@ export const Calculator: React.FC = () => {
               <SettingsIcon className="w-5 h-5 stroke-[2.2]" />
             </button>
           </div>
+
+          {/* First Time User Onboarding Hint Banner (Shows ONLY ONCE on first login) */}
+          {showFirstTimeHint && (
+            <div className="my-auto py-2.5 px-3.5 rounded-2xl bg-black/25 backdrop-blur-md border border-white/30 text-white text-xs font-medium flex items-center justify-between gap-2.5 shadow-xl animate-fade-in z-10">
+              <div className="flex items-center gap-2.5 text-left min-w-0">
+                <div className="p-1.5 rounded-xl bg-white/20 shrink-0 text-amber-300 shadow-inner">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-bold text-white text-[11.5px] leading-snug">
+                    Type passcode <span className="underline decoration-amber-300 font-extrabold text-amber-200">({user?.passcode || settings.passcode || '1234'})</span> & press '=' to open Secret Chat 🔒
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={dismissFirstTimeHint}
+                className="p-1 rounded-full text-white/70 hover:text-white hover:bg-white/20 transition-all shrink-0 active:scale-90"
+                title="Dismiss hint"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
 
           {/* Display Output area */}
           <div className="relative mt-auto mb-2 w-full flex flex-col items-end pr-1 pl-1">

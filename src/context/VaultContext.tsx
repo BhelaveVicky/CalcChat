@@ -962,17 +962,29 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     const sendWelcomeMessageIfNeeded = async (targetUser: FirebaseUser | { uid: string; email?: string; displayName?: string }) => {
-      if (!db || !targetUser) return;
+      if (!db || !targetUser || !targetUser.uid) return;
+
+      // 1. Instant Local Storage Check (0 network calls)
+      const localWelcomeSent = localStorage.getItem(`calcchat_welcome_sent_${targetUser.uid}`);
+      if (localWelcomeSent === 'true') {
+        return;
+      }
+
       const targetEmail = (targetUser.email || '').toLowerCase();
-      
       if (targetEmail === SUPER_ADMIN_EMAIL) return;
 
       try {
         const targetUserRef = doc(db, 'users', targetUser.uid);
         const targetSnap = await getDoc(targetUserRef).catch(() => null);
-        if (targetSnap && targetSnap.data()?.welcomeSent) {
+        
+        // 2. Check Firestore welcomeSent flag
+        if (targetSnap && targetSnap.exists() && (targetSnap.data()?.welcomeSent === true || targetSnap.data()?.welcomeSent === 'true')) {
+          localStorage.setItem(`calcchat_welcome_sent_${targetUser.uid}`, 'true');
           return;
         }
+
+        // Lock locally IMMEDIATELY to prevent async duplicate triggers
+        localStorage.setItem(`calcchat_welcome_sent_${targetUser.uid}`, 'true');
 
         let superAdminUid = 'super_admin_vicky';
         const saQuery = query(collection(db, 'users'), where('email', '==', SUPER_ADMIN_EMAIL));
@@ -4527,7 +4539,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const unlockVault = (code: string): boolean => {
-    const activePasscode = settings.passcode || '1234';
+    const activePasscode = user.passcode || settings.passcode || '1234';
     if (code === activePasscode) {
       setActiveTab('chats');
       setActiveContactId(null);
@@ -4670,6 +4682,12 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const signOutGoogle = async () => {
     setAuthError(null);
+    setIsUnlocked(false);
+    setUser(DEFAULT_USER);
+    setSettings(DEFAULT_SETTINGS);
+    try {
+      localStorage.removeItem('secret_vault_settings');
+    } catch (e) {}
     if (firebaseAuth) {
       try {
         await signOut(firebaseAuth);
@@ -4699,11 +4717,18 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       updatedSettings = { ...prev, ...settingsToApply };
       try {
         localStorage.setItem('secret_vault_settings', JSON.stringify(updatedSettings));
+        if (authUser && updatedSettings.passcode) {
+          localStorage.setItem(`calcchat_passcode_${authUser.uid}`, updatedSettings.passcode);
+        }
       } catch (e) {
         console.error('Error saving settings to localStorage:', e);
       }
       return updatedSettings;
     });
+
+    if (authUser && updatedSettings.passcode) {
+      setUser(prev => ({ ...prev, passcode: updatedSettings.passcode }));
+    }
 
     if (authUser) {
       let safeSettings = { ...updatedSettings };
@@ -4717,6 +4742,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       await updateDoc(doc(db, 'users', authUser.uid), {
+        ...(safeSettings.passcode ? { passcode: safeSettings.passcode } : {}),
         settings: safeSettings,
       }).catch(err => console.error('Failed to sync settings to Firestore:', err));
     }

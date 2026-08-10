@@ -90,7 +90,7 @@ export const Calculator: React.FC = () => {
         setUnlocking(true);
         setTimeout(() => {
           unlockVault(activePasscode);
-        }, 500);
+        }, 150);
         return;
       }
 

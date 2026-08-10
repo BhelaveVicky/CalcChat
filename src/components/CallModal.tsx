@@ -21,7 +21,7 @@ export const CallModal: React.FC = () => {
     user, activeCall, contacts, groupContacts, acceptCall, joinGroupCall, rejectCall, cancelCall, endCall,
     toggleMuteCall, toggleVideoCall, toggleSpeakerCall, switchCameraCall,
     getContactDisplayName, callPermissionError, clearCallPermissionError,
-    isCallMinimized, minimizeCall
+    isCallMinimized, minimizeCall, setCallFilter
   } = useVault();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -38,6 +38,8 @@ export const CallModal: React.FC = () => {
   const contact = contacts.find(c => c.id === activeCall?.contactId) || groupContacts.find(g => g.id === activeCall?.contactId);
 
   const activeFilterCss = VIDEO_FILTERS.find(f => f.id === selectedFilter)?.css || 'none';
+  const remoteFilterId = activeCall?.remoteFilter || 'none';
+  const remoteFilterCss = VIDEO_FILTERS.find(f => f.id === remoteFilterId)?.css || 'none';
 
   // Toggle browser fullscreen mode
   const toggleFullscreen = () => {
@@ -215,6 +217,7 @@ export const CallModal: React.FC = () => {
                     ref={remoteVideoRef} 
                     autoPlay 
                     playsInline 
+                    style={{ filter: remoteFilterCss }}
                     className={`w-full h-full object-cover transition-all duration-300 ${!activeCall.remoteStream || activeCall.isRemoteVideoOff ? 'hidden' : 'block'}`} 
                   />
 
@@ -299,6 +302,7 @@ export const CallModal: React.FC = () => {
                     ref={remoteVideoRef} 
                     autoPlay 
                     playsInline 
+                    style={{ filter: remoteFilterCss }}
                     className={`w-full h-full object-cover ${!activeCall.remoteStream || activeCall.isRemoteVideoOff ? 'hidden' : 'block'}`} 
                   />
                   {(!activeCall.remoteStream || activeCall.isRemoteVideoOff) && (
@@ -364,31 +368,35 @@ export const CallModal: React.FC = () => {
               </div>
             </div>
 
-            {/* Video Filters Selector Bar */}
+            {/* Video Filters Selector Dropdown (Positioned right under top-right action buttons) */}
             {showFilterPicker && (
-              <div className="absolute bottom-4 left-4 right-36 bg-black/90 backdrop-blur-xl p-3 rounded-2xl border border-white/15 z-30 animate-slide-up shadow-2xl">
-                <div className="flex items-center justify-between mb-2 px-1">
+              <div className="absolute top-16 right-4 w-72 bg-[#1f2c34]/95 backdrop-blur-2xl p-3 rounded-2xl border border-[#ff2e93]/40 z-30 animate-slide-down shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+                <div className="flex items-center justify-between mb-2 px-1 pb-1.5 border-b border-white/10">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-white">
-                    <Sparkles className="w-3.5 h-3.5 text-[#ff2e93]" />
-                    <span>Camera Filters & Effects</span>
+                    <Sparkles className="w-4 h-4 text-[#ff2e93]" />
+                    <span>Camera Effects & Filters</span>
                   </div>
                   <button 
                     onClick={() => setShowFilterPicker(false)}
-                    className="text-slate-400 hover:text-white p-1 rounded-full hover:bg-white/10"
+                    className="text-slate-400 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors"
+                    title="Close filters"
                   >
                     <X className="w-4 h-4" />
                   </button>
                 </div>
 
-                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                <div className="grid grid-cols-3 gap-2 pt-1">
                   {VIDEO_FILTERS.map((f) => (
                     <button
                       key={f.id}
-                      onClick={() => setSelectedFilter(f.id)}
-                      className={`flex flex-col items-center min-w-[62px] p-2 rounded-xl text-xs font-medium transition-all ${
+                      onClick={() => {
+                        setSelectedFilter(f.id);
+                        setCallFilter(f.id);
+                      }}
+                      className={`flex items-center justify-center p-2 rounded-xl text-xs font-semibold transition-all cursor-pointer active:scale-95 ${
                         selectedFilter === f.id
-                          ? 'bg-[#ff2e93] text-[#0b141a] font-bold shadow-lg scale-105'
-                          : 'bg-white/10 text-white hover:bg-white/20'
+                          ? 'bg-[#ff2e93] text-[#0b141a] font-bold shadow-md scale-105 border border-[#ff2e93]'
+                          : 'bg-white/10 text-white hover:bg-white/20 border border-white/10'
                       }`}
                     >
                       <span className="truncate">{f.label}</span>

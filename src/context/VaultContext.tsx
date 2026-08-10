@@ -75,6 +75,8 @@ export interface ActiveCallState {
   localStream?: MediaStream | null;
   remoteStream?: MediaStream | null;
   connectionQuality?: 'excellent' | 'good' | 'poor' | 'reconnecting';
+  localFilter?: string;
+  remoteFilter?: string;
   isGroupCall?: boolean;
   participants?: GroupCallParticipant[];
 }
@@ -97,6 +99,7 @@ interface VaultContextType {
   setIsCallMinimized: (minimized: boolean) => void;
   maximizeCall: () => void;
   minimizeCall: () => void;
+  setCallFilter: (filterId: string) => Promise<void>;
   callPermissionError: string | null;
   clearCallPermissionError: () => void;
   activeContactId: string | null;
@@ -269,6 +272,7 @@ const fallbackVaultContext: VaultContextType = {
   setIsCallMinimized: () => {},
   maximizeCall: () => {},
   minimizeCall: () => {},
+  setCallFilter: async () => {},
   callPermissionError: null,
   clearCallPermissionError: () => {},
   activeContactId: null,
@@ -1010,6 +1014,15 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
 
         const chatId = [superAdminUid, targetUser.uid].sort().join('_');
+        const msgRef = collection(db, 'chats', chatId, 'messages');
+
+        // Layer 3: Query Firestore messages subcollection. If ANY message already exists, NEVER add another!
+        const existingMsgsSnap = await getDocs(msgRef).catch(() => null);
+        if (existingMsgsSnap && !existingMsgsSnap.empty) {
+          localStorage.setItem(`calcchat_welcome_sent_${targetUser.uid}`, 'true');
+          await updateDoc(targetUserRef, { welcomeSent: true }).catch(() => {});
+          return;
+        }
 
         await setDoc(doc(db, 'chats', chatId), {
           participants: [superAdminUid, targetUser.uid],
@@ -1020,7 +1033,6 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           createdAt: serverTimestamp(),
         }, { merge: true });
 
-        const msgRef = collection(db, 'chats', chatId, 'messages');
         await addDoc(msgRef, {
           senderId: superAdminUid,
           senderName: 'Vicky Bhelave',
@@ -4132,8 +4144,12 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return;
       }
 
-      if (data.receiverVideoOff !== undefined) {
-        setActiveCall(prev => prev ? { ...prev, isRemoteVideoOff: !!data.receiverVideoOff } : null);
+      if (data.receiverVideoOff !== undefined || data.receiverFilter !== undefined) {
+        setActiveCall(prev => prev ? { 
+          ...prev, 
+          isRemoteVideoOff: data.receiverVideoOff !== undefined ? !!data.receiverVideoOff : prev.isRemoteVideoOff,
+          remoteFilter: data.receiverFilter || prev.remoteFilter || 'none'
+        } : null);
       }
 
       // If the remote receiver updated the status to connecting or connected, reflect it locally
@@ -4291,8 +4307,12 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (data.status === 'ended' || data.status === 'rejected' || data.status === 'cancelled') {
         cleanupCall(data.status);
       }
-      if (data.callerVideoOff !== undefined) {
-        setActiveCall(prev => prev ? { ...prev, isRemoteVideoOff: !!data.callerVideoOff } : null);
+      if (data.callerVideoOff !== undefined || data.callerFilter !== undefined) {
+        setActiveCall(prev => prev ? { 
+          ...prev, 
+          isRemoteVideoOff: data.callerVideoOff !== undefined ? !!data.callerVideoOff : prev.isRemoteVideoOff,
+          remoteFilter: data.callerFilter || prev.remoteFilter || 'none'
+        } : null);
       }
     });
   };
@@ -4473,6 +4493,24 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setActiveCall(prev => prev ? { ...prev, isFrontCamera: nextIsFront, localStream: localStreamRef.current } : null);
     } catch (err) {
       console.warn('Switch camera error:', err);
+    }
+  };
+
+  const setCallFilter = async (filterId: string) => {
+    if (!activeCallRef.current) return;
+    const currentCall = activeCallRef.current;
+
+    setActiveCall(prev => prev ? { ...prev, localFilter: filterId } : null);
+
+    if (currentCall.isGroupCall && currentCall.contactId && authUser) {
+      const groupRef = doc(db, 'groups', currentCall.contactId);
+      await updateDoc(groupRef, {
+        [`activeCall.participantFilters.${authUser.uid}`]: filterId
+      }).catch(err => console.warn('Failed to update group filter in Firestore:', err));
+    } else if (currentCall.id) {
+      const callRef = doc(db, 'calls', currentCall.id);
+      const isCaller = currentCall.callerId === authUser?.uid || currentCall.direction === 'outgoing';
+      await updateDoc(callRef, isCaller ? { callerFilter: filterId } : { receiverFilter: filterId }).catch(err => console.warn('Failed to update filter:', err));
     }
   };
 
@@ -5808,6 +5846,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const clearChatHistory = async (contactId: string) => {
     if (!authUser || !contactId) return;
+    setMessages(prev => ({ ...prev, [contactId]: [] }));
+    setContacts(prev => prev.map(c => c.id === contactId ? { ...c, lastMessage: 'New Chat' } : c));
+    setGroupContacts(prev => prev.map(g => g.id === contactId ? { ...g, lastMessage: 'New Chat' } : g));
+
     const chatId = getChatIdForContact(contactId);
     const msgs = messages[contactId] || [];
     for (const m of msgs) {
@@ -5815,14 +5857,19 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         deletedFor: arrayUnion(authUser.uid)
       }).catch(() => {});
     }
+    await updateDoc(doc(db, 'chats', chatId), { lastMessage: 'New Chat' }).catch(() => {});
+    await updateDoc(doc(db, 'groups', contactId), { lastMessage: 'New Chat' }).catch(() => {});
   };
 
   const clearAllChatHistory = async () => {
     if (!authUser) return;
     setMessages({});
+    setContacts(prev => prev.map(c => ({ ...c, lastMessage: 'New Chat' })));
+    setGroupContacts(prev => prev.map(g => ({ ...g, lastMessage: 'New Chat' })));
+
     try {
-      const chatKeys = Object.keys(messages);
-      for (const contactId of chatKeys) {
+      const allContactIds = Array.from(new Set([...contacts.map(c => c.id), ...groupContacts.map(g => g.id), ...Object.keys(messages)]));
+      for (const contactId of allContactIds) {
         const chatId = getChatIdForContact(contactId);
         const msgs = messages[contactId] || [];
         for (const m of msgs) {
@@ -5830,6 +5877,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             deletedFor: arrayUnion(authUser.uid)
           }).catch(() => {});
         }
+        await updateDoc(doc(db, 'chats', chatId), { lastMessage: 'New Chat' }).catch(() => {});
+        await updateDoc(doc(db, 'groups', contactId), { lastMessage: 'New Chat' }).catch(() => {});
       }
     } catch (e) {
       console.warn('Error clearing all chat history:', e);
@@ -6292,6 +6341,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setIsCallMinimized,
       maximizeCall,
       minimizeCall,
+      setCallFilter,
       toggleMuteCall,
       toggleVideoCall,
       toggleSpeakerCall,

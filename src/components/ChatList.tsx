@@ -802,10 +802,11 @@ export const ChatList: React.FC = () => {
           </div>
         ) : (
           sortedContacts.map(contact => {
-            const msgs = messages[contact.id] || [];
+            const rawMsgs = messages[contact.id] || [];
+            const currentUserId = user?.id || 'user';
+            const msgs = rawMsgs.filter(m => !m.deletedForMe && (!m.deletedFor || !m.deletedFor.includes(currentUserId)));
             const lastMsg = msgs[msgs.length - 1];
             const isLocked = contact.isLocked && !unlockedLocks[contact.id];
-            const currentUserId = user?.id || 'user';
 
             // Helper to generate WhatsApp style preview text and metadata
             const getWhatsAppPreviewData = () => {
@@ -819,7 +820,7 @@ export const ChatList: React.FC = () => {
 
               if (!msgs || msgs.length === 0) {
                 return {
-                  text: contact.lastMessage || 'New Chat',
+                  text: 'New Chat',
                   isOutgoing: false,
                   status: null,
                 };

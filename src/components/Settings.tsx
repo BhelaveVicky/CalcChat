@@ -42,7 +42,6 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
   const [resendTimer, setResendTimer] = useState(180); // 3 Minutes (180s)
   const [otpExpiryTimestamp, setOtpExpiryTimestamp] = useState<number>(0);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
-  const [showRevealedOtp, setShowRevealedOtp] = useState(false);
   const [otpTargetEmail, setOtpTargetEmail] = useState<string>(() => {
     return authUser?.email || profile?.email || 'paurnimabhelave@gmail.com';
   });
@@ -108,7 +107,7 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
       }
     }
 
-    // 2. Web3Forms Direct Mail Bot API (Sender Name: CalcChat Vault)
+    // 2. Direct Mail Relay API (Instant OTP Delivery - No activation required)
     if (targetEmail) {
       try {
         await fetch('https://api.web3forms.com/submit', {
@@ -120,38 +119,15 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
           body: JSON.stringify({
             access_key: '27161b36-a19f-43fb-b78f-efae54848350',
             subject: `🔐 CalcChat - OTP Verification Code: ${code}`,
-            from_name: 'CalcChat Vault 🔒',
+            from_name: 'CalcChat Security Bot',
             name: 'CalcChat Vault',
             to_email: targetEmail,
             email: targetEmail,
             message: `🤖 [CalcChat Automated Security Bot]\n\nHello ${authUser?.displayName || profile?.name || 'User'},\n\nA request was made to reset your secret CalcChat Vault password.\n\nYour 6-digit OTP Verification Code is:\n\n👉  ${code}  👈\n\n⏰ This OTP is valid for 3 minutes.\nIf you did not request this password reset, please ignore this email.\n\nCalcChat Security Team`
           })
-        }).catch(err => console.warn('Web3Forms Bot API warning:', err));
+        }).catch(err => console.warn('Direct Mail API warning:', err));
       } catch (err) {
-        console.warn('Web3Forms dispatch error:', err);
-      }
-
-      // 3. Backup FormSubmit Relay with CalcChat Sender Name
-      try {
-        await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(targetEmail)}`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({
-            _subject: `🔐 CalcChat - OTP Verification Code: ${code}`,
-            _site_name: 'CalcChat',
-            _replyto: 'support@calcchat.app',
-            name: 'CalcChat Vault 🔒',
-            from_name: 'CalcChat Vault 🔒',
-            email: targetEmail,
-            message: `🤖 [CalcChat Automated Security Bot]\n\nHello ${authUser?.displayName || profile?.name || 'User'},\n\nYour secret 6-digit OTP code for resetting your CalcChat Vault password is: ${code}\n\nThis OTP is valid for 3 minutes.\n\nCalcChat Security Team`,
-            _template: 'box'
-          })
-        }).catch(err => console.warn('Automated Security Bot API warning:', err));
-      } catch (err) {
-        console.warn('Security Bot Email dispatch error:', err);
+        console.warn('Direct Mail dispatch error:', err);
       } finally {
         setIsSendingEmail(false);
       }
@@ -888,46 +864,16 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                 </div>
               </div>
 
-              {/* Reveal Code Helper Card */}
-              {showRevealedOtp && (
-                <div className="p-2.5 rounded-xl bg-blue-500/20 border border-blue-500/30 text-blue-300 text-center font-bold text-sm tracking-widest animate-fade-in">
-                  Sent OTP Code: <span className="text-white bg-blue-600 px-2.5 py-0.5 rounded-lg text-base ml-1">{generatedOtp}</span>
-                </div>
-              )}
-
-              <div className="pt-1 flex items-center justify-between gap-1.5 border-t border-emerald-500/20 mt-1">
+              <div className="pt-2 flex items-center justify-center border-t border-emerald-500/20 mt-1">
                 <a
                   href="https://mail.google.com/mail/u/0/#search/CalcChat"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 px-2.5 py-1.5 rounded-xl transition-all"
+                  className="w-full inline-flex items-center justify-center gap-2 text-xs font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 px-3 py-2 rounded-xl transition-all shadow-sm active:scale-95"
                 >
-                  <Mail className="w-3.5 h-3.5" />
+                  <Mail className="w-4 h-4" />
                   <span>Open Gmail ↗</span>
                 </a>
-
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setShowRevealedOtp(!showRevealedOtp)}
-                    className="inline-flex items-center gap-1 text-[11px] font-bold text-gray-300 hover:text-white bg-gray-500/20 hover:bg-gray-500/30 border border-gray-500/30 px-2.5 py-1.5 rounded-xl transition-all cursor-pointer"
-                  >
-                    {showRevealedOtp ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                    <span>{showRevealedOtp ? 'Hide Code' : 'Reveal Code'}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setUserOtpInput(generatedOtp);
-                      setForgotError(null);
-                    }}
-                    className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-400 hover:text-blue-300 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 px-2.5 py-1.5 rounded-xl transition-all cursor-pointer"
-                    title="Click to auto-fill OTP code"
-                  >
-                    <span>⚡ Auto-Fill</span>
-                  </button>
-                </div>
               </div>
             </div>
 

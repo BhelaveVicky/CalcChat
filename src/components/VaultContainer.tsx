@@ -12,6 +12,7 @@ import { UserProfile } from './UserProfile';
 import { VaultSettingsView } from './VaultSettingsView';
 import { CallsView } from './CallsView';
 import { CallModal } from './CallModal';
+import { ActiveCallFloatingBanner } from './ActiveCallFloatingBanner';
 import { GroupInviteModal } from './GrouplnviteModal';
 import { SplashScreen } from './SplashScreen';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -136,6 +137,9 @@ export const VaultContainer: React.FC = () => {
 
       {/* Bottom Navigation (Hidden when inside an active conversation on mobile) */}
       {!isChatOpenOnMobile && <WhatsAppBottomBar />}
+
+      {/* Floating Active Call Banner */}
+      <ActiveCallFloatingBanner />
 
       {/* Global Call Screen Overlay */}
       <CallModal />

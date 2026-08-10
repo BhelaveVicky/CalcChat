@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { 
   onAuthStateChanged, signInWithPopup, signOut, 
   signInWithEmailAndPassword, createUserWithEmailAndPassword, signInAnonymously, updateProfile as updateAuthProfile,
@@ -93,6 +93,10 @@ interface VaultContextType {
   messages: Record<string, Message[]>;
   callLogs: CallLog[];
   activeCall: ActiveCallState | null;
+  isCallMinimized: boolean;
+  setIsCallMinimized: (minimized: boolean) => void;
+  maximizeCall: () => void;
+  minimizeCall: () => void;
   callPermissionError: string | null;
   clearCallPermissionError: () => void;
   activeContactId: string | null;
@@ -261,6 +265,10 @@ const fallbackVaultContext: VaultContextType = {
   messages: {},
   callLogs: [],
   activeCall: null,
+  isCallMinimized: false,
+  setIsCallMinimized: () => {},
+  maximizeCall: () => {},
+  minimizeCall: () => {},
   callPermissionError: null,
   clearCallPermissionError: () => {},
   activeContactId: null,
@@ -811,7 +819,19 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [sentFriendRequests, setSentFriendRequests] = useState<FriendRequest[]>([]);
   const [allRegisteredUsers, setAllRegisteredUsers] = useState<any[]>([]);
   const [callLogs, setCallLogs] = useState<CallLog[]>([]);
-  const [activeCall, setActiveCall] = useState<ActiveCallState | null>(null);
+  const [activeCall, setActiveCallState] = useState<ActiveCallState | null>(null);
+  const [isCallMinimized, setIsCallMinimized] = useState<boolean>(false);
+  const maximizeCall = useCallback(() => setIsCallMinimized(false), []);
+  const minimizeCall = useCallback(() => setIsCallMinimized(true), []);
+  const activeCallRef = useRef<ActiveCallState | null>(null);
+
+  const setActiveCall = useCallback((action: React.SetStateAction<ActiveCallState | null>) => {
+    setActiveCallState(prev => {
+      const next = typeof action === 'function' ? (action as (p: ActiveCallState | null) => ActiveCallState | null)(prev) : action;
+      activeCallRef.current = next;
+      return next;
+    });
+  }, []);
   const [callPermissionError, setCallPermissionError] = useState<string | null>(null);
   const [statusUpdates, setStatusUpdates] = useState<StatusUpdate[]>([]);
   const [statusSeenRecordsMap, setStatusSeenRecordsMap] = useState<Record<string, StatusSeenRecord[]>>({});
@@ -882,10 +902,6 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     console.error(scope, error);
   };
 
-  const activeCallRef = useRef<ActiveCallState | null>(null);
-  useEffect(() => {
-    activeCallRef.current = activeCall;
-  }, [activeCall]);
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -911,9 +927,15 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     let timeoutTimer: NodeJS.Timeout | null = null;
     if (activeCall && (activeCall.status === 'ringing' || activeCall.status === 'incoming')) {
       timeoutTimer = setTimeout(() => {
-        if (activeCallRef.current && (activeCallRef.current.status === 'ringing' || activeCallRef.current.status === 'incoming')) {
-          const callId = activeCallRef.current.id;
-          if (activeCallRef.current.direction === 'outgoing') {
+        const current = activeCallRef.current;
+        // ABSOLUTE SAFETY GUARD: If call is already connected or connecting, NEVER disconnect!
+        if (!current || current.status === 'connected' || current.status === 'connecting') {
+          return;
+        }
+
+        if (current.status === 'ringing' || current.status === 'incoming') {
+          const callId = current.id;
+          if (current.direction === 'outgoing') {
             if (callId) {
               updateDoc(doc(db, 'calls', callId), { status: 'cancelled' }).catch(() => {});
             }
@@ -925,7 +947,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             cleanupCall('rejected');
           }
         }
-      }, 30000); // 30 seconds limit
+      }, 30000); // 30 seconds limit for unanswered calls
     }
     return () => {
       if (timeoutTimer) clearTimeout(timeoutTimer);
@@ -1571,7 +1593,24 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const globalCallNotif = localStorage.getItem('calcchat_global_notify_calls') !== 'false';
           const globalGrpNotif = localStorage.getItem('calcchat_global_notify_groups') !== 'false';
 
-          if (!isInCall && !activeCallRef.current && grpNotif.callNotifications && globalCallNotif && globalGrpNotif) {
+          const startedAtMs = data.activeCall.startedAt?.toMillis
+            ? data.activeCall.startedAt.toMillis()
+            : (typeof data.activeCall.startedAt === 'number' ? data.activeCall.startedAt : 0);
+          
+          // Check if call is older than 2 minutes (120,000 ms) -> stale call
+          const isStale = startedAtMs > 0 && (Date.now() - startedAtMs > 120000);
+
+          if (isStale) {
+            // Auto-clear stale group call doc in Firestore
+            updateDoc(doc(db, 'groups', data.groupId || gId), {
+              'activeCall.status': 'ended',
+              'activeCall.endedAt': Date.now(),
+            }).catch(() => {});
+
+            if (activeCallRef.current && activeCallRef.current.isGroupCall && activeCallRef.current.contactId === (data.groupId || gId)) {
+              cleanupCall('ended');
+            }
+          } else if (!isInCall && !activeCallRef.current && grpNotif.callNotifications && globalCallNotif && globalGrpNotif) {
             // Trigger incoming group call for group members
             setActiveCall({
               id: data.activeCall.callId || 'group_call_' + gId,
@@ -1590,6 +1629,11 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             });
           } else if (isInCall && activeCallRef.current && activeCallRef.current.contactId === (data.groupId || gId)) {
             setActiveCall(prev => prev ? { ...prev, participants: callParts } : null);
+          }
+        } else {
+          // If group call has ended or activeCall status is not active, dismiss incoming group call for all members instantly
+          if (activeCallRef.current && activeCallRef.current.isGroupCall && activeCallRef.current.contactId === (data.groupId || gId)) {
+            cleanupCall('ended');
           }
         }
 
@@ -3496,6 +3540,16 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const data = docSnap.data();
         const callId = docSnap.id;
 
+        const createdAtMs = data.createdAt?.toMillis
+          ? data.createdAt.toMillis()
+          : (data.createdAt?.seconds ? data.createdAt.seconds * 1000 : 0);
+        const isStale = createdAtMs > 0 && (Date.now() - createdAtMs > 60000); // Older than 60s is stale
+
+        if (isStale) {
+          updateDoc(doc(db, 'calls', callId), { status: 'cancelled' }).catch(() => {});
+          return;
+        }
+
         if (blockedContactIds.includes(data.callerId) || blockedByContactIds.includes(data.callerId)) {
           updateDoc(doc(db, 'calls', callId), { status: 'rejected' }).catch(() => {});
           return;
@@ -4071,10 +4125,12 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       // If the remote receiver updated the status to connecting or connected, reflect it locally
-      if (data.status === 'connecting' && activeCallRef.current?.status === 'ringing') {
-        setActiveCall(prev => prev ? { ...prev, status: 'connecting' } : null);
-      } else if (data.status === 'connected' && activeCallRef.current?.status !== 'connected') {
-        setActiveCall(prev => prev ? { ...prev, status: 'connected' } : null);
+      if (data.status === 'connecting' || data.status === 'connected') {
+        setActiveCall(prev => {
+          if (!prev) return prev;
+          const nextStatus: CallStatus = data.status === 'connected' ? 'connected' : (prev.status === 'connected' ? 'connected' : 'connecting');
+          return { ...prev, status: nextStatus };
+        });
       }
 
       if (data.answer && pc.signalingState !== 'stable' && !pc.currentRemoteDescription) {
@@ -4295,21 +4351,50 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const rejectCall = () => {
     if (!activeCallRef.current) return;
     const callId = activeCallRef.current.id;
-    updateDoc(doc(db, 'calls', callId), { status: 'rejected' }).catch(() => {});
+    const contactId = activeCallRef.current.contactId;
+    const isGroup = activeCallRef.current.isGroupCall;
+
+    if (isGroup && callId && authUser) {
+      deleteDoc(doc(db, 'calls', callId, 'participants', authUser.uid)).catch(() => {});
+    } else if (callId) {
+      updateDoc(doc(db, 'calls', callId), { status: 'rejected' }).catch(() => {});
+    }
     cleanupCall('rejected');
   };
 
   const cancelCall = () => {
     if (!activeCallRef.current) return;
     const callId = activeCallRef.current.id;
-    updateDoc(doc(db, 'calls', callId), { status: 'cancelled' }).catch(() => {});
+    const contactId = activeCallRef.current.contactId;
+    const isGroup = activeCallRef.current.isGroupCall;
+
+    if (isGroup && contactId) {
+      updateDoc(doc(db, 'groups', contactId), {
+        'activeCall.status': 'ended',
+        'activeCall.endedAt': Date.now(),
+      }).catch(() => {});
+    }
+    if (callId) {
+      updateDoc(doc(db, 'calls', callId), { status: 'cancelled' }).catch(() => {});
+    }
     cleanupCall('cancelled');
   };
 
   const endCall = () => {
     if (!activeCallRef.current) return;
     const callId = activeCallRef.current.id;
-    updateDoc(doc(db, 'calls', callId), { status: 'ended' }).catch(() => {});
+    const contactId = activeCallRef.current.contactId;
+    const isGroup = activeCallRef.current.isGroupCall;
+
+    if (isGroup && contactId) {
+      updateDoc(doc(db, 'groups', contactId), {
+        'activeCall.status': 'ended',
+        'activeCall.endedAt': Date.now(),
+      }).catch(() => {});
+    }
+    if (callId) {
+      updateDoc(doc(db, 'calls', callId), { status: 'ended' }).catch(() => {});
+    }
     cleanupCall('ended');
   };
 
@@ -6177,6 +6262,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       rejectCall,
       cancelCall,
       endCall,
+      isCallMinimized,
+      setIsCallMinimized,
+      maximizeCall,
+      minimizeCall,
       toggleMuteCall,
       toggleVideoCall,
       toggleSpeakerCall,

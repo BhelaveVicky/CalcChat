@@ -7,7 +7,7 @@ import {
   Search, CheckSquare, Heart, Ban, MinusCircle, Copy, Pin, Archive, Star,
   CornerUpLeft, Play, Pause, Volume2, Edit3, Forward, Share2, Info, ChevronRight, File, PhoneCall, Tag,
   RotateCw, RefreshCw, Music, MapPin, User, ZoomIn, ZoomOut, Download, Clock, UserCheck, UserPlus, Flag, XCircle,
-  AlertCircle, Loader2, Sparkles
+  AlertCircle, Loader2, Sparkles, Maximize2
 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -104,7 +104,7 @@ export const ChatWindow: React.FC = () => {
     sendMessage, editMessage, user, deleteMessage, deleteForEveryone, toggleStarMessage,
     togglePinMessage, forwardMessage, setTypingStatus, settings, updateSettings, togglePinContact,
     toggleArchiveContact, clearChatHistory, blockContact, unblockContact,
-    blockedContactIds, blockedByContactIds, startCall,
+    blockedContactIds, blockedByContactIds, startCall, maximizeCall, activeCall,
     customNicknames, getContactDisplayName, isFriend, unfriendContact,
     markViewOnceOpened, sendFriendRequest, acceptFriendRequest,
     pendingFriendRequests, sentFriendRequests,
@@ -2399,17 +2399,31 @@ export const ChatWindow: React.FC = () => {
                                       </div>
                                     </div>
 
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        startCall(contact.id, msg.callInfo?.type || (msg.type === 'video_call' ? 'video' : 'voice'));
-                                      }}
-                                      className="w-full py-1.5 px-3 rounded-xl bg-[#ff2e93]/30 hover:bg-[#ff2e93]/50 text-pink-300 border border-[#ff2e93]/30 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-95"
-                                    >
-                                      <PhoneCall className="w-3.5 h-3.5" />
-                                      <span>Call Again</span>
-                                    </button>
+                                    {activeCall && (activeCall.contactId === contact.id || activeCall.id === msg.callInfo?.id) ? (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          maximizeCall();
+                                        }}
+                                        className="w-full py-1.5 px-3 rounded-xl bg-emerald-500/30 hover:bg-emerald-500/50 text-emerald-300 border border-emerald-500/50 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-95 animate-pulse"
+                                      >
+                                        <Maximize2 className="w-3.5 h-3.5 text-emerald-400" />
+                                        <span>Return to Active Call</span>
+                                      </button>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          startCall(contact.id, msg.callInfo?.type || (msg.type === 'video_call' ? 'video' : 'voice'));
+                                        }}
+                                        className="w-full py-1.5 px-3 rounded-xl bg-[#ff2e93]/30 hover:bg-[#ff2e93]/50 text-pink-300 border border-[#ff2e93]/30 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                                      >
+                                        <PhoneCall className="w-3.5 h-3.5" />
+                                        <span>Call Again</span>
+                                      </button>
+                                    )}
                                   </div>
                                 )}
 

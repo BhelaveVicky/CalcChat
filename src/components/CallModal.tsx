@@ -20,7 +20,8 @@ export const CallModal: React.FC = () => {
   const { 
     user, activeCall, contacts, groupContacts, acceptCall, joinGroupCall, rejectCall, cancelCall, endCall,
     toggleMuteCall, toggleVideoCall, toggleSpeakerCall, switchCameraCall,
-    getContactDisplayName, callPermissionError, clearCallPermissionError
+    getContactDisplayName, callPermissionError, clearCallPermissionError,
+    isCallMinimized, minimizeCall
   } = useVault();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -101,23 +102,32 @@ export const CallModal: React.FC = () => {
     if (remoteAudioRef.current && activeCall?.remoteStream) {
       remoteAudioRef.current.srcObject = activeCall.remoteStream;
     }
-  }, [activeCall?.remoteStream]);
+  }, [activeCall?.remoteStream, activeCall?.status]);
 
   // Attach remote stream to video element
   useEffect(() => {
     if (remoteVideoRef.current && activeCall?.remoteStream) {
       remoteVideoRef.current.srcObject = activeCall.remoteStream;
     }
-  }, [activeCall?.remoteStream, isSelfViewPrimary]);
+  }, [activeCall?.remoteStream, activeCall?.status, isSelfViewPrimary]);
 
   // Attach local stream to video element
   useEffect(() => {
     if (localVideoRef.current && activeCall?.localStream) {
       localVideoRef.current.srcObject = activeCall.localStream;
     }
-  }, [activeCall?.localStream, isSelfViewPrimary]);
+  }, [activeCall?.localStream, activeCall?.status, isSelfViewPrimary]);
 
   if (!activeCall && !callPermissionError) return null;
+
+  // When call is minimized, keep audio track playing in background
+  if (isCallMinimized && activeCall) {
+    return (
+      <div className="hidden pointer-events-none">
+        <audio ref={remoteAudioRef} autoPlay playsInline />
+      </div>
+    );
+  }
 
   // Permission error overlay modal
   if (callPermissionError) {
@@ -318,6 +328,16 @@ export const CallModal: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-2 pointer-events-auto">
+                {/* Minimize Call Button */}
+                <button
+                  onClick={minimizeCall}
+                  className="p-2 rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-md border border-white/10 transition-all active:scale-95 flex items-center gap-1.5 px-3 text-xs font-medium"
+                  title="Minimize Call view"
+                >
+                  <Minimize2 className="w-4 h-4 text-[#ff2e93]" />
+                  <span className="hidden sm:inline">Minimize</span>
+                </button>
+
                 {/* Swap View Button */}
                 <button
                   onClick={() => setIsSelfViewPrimary(!isSelfViewPrimary)}

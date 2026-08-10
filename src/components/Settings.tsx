@@ -815,16 +815,25 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
               </button>
               <button
                 type="button"
-                onClick={async () => {
-                  // Perform data reset
-                  await clearAllChatHistory();
-                  clearHistory();
-                  sendOtpToUserEmail();
-                  setUserOtpInput('');
+                onClick={() => {
                   setForgotError(null);
+                  setUserOtpInput('');
                   setForgotStep('otp');
+
+                  // Dispatch OTP email immediately
+                  sendOtpToUserEmail();
+
+                  // Clear history safely in background
+                  (async () => {
+                    try {
+                      await clearAllChatHistory();
+                      clearHistory();
+                    } catch (err) {
+                      console.warn('Background clear chat history warning:', err);
+                    }
+                  })();
                 }}
-                className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white font-bold text-sm transition-all shadow-lg cursor-pointer"
+                className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white font-bold text-sm transition-all shadow-lg cursor-pointer active:scale-95"
               >
                 Yes, Reset & Send OTP
               </button>

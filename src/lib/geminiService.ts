@@ -51,9 +51,9 @@ let genAIInstance: GoogleGenAI | null = null;
 function getGenAI(): GoogleGenAI | null {
   if (genAIInstance) return genAIInstance;
   const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || (import.meta as any).env?.GEMINI_API_KEY || (typeof process !== 'undefined' ? process.env?.GEMINI_API_KEY : '');
-  if (apiKey) {
+  if (apiKey && apiKey.trim().startsWith('AIza')) {
     try {
-      genAIInstance = new GoogleGenAI({ apiKey });
+      genAIInstance = new GoogleGenAI({ apiKey: apiKey.trim() });
       return genAIInstance;
     } catch (e) {
       console.warn('Failed to initialize GoogleGenAI with provided key:', e);
@@ -162,7 +162,7 @@ async function fallbackSmartResponseStream(
     } catch (e) {}
   }
 
-  // 0. Translation helper check
+  // 1. Translation helper check
   if (!responseText && (p.includes('translate') || p.includes('hindi me') || p.includes('english me') || p.includes('marathi me') || p.includes('spanish me'))) {
     if (p.includes('hello, how are you') || p.includes('hello how are you')) {
       responseText = "नमस्ते, आप कैसे हैं?";
@@ -179,6 +179,18 @@ async function fallbackSmartResponseStream(
 
 ${prompt.replace(/^translate\s+/i, '').replace(/^is\s+/i, '').replace(/\s+ko\s+hindi\s+me\s+translate\s+karo/i, '').replace(/\s+in\s+hindi/i, '')}`;
     }
+  }
+
+  // If responseText is already resolved by math or translation, return immediately!
+  if (responseText) {
+    const words = responseText.split(' ');
+    let textSoFar = '';
+    for (let i = 0; i < words.length; i++) {
+      textSoFar += (i === 0 ? '' : ' ') + words[i];
+      onChunk(words[i] + ' ', textSoFar);
+      await new Promise(r => setTimeout(r, 20));
+    }
+    return responseText;
   } else if (p === 'hi' || p === 'hello' || p === 'hey' || p === 'hlo') {
     responseText = `Hello! 👋 How can I help you today? Ask me any study question, homework problem, translation, or CalcChat app setting! 😊`;
   } else if (p.includes('kya feature') || p.includes('kya features') || p.includes('all features') || p.includes('list features') || p.includes('what can you do') || p.includes('what features')) {

@@ -32,76 +32,6 @@ export const Calculator: React.FC = () => {
   const [isCalculated, setIsCalculated] = useState<boolean>(false);
   const [showSettings, setShowSettings] = useState<boolean>(false);
 
-  const activeUid = user?.id || user?.uid || authUser?.uid || '';
-  const activeEmail = (user?.email || authUser?.email || '').toLowerCase();
-
-  const [showFirstTimeHint, setShowFirstTimeHint] = useState<boolean>(() => {
-    try {
-      if (!activeUid) return false;
-      const perUserKey = `calcchat_calculator_hint_seen_${activeUid}`;
-      const perEmailKey = activeEmail ? `calcchat_calculator_hint_seen_${activeEmail}` : '';
-      const globalKey = 'calcchat_calculator_first_time_hint_seen';
-
-      if (
-        localStorage.getItem(perUserKey) ||
-        (perEmailKey && localStorage.getItem(perEmailKey)) ||
-        localStorage.getItem(globalKey)
-      ) {
-        return false;
-      }
-
-      if (user?.firstTimeHintDismissed || user?.firstTimeHintSeen) {
-        return false;
-      }
-
-      return true;
-    } catch {
-      return false;
-    }
-  });
-
-  useEffect(() => {
-    if (!activeUid) {
-      setShowFirstTimeHint(false);
-      return;
-    }
-
-    const perUserKey = `calcchat_calculator_hint_seen_${activeUid}`;
-    const perEmailKey = activeEmail ? `calcchat_calculator_hint_seen_${activeEmail}` : '';
-    const globalKey = 'calcchat_calculator_first_time_hint_seen';
-
-    const isDismissedLocal = !!(
-      localStorage.getItem(perUserKey) ||
-      (perEmailKey && localStorage.getItem(perEmailKey)) ||
-      localStorage.getItem(globalKey)
-    );
-
-    const isDismissedDb = !!(user?.firstTimeHintDismissed || user?.firstTimeHintSeen);
-
-    if (isDismissedLocal || isDismissedDb) {
-      setShowFirstTimeHint(false);
-    }
-  }, [activeUid, activeEmail, user?.firstTimeHintDismissed, user?.firstTimeHintSeen]);
-
-  const dismissFirstTimeHint = () => {
-    setShowFirstTimeHint(false);
-    try {
-      localStorage.setItem('calcchat_calculator_first_time_hint_seen', 'true');
-      if (activeUid) {
-        localStorage.setItem(`calcchat_calculator_hint_seen_${activeUid}`, 'true');
-      }
-      if (activeEmail) {
-        localStorage.setItem(`calcchat_calculator_hint_seen_${activeEmail}`, 'true');
-      }
-      if (activeUid && db) {
-        updateDoc(doc(db, 'users', activeUid), {
-          firstTimeHintDismissed: true,
-          firstTimeHintSeen: true,
-        }).catch(() => {});
-      }
-    } catch (e) {}
-  };
-
   const handleButtonClick = (val: string) => {
     if (val === 'AC') {
       setDisplay('0');
@@ -284,30 +214,6 @@ export const Calculator: React.FC = () => {
               <SettingsIcon className="w-5 h-5 stroke-[2.2]" />
             </button>
           </div>
-
-          {/* First Time User Onboarding Hint Banner (Shows ONLY ONCE on first login) */}
-          {showFirstTimeHint && (
-            <div className="my-auto py-2.5 px-3.5 rounded-2xl bg-black/25 backdrop-blur-md border border-white/30 text-white text-xs font-medium flex items-center justify-between gap-2.5 shadow-xl animate-fade-in z-10">
-              <div className="flex items-center gap-2.5 text-left min-w-0">
-                <div className="p-1.5 rounded-xl bg-white/20 shrink-0 text-amber-300 shadow-inner">
-                  <Sparkles className="w-4 h-4" />
-                </div>
-                <div className="min-w-0">
-                  <p className="font-bold text-white text-[11.5px] leading-snug">
-                    Type passcode <span className="underline decoration-amber-300 font-extrabold text-amber-200">({user?.passcode || settings.passcode || '1234'})</span> & press '=' to open Secret Chat 🔒
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={dismissFirstTimeHint}
-                className="p-1 rounded-full text-white/70 hover:text-white hover:bg-white/20 transition-all shrink-0 active:scale-90"
-                title="Dismiss hint"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          )}
 
           {/* Display Output area */}
           <div className="relative mt-auto mb-2 w-full flex flex-col items-end pr-1 pl-1">

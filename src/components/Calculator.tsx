@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sparkles, Settings as SettingsIcon, Delete, Lock, X } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 import { useSettings } from '../context/SettingsContext';
 import { Settings as SettingsComponent } from './Settings';
+import { db } from '../lib/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 
 const formatDisplayNumber = (val: string): string => {
   if (val === 'Error' || val === 'NaN') return val;
@@ -22,25 +24,81 @@ const formatDisplayNumber = (val: string): string => {
 };
 
 export const Calculator: React.FC = () => {
-  const { settings, user, unlockVault, setActiveTab } = useVault();
+  const { settings, user, authUser, unlockVault, setActiveTab } = useVault();
   const { settings: appSettings, addToHistory, t } = useSettings();
   const [display, setDisplay] = useState<string>('0');
   const [equation, setEquation] = useState<string>('');
   const [unlocking, setUnlocking] = useState<boolean>(false);
   const [isCalculated, setIsCalculated] = useState<boolean>(false);
   const [showSettings, setShowSettings] = useState<boolean>(false);
+
+  const activeUid = user?.id || user?.uid || authUser?.uid || '';
+  const activeEmail = (user?.email || authUser?.email || '').toLowerCase();
+
   const [showFirstTimeHint, setShowFirstTimeHint] = useState<boolean>(() => {
     try {
-      return !localStorage.getItem('calcchat_calculator_first_time_hint_seen');
-    } catch {
+      if (!activeUid) return false;
+      const perUserKey = `calcchat_calculator_hint_seen_${activeUid}`;
+      const perEmailKey = activeEmail ? `calcchat_calculator_hint_seen_${activeEmail}` : '';
+      const globalKey = 'calcchat_calculator_first_time_hint_seen';
+
+      if (
+        localStorage.getItem(perUserKey) ||
+        (perEmailKey && localStorage.getItem(perEmailKey)) ||
+        localStorage.getItem(globalKey)
+      ) {
+        return false;
+      }
+
+      if (user?.firstTimeHintDismissed || user?.firstTimeHintSeen) {
+        return false;
+      }
+
       return true;
+    } catch {
+      return false;
     }
   });
+
+  useEffect(() => {
+    if (!activeUid) {
+      setShowFirstTimeHint(false);
+      return;
+    }
+
+    const perUserKey = `calcchat_calculator_hint_seen_${activeUid}`;
+    const perEmailKey = activeEmail ? `calcchat_calculator_hint_seen_${activeEmail}` : '';
+    const globalKey = 'calcchat_calculator_first_time_hint_seen';
+
+    const isDismissedLocal = !!(
+      localStorage.getItem(perUserKey) ||
+      (perEmailKey && localStorage.getItem(perEmailKey)) ||
+      localStorage.getItem(globalKey)
+    );
+
+    const isDismissedDb = !!(user?.firstTimeHintDismissed || user?.firstTimeHintSeen);
+
+    if (isDismissedLocal || isDismissedDb) {
+      setShowFirstTimeHint(false);
+    }
+  }, [activeUid, activeEmail, user?.firstTimeHintDismissed, user?.firstTimeHintSeen]);
 
   const dismissFirstTimeHint = () => {
     setShowFirstTimeHint(false);
     try {
       localStorage.setItem('calcchat_calculator_first_time_hint_seen', 'true');
+      if (activeUid) {
+        localStorage.setItem(`calcchat_calculator_hint_seen_${activeUid}`, 'true');
+      }
+      if (activeEmail) {
+        localStorage.setItem(`calcchat_calculator_hint_seen_${activeEmail}`, 'true');
+      }
+      if (activeUid && db) {
+        updateDoc(doc(db, 'users', activeUid), {
+          firstTimeHintDismissed: true,
+          firstTimeHintSeen: true,
+        }).catch(() => {});
+      }
     } catch (e) {}
   };
 

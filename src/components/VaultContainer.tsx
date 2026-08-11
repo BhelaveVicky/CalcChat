@@ -23,71 +23,98 @@ export const VaultContainer: React.FC = () => {
   const [showUnlockSplash, setShowUnlockSplash] = useState<boolean>(true);
   const [isFadingOut, setIsFadingOut] = useState<boolean>(false);
 
-  // Touch Swipe Navigation for Main Sections (CHATS ↔ STATUS/GALLERY ↔ CALLS ↔ PROFILE)
-  const touchStartRef = useRef<{ x: number; y: number; time: number; isValid: boolean }>({ x: 0, y: 0, time: 0, isValid: false });
+  // References for touch gesture handling
+  const containerRef = useRef<HTMLElement | null>(null);
+  const activeTabRef = useRef(activeTab);
+  const activeContactIdRef = useRef(activeContactId);
 
-  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    // 1. Do not trigger swipe if user is inside an active chat conversation on mobile
-    if (activeContactId) {
-      touchStartRef.current = { x: 0, y: 0, time: 0, isValid: false };
-      return;
-    }
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
 
-    const touch = e.touches[0];
-    const target = e.target as HTMLElement;
+  useEffect(() => {
+    activeContactIdRef.current = activeContactId;
+  }, [activeContactId]);
 
-    // 2. Interaction Safety: Ignore if touch started inside inputs, textareas, buttons, links, video/audio controls, modals, dialogs
-    if (
-      target.closest('input, textarea, select, button, a, audio, video, [role="button"], [role="dialog"], [role="menu"], [role="slider"], .no-swipe') ||
-      target.isContentEditable
-    ) {
-      touchStartRef.current = { x: 0, y: 0, time: 0, isValid: false };
-      return;
-    }
+  // Native touch gesture listener attached directly to the main viewport container
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
 
-    touchStartRef.current = {
-      x: touch.clientX,
-      y: touch.clientY,
-      time: Date.now(),
-      isValid: true,
+    let startX = 0;
+    let startY = 0;
+    let startTime = 0;
+    let isValidGesture = false;
+
+    const TAB_ORDER: Array<'chats' | 'gallery' | 'calls' | 'profile'> = ['chats', 'gallery', 'calls', 'profile'];
+
+    const onTouchStart = (e: TouchEvent) => {
+      // 1. Do not trigger section swipe if user is inside an active chat conversation on mobile
+      if (activeContactIdRef.current) {
+        isValidGesture = false;
+        return;
+      }
+
+      const target = e.target as HTMLElement;
+
+      // 2. Ignore ONLY text inputs, textareas, audio/video players, or active modal dialogs
+      if (
+        target.closest('input, textarea, select, audio, video, [role="dialog"], [role="slider"], .no-swipe') ||
+        target.isContentEditable
+      ) {
+        isValidGesture = false;
+        return;
+      }
+
+      const touch = e.touches[0];
+      startX = touch.clientX;
+      startY = touch.clientY;
+      startTime = Date.now();
+      isValidGesture = true;
     };
-  };
 
-  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (!touchStartRef.current.isValid) return;
+    const onTouchEnd = (e: TouchEvent) => {
+      if (!isValidGesture) return;
+      isValidGesture = false;
 
-    const touch = e.changedTouches[0];
-    const deltaX = touch.clientX - touchStartRef.current.x;
-    const deltaY = touch.clientY - touchStartRef.current.y;
-    const deltaTime = Date.now() - touchStartRef.current.time;
+      const touch = e.changedTouches[0];
+      const deltaX = touch.clientX - startX;
+      const deltaY = touch.clientY - startY;
+      const deltaTime = Date.now() - startTime;
 
-    // Reset touch validity
-    touchStartRef.current.isValid = false;
+      const absX = Math.abs(deltaX);
+      const absY = Math.abs(deltaY);
 
-    const absX = Math.abs(deltaX);
-    const absY = Math.abs(deltaY);
+      // 3. Trigger swipe if horizontal movement >= 40px, horizontally dominant (absX > absY * 1.2), and quick gesture (< 800ms)
+      if (absX >= 40 && absX > absY * 1.2 && deltaTime < 800) {
+        const currentTab = activeTabRef.current;
+        const currentIndex = TAB_ORDER.indexOf(currentTab as any);
 
-    // 3. Minimum horizontal threshold (50px), fast swipe (<800ms), and horizontal movement dominates vertical movement (absX > absY * 1.5)
-    if (absX >= 50 && absX > absY * 1.5 && deltaTime < 800) {
-      const TAB_ORDER: Array<'chats' | 'gallery' | 'calls' | 'profile'> = ['chats', 'gallery', 'calls', 'profile'];
-      const currentIndex = TAB_ORDER.indexOf(activeTab as any);
+        // Only navigate if currently on one of the 4 main sections
+        if (currentIndex === -1) return;
 
-      // Only navigate if currently on one of the 4 main sections
-      if (currentIndex === -1) return;
-
-      if (deltaX < 0) {
-        // Swiped Left -> Move to Next section (Chats -> Status -> Calls -> Profile)
-        if (currentIndex < TAB_ORDER.length - 1) {
-          setActiveTab(TAB_ORDER[currentIndex + 1]);
-        }
-      } else {
-        // Swiped Right -> Move to Previous section (Profile -> Calls -> Status -> Chats)
-        if (currentIndex > 0) {
-          setActiveTab(TAB_ORDER[currentIndex - 1]);
+        if (deltaX < 0) {
+          // Swiped Left (finger moves right to left) -> Next section (Chats -> Status -> Calls -> Profile)
+          if (currentIndex < TAB_ORDER.length - 1) {
+            setActiveTab(TAB_ORDER[currentIndex + 1]);
+          }
+        } else {
+          // Swiped Right (finger moves left to right) -> Previous section (Profile -> Calls -> Status -> Chats)
+          if (currentIndex > 0) {
+            setActiveTab(TAB_ORDER[currentIndex - 1]);
+          }
         }
       }
-    }
-  };
+    };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchend', onTouchEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [setActiveTab]);
 
   useEffect(() => {
     if (isUnlocked) {
@@ -141,10 +168,9 @@ export const VaultContainer: React.FC = () => {
       {/* Top Header (Shown on mobile when chat is not open, or always on mobile view) */}
       {!isChatOpenOnMobile && <WhatsAppTopBar />}
 
-      {/* Main Tab Viewport with Horizontal Touch Swipe */}
+      {/* Main Tab Viewport with Native Horizontal Touch Swipe */}
       <main 
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
+        ref={containerRef}
         className="flex-1 flex flex-col overflow-hidden relative w-full h-full min-h-0 touch-pan-y"
       >
         <Routes>

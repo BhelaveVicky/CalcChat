@@ -23,6 +23,9 @@ export interface UserProfile {
   hasUsername?: boolean;
   hasChatPassword?: boolean;
   isProfileComplete?: boolean;
+  uid?: string;
+  firstTimeHintDismissed?: boolean;
+  firstTimeHintSeen?: boolean;
 }
 
 export interface UserReport {

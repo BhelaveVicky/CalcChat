@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { useVault } from '../context/VaultContext';
 import { Calculator } from './Calculator';
@@ -18,10 +18,76 @@ import { SplashScreen } from './SplashScreen';
 import { ErrorBoundary } from './ErrorBoundary';
 
 export const VaultContainer: React.FC = () => {
-  const { isUnlocked, activeTab, activeContactId, setActiveContactId, settings: vaultSettings } = useVault();
+  const { isUnlocked, activeTab, setActiveTab, activeContactId, setActiveContactId, settings: vaultSettings } = useVault();
 
   const [showUnlockSplash, setShowUnlockSplash] = useState<boolean>(true);
   const [isFadingOut, setIsFadingOut] = useState<boolean>(false);
+
+  // Touch Swipe Navigation for Main Sections (CHATS ↔ STATUS/GALLERY ↔ CALLS ↔ PROFILE)
+  const touchStartRef = useRef<{ x: number; y: number; time: number; isValid: boolean }>({ x: 0, y: 0, time: 0, isValid: false });
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    // 1. Do not trigger swipe if user is inside an active chat conversation on mobile
+    if (activeContactId) {
+      touchStartRef.current = { x: 0, y: 0, time: 0, isValid: false };
+      return;
+    }
+
+    const touch = e.touches[0];
+    const target = e.target as HTMLElement;
+
+    // 2. Interaction Safety: Ignore if touch started inside inputs, textareas, buttons, links, video/audio controls, modals, dialogs
+    if (
+      target.closest('input, textarea, select, button, a, audio, video, [role="button"], [role="dialog"], [role="menu"], [role="slider"], .no-swipe') ||
+      target.isContentEditable
+    ) {
+      touchStartRef.current = { x: 0, y: 0, time: 0, isValid: false };
+      return;
+    }
+
+    touchStartRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      time: Date.now(),
+      isValid: true,
+    };
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!touchStartRef.current.isValid) return;
+
+    const touch = e.changedTouches[0];
+    const deltaX = touch.clientX - touchStartRef.current.x;
+    const deltaY = touch.clientY - touchStartRef.current.y;
+    const deltaTime = Date.now() - touchStartRef.current.time;
+
+    // Reset touch validity
+    touchStartRef.current.isValid = false;
+
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+
+    // 3. Minimum horizontal threshold (50px), fast swipe (<800ms), and horizontal movement dominates vertical movement (absX > absY * 1.5)
+    if (absX >= 50 && absX > absY * 1.5 && deltaTime < 800) {
+      const TAB_ORDER: Array<'chats' | 'gallery' | 'calls' | 'profile'> = ['chats', 'gallery', 'calls', 'profile'];
+      const currentIndex = TAB_ORDER.indexOf(activeTab as any);
+
+      // Only navigate if currently on one of the 4 main sections
+      if (currentIndex === -1) return;
+
+      if (deltaX < 0) {
+        // Swiped Left -> Move to Next section (Chats -> Status -> Calls -> Profile)
+        if (currentIndex < TAB_ORDER.length - 1) {
+          setActiveTab(TAB_ORDER[currentIndex + 1]);
+        }
+      } else {
+        // Swiped Right -> Move to Previous section (Profile -> Calls -> Status -> Chats)
+        if (currentIndex > 0) {
+          setActiveTab(TAB_ORDER[currentIndex - 1]);
+        }
+      }
+    }
+  };
 
   useEffect(() => {
     if (isUnlocked) {
@@ -75,8 +141,12 @@ export const VaultContainer: React.FC = () => {
       {/* Top Header (Shown on mobile when chat is not open, or always on mobile view) */}
       {!isChatOpenOnMobile && <WhatsAppTopBar />}
 
-      {/* Main Tab Viewport */}
-      <main className="flex-1 flex flex-col overflow-hidden relative w-full h-full min-h-0">
+      {/* Main Tab Viewport with Horizontal Touch Swipe */}
+      <main 
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        className="flex-1 flex flex-col overflow-hidden relative w-full h-full min-h-0 touch-pan-y"
+      >
         <Routes>
           <Route path="/profile/:userId" element={<UserProfile />} />
           <Route path="/profile" element={<UserProfile targetUserId="me" />} />

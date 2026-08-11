@@ -74,7 +74,6 @@ export const Calculator: React.FC = () => {
       // Check user passcode first, then settings passcode, then fallback '1234'
       const activePasscode = user.passcode || settings.passcode || '1234';
       if (display === activePasscode || equation + display === activePasscode) {
-        dismissFirstTimeHint();
         setUnlocking(true);
         setTimeout(() => {
           unlockVault(activePasscode);

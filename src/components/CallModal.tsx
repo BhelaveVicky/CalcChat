@@ -2,9 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { 
   Phone, Video, Mic, MicOff, VideoOff, PhoneOff, PhoneCall, 
   SwitchCamera, Volume2, ShieldCheck, Wifi, Maximize2, Minimize2,
-  AlertCircle, Lock, RefreshCw, X, Sparkles, ArrowLeftRight, Check, Sliders, MoreVertical
+  AlertCircle, Lock, RefreshCw, X, Sparkles, ArrowLeftRight, Check, Sliders, MoreVertical, LayoutGrid
 } from 'lucide-react';
-import { useVault } from '../context/VaultContext';
+import { useVault, GroupCallParticipant } from '../context/VaultContext';
 import { getContactNotificationSettings } from '../lib/contactSettings';
 
 const VIDEO_FILTERS = [
@@ -16,30 +16,126 @@ const VIDEO_FILTERS = [
   { id: 'vivid', label: 'Vivid', css: 'contrast(125%) saturate(145%)' },
 ];
 
+const ParticipantVideoTile: React.FC<{
+  participant: {
+    uid: string;
+    name: string;
+    avatar?: string;
+  };
+  stream: MediaStream | null;
+  isSelf: boolean;
+  isMuted: boolean;
+  isVideoOff: boolean;
+  filterCss: string;
+  isMainFocus?: boolean;
+  onClick?: () => void;
+}> = ({ participant, stream, isSelf, isMuted, isVideoOff, filterCss, isMainFocus, onClick }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      if (videoRef.current.srcObject !== stream) {
+        videoRef.current.srcObject = stream;
+      }
+      videoRef.current.play().catch(() => {});
+    } else if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+
+    if (audioRef.current && !isSelf && stream) {
+      if (audioRef.current.srcObject !== stream) {
+        audioRef.current.srcObject = stream;
+      }
+      audioRef.current.play().catch(() => {});
+    } else if (audioRef.current) {
+      audioRef.current.srcObject = null;
+    }
+  }, [stream, isSelf]);
+
+  return (
+    <div 
+      onClick={onClick}
+      className={`relative overflow-hidden bg-slate-900 rounded-2xl border transition-all duration-200 group/tile ${
+        isMainFocus 
+          ? 'w-full h-full border-[#ff2e93] shadow-2xl flex items-center justify-center' 
+          : 'w-full h-full min-h-[160px] sm:min-h-[220px] border-slate-700/60 hover:border-[#ff2e93] hover:shadow-[0_0_20px_rgba(255,46,147,0.3)] cursor-pointer active:scale-[0.98]'
+      }`}
+    >
+      {/* Dedicated audio element for remote participants to guarantee 100% audio playback */}
+      {!isSelf && <audio ref={audioRef} autoPlay playsInline />}
+
+      <video 
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted={isSelf}
+        style={{ filter: filterCss }}
+        className={`w-full h-full object-cover ${isVideoOff || !stream ? 'hidden' : 'block'}`}
+      />
+
+      {(isVideoOff || !stream) && (
+        <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-gradient-to-b from-slate-900 to-slate-950 text-center select-none">
+          <img 
+            src={participant.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}
+            alt={participant.name}
+            className={`${isMainFocus ? 'w-28 h-28 sm:w-36 sm:h-36' : 'w-16 h-16 sm:w-20 sm:h-20'} rounded-full object-cover border-4 border-slate-700/60 shadow-xl`}
+          />
+          <span className="mt-2.5 text-xs font-semibold text-slate-300">
+            {isVideoOff ? 'Camera Off' : 'Connecting feed...'}
+          </span>
+        </div>
+      )}
+
+      {/* Participant Name Badge & Mic Mute Indicator */}
+      <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none z-10">
+        <div className="bg-black/70 backdrop-blur-md px-3 py-1 rounded-full text-xs font-semibold text-white flex items-center gap-1.5 border border-white/10 max-w-[80%] truncate shadow-md">
+          <span className="truncate">{isSelf ? `You (${participant.name})` : participant.name}</span>
+        </div>
+
+        {isMuted && (
+          <div className="p-1.5 rounded-full bg-rose-500/90 text-white backdrop-blur-md border border-white/20 shadow-md" title="Muted">
+            <MicOff className="w-3.5 h-3.5" />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const GroupAudioPlayerTile: React.FC<{ stream: MediaStream | null }> = ({ stream }) => {
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  useEffect(() => {
+    if (audioRef.current && stream) {
+      if (audioRef.current.srcObject !== stream) {
+        audioRef.current.srcObject = stream;
+      }
+      audioRef.current.play().catch(() => {});
+    } else if (audioRef.current) {
+      audioRef.current.srcObject = null;
+    }
+  }, [stream]);
+
+  return <audio ref={audioRef} autoPlay playsInline />;
+};
+
 export const CallModal: React.FC = () => {
   const { 
-    user, activeCall, contacts, groupContacts, acceptCall, joinGroupCall, rejectCall, cancelCall, endCall,
+    user, authUser, activeCall, contacts, groupContacts, acceptCall, joinGroupCall, rejectCall, cancelCall, endCall,
     toggleMuteCall, toggleVideoCall, toggleSpeakerCall, switchCameraCall,
     getContactDisplayName, callPermissionError, clearCallPermissionError,
     isCallMinimized, minimizeCall, setCallFilter
   } = useVault();
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
-  const localVideoRef = useRef<HTMLVideoElement>(null);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isSelfViewPrimary, setIsSelfViewPrimary] = useState(false);
+  const [focusedUid, setFocusedUid] = useState<string | null>(null);
   const [selectedFilter, setSelectedFilter] = useState('none');
   const [showFilterPicker, setShowFilterPicker] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
-
-  const contact = contacts.find(c => c.id === activeCall?.contactId) || groupContacts.find(g => g.id === activeCall?.contactId);
-
-  const activeFilterCss = VIDEO_FILTERS.find(f => f.id === selectedFilter)?.css || 'none';
-  const remoteFilterId = activeCall?.remoteFilter || 'none';
-  const remoteFilterCss = VIDEO_FILTERS.find(f => f.id === remoteFilterId)?.css || 'none';
 
   // Toggle browser fullscreen mode
   const toggleFullscreen = () => {
@@ -67,7 +163,6 @@ export const CallModal: React.FC = () => {
             if (activeCall?.contactId) {
               const notifSettings = getContactNotificationSettings(activeCall.contactId);
               if (!notifSettings.callNotifications) {
-                // Call notification ringtone is turned OFF for this user
                 return;
               }
             }
@@ -103,22 +198,9 @@ export const CallModal: React.FC = () => {
   useEffect(() => {
     if (remoteAudioRef.current && activeCall?.remoteStream) {
       remoteAudioRef.current.srcObject = activeCall.remoteStream;
+      remoteAudioRef.current.play().catch(() => {});
     }
   }, [activeCall?.remoteStream, activeCall?.status]);
-
-  // Attach remote stream to video element
-  useEffect(() => {
-    if (remoteVideoRef.current && activeCall?.remoteStream) {
-      remoteVideoRef.current.srcObject = activeCall.remoteStream;
-    }
-  }, [activeCall?.remoteStream, activeCall?.status, isSelfViewPrimary]);
-
-  // Attach local stream to video element
-  useEffect(() => {
-    if (localVideoRef.current && activeCall?.localStream) {
-      localVideoRef.current.srcObject = activeCall.localStream;
-    }
-  }, [activeCall?.localStream, activeCall?.status, isSelfViewPrimary]);
 
   if (!activeCall && !callPermissionError) return null;
 
@@ -127,6 +209,11 @@ export const CallModal: React.FC = () => {
     return (
       <div className="hidden pointer-events-none">
         <audio ref={remoteAudioRef} autoPlay playsInline />
+        {activeCall.isGroupCall && activeCall.peerStreams && (
+          Object.entries(activeCall.peerStreams).map(([peerUid, pStream]) => (
+            <GroupAudioPlayerTile key={peerUid} stream={pStream} />
+          ))
+        )}
       </div>
     );
   }
@@ -173,22 +260,98 @@ export const CallModal: React.FC = () => {
     );
   }
 
-  if (!activeCall || !contact) return null;
+  // Find contact object from ID (Could be 1-on-1 contact or Group)
+  let contactObj: any = contacts.find((c) => c.id === activeCall?.contactId) || 
+                      groupContacts.find((g) => g.id === activeCall?.contactId);
 
-  const userAvatar = (user as any)?.photoURL || user?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
+  if (!contactObj) {
+    contactObj = {
+      id: activeCall?.contactId || 'unknown',
+      name: activeCall?.isGroupCall ? 'Group Call' : 'Unknown User',
+      avatar: activeCall?.isGroupCall 
+        ? 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=150&auto=format&fit=crop&q=80' 
+        : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+    };
+  }
+
+  const contact = contactObj;
   const contactAvatar = contact.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
+  const userAvatar = user.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
 
-  const mins = Math.floor(activeCall.durationSeconds / 60);
-  const secs = activeCall.durationSeconds % 60;
+  const activeFilterCss = VIDEO_FILTERS.find(f => f.id === selectedFilter)?.css || 'none';
+  const remoteFilterCss = activeCall?.remoteFilter ? VIDEO_FILTERS.find(f => f.id === activeCall.remoteFilter)?.css || 'none' : 'none';
+
+  const mins = Math.floor((activeCall?.durationSeconds || 0) / 60);
+  const secs = (activeCall?.durationSeconds || 0) % 60;
   const timerStr = `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
+
+  // Gather active participants list
+  const rawParticipants = activeCall?.participants || [];
+  const participantsList = rawParticipants.length > 0 
+    ? rawParticipants 
+    : [
+        {
+          uid: authUser?.uid || user.id,
+          name: user.name || (authUser as any)?.displayName || 'You',
+          avatar: userAvatar,
+          isMuted: activeCall?.isMuted,
+          isVideoOff: activeCall?.isVideoOff,
+        },
+        {
+          uid: contact.id,
+          name: getContactDisplayName(contact),
+          avatar: contactAvatar,
+          isMuted: false,
+          isVideoOff: activeCall?.isRemoteVideoOff,
+        }
+      ];
+
+  // Helper to extract properties for each participant
+  const getParticipantProps = (p: GroupCallParticipant | any) => {
+    const isSelf = p.uid === (authUser?.uid || user.id);
+    let stream: MediaStream | null = null;
+
+    if (isSelf) {
+      stream = activeCall?.localStream || null;
+    } else {
+      stream = activeCall?.peerStreams?.[p.uid] || (participantsList.length <= 2 ? (activeCall?.remoteStream || null) : null);
+    }
+
+    const isMuted = isSelf ? !!activeCall?.isMuted : !!p.isMuted;
+    const isVideoOff = isSelf ? !!activeCall?.isVideoOff : (!!p.isVideoOff || (participantsList.length <= 2 && !!activeCall?.isRemoteVideoOff));
+    const filterCss = isSelf ? activeFilterCss : (p.filter ? VIDEO_FILTERS.find(f => f.id === p.filter)?.css || 'none' : remoteFilterCss);
+
+    return { isSelf, stream, isMuted, isVideoOff, filterCss };
+  };
+
+  const focusedParticipant = focusedUid ? participantsList.find(p => p.uid === focusedUid) : null;
+
+  // Grid column styling based on participant count
+  let gridClass = 'grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 w-full h-full max-w-5xl mx-auto items-center justify-center';
+  if (participantsList.length === 1) {
+    gridClass = 'flex items-center justify-center p-4 w-full h-full max-w-2xl mx-auto';
+  } else if (participantsList.length === 3) {
+    gridClass = 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 p-3 w-full h-full max-w-6xl mx-auto items-center justify-center';
+  } else if (participantsList.length === 4) {
+    gridClass = 'grid grid-cols-2 gap-3 p-3 w-full h-full max-w-5xl mx-auto items-center justify-center';
+  } else if (participantsList.length >= 5) {
+    gridClass = 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 p-3 w-full h-full overflow-y-auto';
+  }
 
   return (
     <div 
       ref={containerRef}
-      className="fixed inset-0 z-50 bg-[#0b141a] text-white flex flex-col items-center justify-between p-6 select-none font-sans overflow-hidden animate-fade-in"
+      className="fixed inset-0 z-50 bg-[#0b141a] text-white flex flex-col items-center justify-between p-4 sm:p-6 select-none font-sans overflow-hidden animate-fade-in"
     >
-      {/* Hidden Remote Audio Element for playing remote audio track */}
+      {/* Hidden Remote Audio Element for playing remote audio track in 1-on-1 calls */}
       <audio ref={remoteAudioRef} autoPlay playsInline />
+
+      {/* Dedicated Audio Players for All Group Call Participants (Voice & Video Calls) */}
+      {activeCall?.isGroupCall && activeCall?.peerStreams && (
+        Object.entries(activeCall.peerStreams).map(([peerUid, pStream]) => (
+          <GroupAudioPlayerTile key={peerUid} stream={pStream} />
+        ))
+      )}
 
       {/* Background Ambient Picture / Blur */}
       <div className="absolute inset-0 z-0 bg-gradient-to-b from-[#0b141a]/90 via-[#0b141a]/60 to-[#0b141a]/95 pointer-events-none">
@@ -206,150 +369,36 @@ export const CallModal: React.FC = () => {
         
         {/* Video Call Active Screen */}
         {activeCall.type === 'video' && (activeCall.status === 'connected' || activeCall.status === 'connecting') ? (
-          <div className="w-full h-full overflow-hidden relative bg-slate-900 group flex items-center justify-center pointer-events-auto">
+          <div className="w-full h-full overflow-hidden relative bg-slate-900 group flex flex-col items-center justify-center pointer-events-auto p-2 sm:p-4 pb-28">
             
-            {/* Main / Primary Video Stream */}
-            <div className="w-full h-full relative flex items-center justify-center bg-slate-900 overflow-hidden">
-              {!isSelfViewPrimary ? (
-                /* Remote Video Stream as Primary */
-                <>
-                  <video 
-                    ref={remoteVideoRef} 
-                    autoPlay 
-                    playsInline 
-                    style={{ filter: remoteFilterCss }}
-                    className={`w-full h-full object-cover transition-all duration-300 ${!activeCall.remoteStream || activeCall.isRemoteVideoOff ? 'hidden' : 'block'}`} 
-                  />
-
-                  {(!activeCall.remoteStream || activeCall.isRemoteVideoOff) && (
-                    <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 p-4">
-                      <img 
-                        src={contactAvatar} 
-                        alt={contact.name} 
-                        className="w-28 h-28 sm:w-36 sm:h-36 rounded-full object-cover border-4 border-slate-700/60 shadow-2xl" 
-                      />
-                      {activeCall.isRemoteVideoOff && (
-                        <span className="mt-3 text-xs font-medium text-slate-400 bg-black/40 px-3 py-1 rounded-full backdrop-blur-md border border-white/5">
-                          Camera Off
-                        </span>
-                      )}
-                      {!activeCall.remoteStream && !activeCall.isRemoteVideoOff && (
-                        <span className="mt-3 text-xs font-medium text-slate-300 animate-pulse">
-                          Connecting video feed...
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </>
-              ) : (
-                /* Local Self-View Stream as Primary */
-                <>
-                  <video 
-                    ref={localVideoRef} 
-                    autoPlay 
-                    playsInline 
-                    muted 
-                    style={{ filter: activeFilterCss }}
-                    className={`w-full h-full object-cover transition-all duration-300 ${activeCall.isVideoOff || !activeCall.localStream ? 'hidden' : 'block'}`} 
-                  />
-                  {(activeCall.isVideoOff || !activeCall.localStream) && (
-                    <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 p-4 text-center">
-                      <img 
-                        src={userAvatar} 
-                        alt="Me" 
-                        className="w-28 h-28 sm:w-36 sm:h-36 rounded-full object-cover border-4 border-[#ff2e93] shadow-2xl" 
-                      />
-                      <span className="mt-3 text-xs font-medium text-slate-400 bg-black/40 px-3 py-1 rounded-full backdrop-blur-md border border-white/5">
-                        Your Camera is Off
-                      </span>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-
-            {/* Small PIP Secondary View Overlay - Click to Swap */}
-            <div 
-              onClick={() => setIsSelfViewPrimary(!isSelfViewPrimary)}
-              title="Click to swap video view"
-              className="absolute bottom-4 right-4 w-28 h-36 sm:w-32 sm:h-44 rounded-2xl overflow-hidden border-2 border-[#ff2e93] shadow-2xl bg-slate-900 flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-all duration-300 z-20 group/pip"
-            >
-              {!isSelfViewPrimary ? (
-                /* Local Self Video in PIP */
-                <>
-                  <video 
-                    ref={localVideoRef} 
-                    autoPlay 
-                    playsInline 
-                    muted 
-                    style={{ filter: activeFilterCss }}
-                    className={`w-full h-full object-cover ${activeCall.isVideoOff || !activeCall.localStream ? 'hidden' : 'block'}`} 
-                  />
-                  {(activeCall.isVideoOff || !activeCall.localStream) && (
-                    <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 p-2 text-center">
-                      <img 
-                        src={userAvatar} 
-                        alt="Me" 
-                        className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-slate-700/60 shadow-md" 
-                      />
-                    </div>
-                  )}
-                </>
-              ) : (
-                /* Remote Stream in PIP */
-                <>
-                  <video 
-                    ref={remoteVideoRef} 
-                    autoPlay 
-                    playsInline 
-                    style={{ filter: remoteFilterCss }}
-                    className={`w-full h-full object-cover ${!activeCall.remoteStream || activeCall.isRemoteVideoOff ? 'hidden' : 'block'}`} 
-                  />
-                  {(!activeCall.remoteStream || activeCall.isRemoteVideoOff) && (
-                    <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 p-2 text-center">
-                      <img 
-                        src={contactAvatar} 
-                        alt={contact.name} 
-                        className="w-12 h-12 sm:w-16 sm:h-16 rounded-full object-cover border-2 border-slate-700/60 shadow-md" 
-                      />
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* Hover Swap Indicator Overlay */}
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/pip:opacity-100 transition-opacity flex flex-col items-center justify-center p-1 text-center backdrop-blur-[2px]">
-                <ArrowLeftRight className="w-5 h-5 text-white mb-1 animate-pulse" />
-                <span className="text-[10px] font-bold text-white leading-tight">Click to Swap</span>
-              </div>
-            </div>
-
-            {/* Top Bar Badges: Name Badge & Action Controls */}
-            <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-20 pointer-events-none">
-              <div className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-semibold text-white flex items-center gap-2 border border-white/10 pointer-events-auto">
-                <span className="w-2 h-2 rounded-full bg-[#ff2e93] animate-pulse" />
-                <span>{isSelfViewPrimary ? `You (${(user as any)?.displayName || user?.name || 'Self'})` : getContactDisplayName(contact)}</span>
+            {/* Top Bar Action Controls */}
+            <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-30 pointer-events-none">
+              <div className="bg-black/70 backdrop-blur-md px-3.5 py-1.5 rounded-full text-xs font-semibold text-white flex items-center gap-2 border border-white/10 pointer-events-auto shadow-lg">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#ff2e93] animate-pulse" />
+                <span>{getContactDisplayName(contact)} ({participantsList.length} participant{participantsList.length > 1 ? 's' : ''})</span>
               </div>
 
               <div className="flex items-center gap-2 pointer-events-auto">
+                {/* Return to Grid View Button when in Focus Mode */}
+                {focusedParticipant && (
+                  <button
+                    onClick={() => setFocusedUid(null)}
+                    className="p-2 rounded-full bg-[#ff2e93] text-[#0b141a] hover:bg-[#ff1e85] font-bold backdrop-blur-md transition-all active:scale-95 flex items-center gap-1.5 px-3 text-xs shadow-lg"
+                    title="Return to Grid View"
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                    <span>Grid View</span>
+                  </button>
+                )}
+
                 {/* Minimize Call Button */}
                 <button
                   onClick={minimizeCall}
-                  className="p-2 rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-md border border-white/10 transition-all active:scale-95 flex items-center gap-1.5 px-3 text-xs font-medium"
+                  className="p-2 rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-md border border-white/10 transition-all active:scale-95 flex items-center gap-1.5 px-3 text-xs font-medium shadow-md"
                   title="Minimize Call view"
                 >
                   <Minimize2 className="w-4 h-4 text-[#ff2e93]" />
                   <span className="hidden sm:inline">Minimize</span>
-                </button>
-
-                {/* Swap View Button */}
-                <button
-                  onClick={() => setIsSelfViewPrimary(!isSelfViewPrimary)}
-                  className="p-2 rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-md border border-white/10 transition-all active:scale-95 flex items-center gap-1.5 px-3 text-xs font-medium"
-                  title="Swap view between remote and self"
-                >
-                  <ArrowLeftRight className="w-4 h-4 text-[#ff2e93]" />
-                  <span className="hidden sm:inline">Swap</span>
                 </button>
 
                 {/* Filter Selector Toggle Button */}
@@ -368,9 +417,9 @@ export const CallModal: React.FC = () => {
               </div>
             </div>
 
-            {/* Video Filters Selector Dropdown (Positioned right under top-right action buttons) */}
+            {/* Video Filters Selector Dropdown */}
             {showFilterPicker && (
-              <div className="absolute top-16 right-4 w-72 bg-[#1f2c34]/95 backdrop-blur-2xl p-3 rounded-2xl border border-[#ff2e93]/40 z-30 animate-slide-down shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+              <div className="absolute top-16 right-4 w-72 bg-[#1f2c34]/95 backdrop-blur-2xl p-3 rounded-2xl border border-[#ff2e93]/40 z-40 animate-slide-down shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
                 <div className="flex items-center justify-between mb-2 px-1 pb-1.5 border-b border-white/10">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-white">
                     <Sparkles className="w-4 h-4 text-[#ff2e93]" />
@@ -406,12 +455,59 @@ export const CallModal: React.FC = () => {
               </div>
             )}
 
+            {/* MAIN VIDEO DISPLAY AREA */}
+            {focusedParticipant ? (
+              /* FOCUS MODE: Large Main Video + Thumbnail Bar */
+              <div className="w-full h-full flex flex-col items-center justify-center relative pt-12">
+                {/* Large Main Video */}
+                <div className="w-full flex-1 relative overflow-hidden rounded-3xl mb-3">
+                  <ParticipantVideoTile 
+                    participant={focusedParticipant}
+                    {...getParticipantProps(focusedParticipant)}
+                    isMainFocus={true}
+                  />
+                </div>
+
+                {/* Thumbnails Row for Switching Focus */}
+                <div className="w-full max-w-3xl flex gap-2 overflow-x-auto p-2 bg-black/60 backdrop-blur-xl rounded-2xl border border-white/10 shrink-0 z-20">
+                  {participantsList.filter(p => p.uid !== focusedParticipant.uid).map(otherP => {
+                    const props = getParticipantProps(otherP);
+                    return (
+                      <div key={otherP.uid} className="w-24 h-28 sm:w-32 sm:h-36 shrink-0">
+                        <ParticipantVideoTile
+                          participant={otherP}
+                          {...props}
+                          onClick={() => setFocusedUid(otherP.uid)}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              /* GRID MODE: Responsive Video Grid */
+              <div className="w-full h-full pt-12 flex items-center justify-center">
+                <div className={gridClass}>
+                  {participantsList.map(p => {
+                    const props = getParticipantProps(p);
+                    return (
+                      <ParticipantVideoTile
+                        key={p.uid}
+                        participant={p}
+                        {...props}
+                        onClick={() => setFocusedUid(p.uid)}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
           </div>
         ) : (
           /* Voice Call / Ringing Screen */
-          <div className="flex flex-col items-center text-center">
+          <div className="flex flex-col items-center text-center my-auto">
             <div className="relative mb-6">
-              {/* Ringing Waves Animation */}
               {(activeCall.status === 'ringing' || activeCall.status === 'incoming' || activeCall.status === 'connecting') && (
                 <>
                   <div className="absolute -inset-4 rounded-full bg-[#ff2e93]/20 animate-ping" />

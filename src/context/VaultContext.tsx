@@ -56,6 +56,8 @@ export interface GroupCallParticipant {
   avatar: string;
   joinedAt?: number;
   isMuted?: boolean;
+  isVideoOff?: boolean;
+  filter?: string;
 }
 
 export interface ActiveCallState {
@@ -74,6 +76,7 @@ export interface ActiveCallState {
   signalBars: number;
   localStream?: MediaStream | null;
   remoteStream?: MediaStream | null;
+  peerStreams?: Record<string, MediaStream | null>;
   connectionQuality?: 'excellent' | 'good' | 'poor' | 'reconnecting';
   localFilter?: string;
   remoteFilter?: string;
@@ -1003,6 +1006,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const remoteStreamRef = useRef<MediaStream | null>(null);
   const callDocUnsubRef = useRef<(() => void) | null>(null);
   const candidatesUnsubRef = useRef<(() => void) | null>(null);
+  const meshPeerConnectionsRef = useRef<Record<string, RTCPeerConnection>>({});
+  const peerStreamsRef = useRef<Record<string, MediaStream>>({});
+  const meshUnsubsRef = useRef<Record<string, () => void>>({});
 
   // Real-time call duration timer
   useEffect(() => {
@@ -3593,7 +3599,63 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       candidatesUnsubRef.current = null;
     }
 
+    // Mesh WebRTC Cleanup
+    Object.values(meshUnsubsRef.current).forEach(unsub => {
+      try { unsub?.(); } catch (e) {}
+    });
+    meshUnsubsRef.current = {};
+
+    Object.values(meshPeerConnectionsRef.current).forEach(pc => {
+      try { pc?.close(); } catch (e) {}
+    });
+    meshPeerConnectionsRef.current = {};
+
+    peerStreamsRef.current = {};
+
     const currentCall = activeCallRef.current;
+    if (currentCall?.isGroupCall && currentCall?.contactId && authUser) {
+      const groupId = currentCall.contactId;
+      const callId = currentCall.id;
+      const myUid = authUser.uid;
+
+      const gRef = doc(db, 'groups', groupId);
+      getDoc(gRef).then(snap => {
+        if (snap.exists()) {
+          const gData = snap.data();
+          if (gData.activeCall?.participants) {
+            const updatedParts = (gData.activeCall.participants as GroupCallParticipant[]).filter(p => p.uid !== myUid && p.uid !== user.id);
+            if (updatedParts.length === 0) {
+              updateDoc(gRef, {
+                'activeCall.status': 'ended',
+                'activeCall.endedAt': Date.now(),
+                'activeCall.participants': [],
+              }).catch(() => {});
+            } else {
+              updateDoc(gRef, {
+                'activeCall.participants': updatedParts,
+              }).catch(() => {});
+            }
+          }
+        }
+      }).catch(() => {});
+
+      if (callId) {
+        const cRef = doc(db, 'calls', callId);
+        getDoc(cRef).then(snap => {
+          if (snap.exists()) {
+            const cData = snap.data();
+            if (cData.participants) {
+              const updatedParts = (cData.participants as GroupCallParticipant[]).filter(p => p.uid !== myUid && p.uid !== user.id);
+              if (updatedParts.length === 0) {
+                updateDoc(cRef, { status: 'ended' }).catch(() => {});
+              } else {
+                updateDoc(cRef, { participants: updatedParts }).catch(() => {});
+              }
+            }
+          }
+        }).catch(() => {});
+      }
+    }
     if (currentCall) {
       const mins = Math.floor(currentCall.durationSeconds / 60);
       const secs = currentCall.durationSeconds % 60;
@@ -3923,6 +3985,204 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, [authUser, needsUsername, messages]);
 
+  // Helper for multi-participant group WebRTC Mesh Signaling
+  const syncMeshConnections = (callId: string, participants: GroupCallParticipant[]) => {
+    if (!authUser) return;
+    const myUid = authUser.uid;
+    const remoteParticipants = participants.filter(p => p.uid !== myUid);
+    const remoteUids = new Set(remoteParticipants.map(p => p.uid));
+
+    // 1. Cleanup disconnected participants
+    Object.keys(meshPeerConnectionsRef.current).forEach(uid => {
+      if (!remoteUids.has(uid)) {
+        try {
+          meshPeerConnectionsRef.current[uid]?.close();
+        } catch (e) {}
+        delete meshPeerConnectionsRef.current[uid];
+        delete peerStreamsRef.current[uid];
+
+        if (meshUnsubsRef.current[uid]) {
+          meshUnsubsRef.current[uid]();
+          delete meshUnsubsRef.current[uid];
+        }
+        if (meshUnsubsRef.current[uid + '_cand']) {
+          meshUnsubsRef.current[uid + '_cand']();
+          delete meshUnsubsRef.current[uid + '_cand'];
+        }
+      }
+    });
+
+    setActiveCall(prev => prev ? { ...prev, peerStreams: { ...peerStreamsRef.current } } : null);
+
+    // 2. Establish connection for newly joined participants
+    remoteParticipants.forEach(p => {
+      const remoteUid = p.uid;
+      if (meshPeerConnectionsRef.current[remoteUid]) return;
+
+      const pairId = myUid < remoteUid ? `${myUid}_${remoteUid}` : `${remoteUid}_${myUid}`;
+      const isOfferer = myUid < remoteUid;
+
+      if (isOfferer) {
+        const pc = new RTCPeerConnection(ICE_SERVERS);
+        meshPeerConnectionsRef.current[remoteUid] = pc;
+
+        if (localStreamRef.current) {
+          localStreamRef.current.getTracks().forEach(track => {
+            try { pc.addTrack(track, localStreamRef.current!); } catch (e) {}
+          });
+        }
+
+        pc.ontrack = (event) => {
+          let stream: MediaStream | null = null;
+          if (event.streams && event.streams[0]) {
+            stream = event.streams[0];
+          } else if (event.track) {
+            if (!peerStreamsRef.current[remoteUid]) {
+              peerStreamsRef.current[remoteUid] = new MediaStream();
+            }
+            peerStreamsRef.current[remoteUid].addTrack(event.track);
+            stream = peerStreamsRef.current[remoteUid];
+          }
+          if (stream) {
+            peerStreamsRef.current[remoteUid] = stream;
+            setActiveCall(prev => prev ? { ...prev, peerStreams: { ...peerStreamsRef.current } } : null);
+          }
+        };
+
+        pc.onicecandidate = (event) => {
+          if (event.candidate) {
+            addDoc(collection(db, 'calls', callId, 'signals', pairId, 'candidates_' + myUid), event.candidate.toJSON()).catch(() => {});
+          }
+        };
+
+        pc.createOffer().then(async (offer) => {
+          await pc.setLocalDescription(offer);
+          await setDoc(doc(db, 'calls', callId, 'signals', pairId), {
+            offer: { type: offer.type, sdp: offer.sdp },
+            offererUid: myUid,
+            updatedAt: serverTimestamp(),
+          }, { merge: true });
+        }).catch(err => console.warn('Mesh offer error:', err));
+
+        const unsubSig = onSnapshot(doc(db, 'calls', callId, 'signals', pairId), async (snap) => {
+          if (!snap.exists()) return;
+          const data = snap.data();
+          if (data.answer && pc.signalingState !== 'stable' && !pc.currentRemoteDescription) {
+            try {
+              await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+            } catch (e) {}
+          }
+        });
+        meshUnsubsRef.current[remoteUid] = unsubSig;
+
+        const unsubCand = onSnapshot(collection(db, 'calls', callId, 'signals', pairId, 'candidates_' + remoteUid), (cSnap) => {
+          cSnap.docChanges().forEach(async (change) => {
+            if (change.type === 'added') {
+              try {
+                await pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
+              } catch (e) {}
+            }
+          });
+        });
+        meshUnsubsRef.current[remoteUid + '_cand'] = unsubCand;
+      } else {
+        const unsubSig = onSnapshot(doc(db, 'calls', callId, 'signals', pairId), async (snap) => {
+          if (!snap.exists()) return;
+          const data = snap.data();
+          if (data.offer && !meshPeerConnectionsRef.current[remoteUid]) {
+            const pc = new RTCPeerConnection(ICE_SERVERS);
+            meshPeerConnectionsRef.current[remoteUid] = pc;
+
+            if (localStreamRef.current) {
+              localStreamRef.current.getTracks().forEach(track => {
+                try { pc.addTrack(track, localStreamRef.current!); } catch (e) {}
+              });
+            }
+
+            pc.ontrack = (event) => {
+              let stream: MediaStream | null = null;
+              if (event.streams && event.streams[0]) {
+                stream = event.streams[0];
+              } else if (event.track) {
+                if (!peerStreamsRef.current[remoteUid]) {
+                  peerStreamsRef.current[remoteUid] = new MediaStream();
+                }
+                peerStreamsRef.current[remoteUid].addTrack(event.track);
+                stream = peerStreamsRef.current[remoteUid];
+              }
+              if (stream) {
+                peerStreamsRef.current[remoteUid] = stream;
+                setActiveCall(prev => prev ? { ...prev, peerStreams: { ...peerStreamsRef.current } } : null);
+              }
+            };
+
+            pc.onicecandidate = (event) => {
+              if (event.candidate) {
+                addDoc(collection(db, 'calls', callId, 'signals', pairId, 'candidates_' + myUid), event.candidate.toJSON()).catch(() => {});
+              }
+            };
+
+            try {
+              await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+              const answer = await pc.createAnswer();
+              await pc.setLocalDescription(answer);
+              await updateDoc(doc(db, 'calls', callId, 'signals', pairId), {
+                answer: { type: answer.type, sdp: answer.sdp },
+                answererUid: myUid,
+              });
+            } catch (e) {
+              console.warn('Mesh answer error:', e);
+            }
+
+            const unsubCand = onSnapshot(collection(db, 'calls', callId, 'signals', pairId, 'candidates_' + remoteUid), (cSnap) => {
+              cSnap.docChanges().forEach(async (change) => {
+                if (change.type === 'added') {
+                  try {
+                    await pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
+                  } catch (e) {}
+                }
+              });
+            });
+            meshUnsubsRef.current[remoteUid + '_cand'] = unsubCand;
+          }
+        });
+        meshUnsubsRef.current[remoteUid] = unsubSig;
+      }
+    });
+  };
+
+  const updateParticipantStateInFirestore = async (myUid: string, updates: Partial<GroupCallParticipant>) => {
+    if (!activeCallRef.current || !activeCallRef.current.isGroupCall) return;
+    const groupId = activeCallRef.current.contactId;
+    const callId = activeCallRef.current.id;
+
+    const updateList = (currentParts: GroupCallParticipant[]) => {
+      return currentParts.map(p => p.uid === myUid ? { ...p, ...updates } : p);
+    };
+
+    if (groupId) {
+      const gRef = doc(db, 'groups', groupId);
+      const snap = await getDoc(gRef).catch(() => null);
+      if (snap && snap.exists()) {
+        const parts = snap.data()?.activeCall?.participants;
+        if (Array.isArray(parts)) {
+          await updateDoc(gRef, { 'activeCall.participants': updateList(parts) }).catch(() => {});
+        }
+      }
+    }
+
+    if (callId) {
+      const cRef = doc(db, 'calls', callId);
+      const snap = await getDoc(cRef).catch(() => null);
+      if (snap && snap.exists()) {
+        const parts = snap.data()?.participants;
+        if (Array.isArray(parts)) {
+          await updateDoc(cRef, { participants: updateList(parts) }).catch(() => {});
+        }
+      }
+    }
+  };
+
   // Calling logic with WebRTC and Firestore signaling
   const joinGroupCall = async (groupId: string, type: CallType = 'voice') => {
     if (!authUser) return;
@@ -3975,6 +4235,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           'activeCall.status': 'active',
         }).catch(e => console.warn('Error joining group call:', e));
 
+        const effectiveCallId = currentCall.callId || ('group_call_' + groupId);
+
         if (currentCall.callId) {
           await updateDoc(doc(db, 'calls', currentCall.callId), {
             participants: updatedParts,
@@ -3984,8 +4246,22 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         await sendMessage(groupId, `📥 ${user.name || 'A member'} joined the group call`).catch(() => {});
 
+        // Listen to call document for live participant updates & signaling
+        if (callDocUnsubRef.current) callDocUnsubRef.current();
+        callDocUnsubRef.current = onSnapshot(doc(db, 'calls', effectiveCallId), (snap) => {
+          if (!snap.exists()) return;
+          const cData = snap.data();
+          if (cData.status === 'ended') {
+            cleanupCall('ended');
+            return;
+          }
+          const updatedCallParts: GroupCallParticipant[] = Array.isArray(cData.participants) ? cData.participants : [];
+          setActiveCall(prev => prev ? { ...prev, participants: updatedCallParts } : null);
+          syncMeshConnections(effectiveCallId, updatedCallParts);
+        });
+
         setActiveCall({
-          id: currentCall.callId || 'group_call_' + groupId,
+          id: effectiveCallId,
           contactId: groupId,
           type: currentCall.type || type,
           direction: 'incoming',
@@ -4002,6 +4278,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           isGroupCall: true,
           participants: updatedParts,
         });
+
+        syncMeshConnections(effectiveCallId, updatedParts);
       }
     }
   };
@@ -4115,6 +4393,19 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       await sendMessage(contactId, `📞 Started a group ${type} call`).catch(() => {});
 
+      if (callDocUnsubRef.current) callDocUnsubRef.current();
+      callDocUnsubRef.current = onSnapshot(doc(db, 'calls', callId), (snap) => {
+        if (!snap.exists()) return;
+        const cData = snap.data();
+        if (cData.status === 'ended') {
+          cleanupCall('ended');
+          return;
+        }
+        const updatedCallParts: GroupCallParticipant[] = Array.isArray(cData.participants) ? cData.participants : [];
+        setActiveCall(prev => prev ? { ...prev, participants: updatedCallParts } : null);
+        syncMeshConnections(callId, updatedCallParts);
+      });
+
       const initialCallState: ActiveCallState = {
         id: callId,
         contactId,
@@ -4135,6 +4426,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       };
 
       setActiveCall(initialCallState);
+      syncMeshConnections(callId, [myParticipant]);
       return;
     }
 
@@ -4503,21 +4795,80 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     cleanupCall('cancelled');
   };
 
-  const endCall = () => {
+  const endCall = async () => {
     if (!activeCallRef.current) return;
-    const callId = activeCallRef.current.id;
-    const contactId = activeCallRef.current.contactId;
-    const isGroup = activeCallRef.current.isGroupCall;
+    const call = activeCallRef.current;
+    const callId = call.id;
+    const contactId = call.contactId;
+    const isGroup = call.isGroupCall;
+    const myUid = authUser?.uid || user.id;
 
     if (isGroup && contactId) {
-      updateDoc(doc(db, 'groups', contactId), {
-        'activeCall.status': 'ended',
-        'activeCall.endedAt': Date.now(),
-      }).catch(() => {});
+      const isHost = call.callerId === myUid || call.direction === 'outgoing';
+
+      if (isHost) {
+        // Host is ending the call -> End call for ALL group participants
+        updateDoc(doc(db, 'groups', contactId), {
+          'activeCall.status': 'ended',
+          'activeCall.endedAt': Date.now(),
+          'activeCall.participants': [],
+        }).catch(() => {});
+
+        if (callId) {
+          updateDoc(doc(db, 'calls', callId), {
+            status: 'ended',
+            participants: [],
+          }).catch(() => {});
+        }
+      } else {
+        // Participant (e.g. User B or C) is leaving -> Leave call ONLY for this participant
+        try {
+          const gRef = doc(db, 'groups', contactId);
+          const gSnap = await getDoc(gRef).catch(() => null);
+          if (gSnap && gSnap.exists()) {
+            const gData = gSnap.data();
+            const currentParts = (gData.activeCall?.participants || []) as GroupCallParticipant[];
+            const updatedParts = currentParts.filter(p => p.uid !== myUid);
+
+            if (updatedParts.length === 0) {
+              updateDoc(gRef, {
+                'activeCall.status': 'ended',
+                'activeCall.endedAt': Date.now(),
+                'activeCall.participants': [],
+              }).catch(() => {});
+            } else {
+              updateDoc(gRef, {
+                'activeCall.participants': updatedParts,
+              }).catch(() => {});
+            }
+          }
+        } catch (e) {}
+
+        if (callId) {
+          try {
+            const cRef = doc(db, 'calls', callId);
+            const cSnap = await getDoc(cRef).catch(() => null);
+            if (cSnap && cSnap.exists()) {
+              const cData = cSnap.data();
+              const currentParts = (cData.participants || []) as GroupCallParticipant[];
+              const updatedParts = currentParts.filter(p => p.uid !== myUid);
+
+              if (updatedParts.length === 0) {
+                updateDoc(cRef, { status: 'ended', participants: [] }).catch(() => {});
+              } else {
+                updateDoc(cRef, { participants: updatedParts }).catch(() => {});
+              }
+            }
+          } catch (e) {}
+        }
+      }
+    } else {
+      // 1-on-1 Call -> End for both sides
+      if (callId) {
+        updateDoc(doc(db, 'calls', callId), { status: 'ended' }).catch(() => {});
+      }
     }
-    if (callId) {
-      updateDoc(doc(db, 'calls', callId), { status: 'ended' }).catch(() => {});
-    }
+
     cleanupCall('ended');
   };
 
@@ -4530,6 +4881,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
     }
     setActiveCall(prev => prev ? { ...prev, isMuted: newMuted } : null);
+
+    if (activeCallRef.current.isGroupCall && authUser) {
+      updateParticipantStateInFirestore(authUser.uid, { isMuted: newMuted });
+    }
   };
 
   const toggleVideoCall = () => {
@@ -4542,10 +4897,14 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
     setActiveCall(prev => prev ? { ...prev, isVideoOff: newVideoOff } : null);
 
-    const callId = activeCallRef.current.id;
-    if (callId && authUser) {
-      const isCaller = activeCallRef.current.callerId === authUser.uid || activeCallRef.current.direction === 'outgoing';
-      updateDoc(doc(db, 'calls', callId), isCaller ? { callerVideoOff: newVideoOff } : { receiverVideoOff: newVideoOff }).catch(() => {});
+    if (activeCallRef.current.isGroupCall && authUser) {
+      updateParticipantStateInFirestore(authUser.uid, { isVideoOff: newVideoOff });
+    } else {
+      const callId = activeCallRef.current.id;
+      if (callId && authUser) {
+        const isCaller = activeCallRef.current.callerId === authUser.uid || activeCallRef.current.direction === 'outgoing';
+        updateDoc(doc(db, 'calls', callId), isCaller ? { callerVideoOff: newVideoOff } : { receiverVideoOff: newVideoOff }).catch(() => {});
+      }
     }
   };
 

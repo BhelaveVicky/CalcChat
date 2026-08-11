@@ -1173,7 +1173,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       const isLocallyCompleted = localStorage.getItem(`calcchat_profile_completed_${fbUser.uid}`) === 'true';
       const localUsername = localStorage.getItem(`calcchat_username_${fbUser.uid}`) || '';
-      const localPasscode = localStorage.getItem(`calcchat_passcode_${fbUser.uid}`) || '1234';
+      const localPasscode = localStorage.getItem(`calcchat_passcode_${fbUser.uid}`) || '';
       const localAvatar = localStorage.getItem(`calcchat_custom_avatar_${fbUser.uid}`);
 
       const userHasCompleted = isLocallyCompleted || Boolean(localUsername) || Boolean(fbUser.displayName);
@@ -1329,7 +1329,18 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const userHasPassword = isProfileDone || Boolean(uData.hasChatPassword) || Boolean(uData.passcode && uData.passcode.trim() !== '') || Boolean(uData.settings?.passcode) || isLocallyCompleted || userHasUsername;
 
           const resolvedUsername = uData.username || localSavedUsername || (fbUser.displayName ? fbUser.displayName.toLowerCase().replace(/\s+/g, '_') : '');
-          const userPasscode = uData.passcode || uData.settings?.passcode || '1234';
+          const savedLocalPasscode = localStorage.getItem(`calcchat_passcode_${fbUser.uid}`) || '';
+          const userPasscode = (uData.passcode && String(uData.passcode).trim() !== '') 
+            ? String(uData.passcode).trim() 
+            : (uData.settings?.passcode && String(uData.settings.passcode).trim() !== '')
+            ? String(uData.settings.passcode).trim()
+            : (savedLocalPasscode && savedLocalPasscode.trim() !== '')
+            ? savedLocalPasscode.trim()
+            : (settings.passcode && settings.passcode.trim() !== '')
+            ? settings.passcode.trim()
+            : (user.passcode && user.passcode.trim() !== '')
+            ? user.passcode.trim()
+            : '';
 
           const localCustomAvatar = localStorage.getItem(`calcchat_custom_avatar_${fbUser.uid}`);
           const resolvedAvatar = uData.avatar || uData.photoURL || localCustomAvatar || fbUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=1200&auto=format&fit=crop&q=95';
@@ -1348,7 +1359,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             isAdmin,
             isVerified,
             isBanned: Boolean(uData.isBanned),
-            passcode: userPasscode,
+            passcode: userPasscode || user.passcode || savedLocalPasscode,
             hasUsername: userHasUsername,
             hasChatPassword: userHasPassword,
             isProfileComplete: userHasUsername && userHasPassword,
@@ -1356,13 +1367,13 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
           if (uData.settings) {
             setSettings(prev => {
-              const updated = { ...prev, ...uData.settings, passcode: userPasscode };
+              const updated = { ...prev, ...uData.settings, ...(userPasscode ? { passcode: userPasscode } : {}) };
               try {
                 localStorage.setItem('secret_vault_settings', JSON.stringify(updated));
               } catch (e) {}
               return updated;
             });
-          } else {
+          } else if (userPasscode) {
             setSettings(prev => ({ ...prev, passcode: userPasscode }));
           }
 
@@ -1373,16 +1384,18 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             if (resolvedUsername) {
               localStorage.setItem(`calcchat_username_${fbUser.uid}`, resolvedUsername);
             }
-            localStorage.setItem(`calcchat_passcode_${fbUser.uid}`, userPasscode);
+            if (userPasscode) {
+              localStorage.setItem(`calcchat_passcode_${fbUser.uid}`, userPasscode);
+            }
 
-            // Sync Firestore if profile complete flags were missing
-            if (!uData.isProfileComplete || !uData.hasUsername || !uData.hasChatPassword) {
+            // Sync Firestore if profile complete flags or passcode were missing
+            if (!uData.isProfileComplete || !uData.hasUsername || !uData.hasChatPassword || (userPasscode && (!uData.passcode || uData.passcode !== userPasscode))) {
               updateDoc(userRef, {
                 hasUsername: true,
                 hasChatPassword: true,
                 isProfileComplete: true,
                 ...(resolvedUsername ? { username: resolvedUsername, usernameLower: resolvedUsername.toLowerCase() } : {}),
-                passcode: userPasscode,
+                ...(userPasscode ? { passcode: userPasscode, 'settings.passcode': userPasscode } : {}),
               }).catch(() => {});
             }
           } else if (!userHasUsername) {
@@ -5027,8 +5040,12 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const unlockVault = (code: string): boolean => {
-    const activePasscode = user.passcode || settings.passcode || '1234';
-    if (code === activePasscode) {
+    const savedLocalPass = authUser?.uid ? localStorage.getItem(`calcchat_passcode_${authUser.uid}`) : null;
+    const activePasscode = (user?.passcode && user.passcode.trim()) || 
+                           (settings?.passcode && settings.passcode.trim()) || 
+                           (savedLocalPass && savedLocalPass.trim()) || 
+                           '';
+    if (activePasscode && code === activePasscode) {
       setActiveTab('chats');
       setActiveContactId(null);
       setIsUnlocked(true);

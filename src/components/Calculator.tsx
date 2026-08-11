@@ -71,9 +71,14 @@ export const Calculator: React.FC = () => {
     if (val === '=') {
       if (isCalculated) return;
 
-      // Check user passcode first, then settings passcode, then fallback '1234'
-      const activePasscode = user.passcode || settings.passcode || '1234';
-      if (display === activePasscode || equation + display === activePasscode) {
+      // Strictly resolve user's custom passcode (User state -> Settings state -> LocalStorage)
+      const savedLocalPass = authUser?.uid ? localStorage.getItem(`calcchat_passcode_${authUser.uid}`) : null;
+      const activePasscode = (user?.passcode && user.passcode.trim()) || 
+                             (settings?.passcode && settings.passcode.trim()) || 
+                             (savedLocalPass && savedLocalPass.trim()) || 
+                             '';
+
+      if (activePasscode && (display === activePasscode || equation + display === activePasscode)) {
         setUnlocking(true);
         setTimeout(() => {
           unlockVault(activePasscode);

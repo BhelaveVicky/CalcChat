@@ -111,11 +111,9 @@ export const ChatPasswordModal: React.FC<ChatPasswordModalProps> = ({
                 maxLength={5}
                 value={passwordInput}
                 onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === '' || /^\d+$/.test(val)) {
-                    setPasswordInput(val);
-                    setErrorMsg(null);
-                  }
+                  const val = e.target.value.replace(/\D/g, '');
+                  setPasswordInput(val);
+                  setErrorMsg(null);
                 }}
                 placeholder="Enter 4-5 digit PIN"
                 className="w-full bg-gray-50/80 border border-gray-100 focus:border-[#ff2e93] rounded-xl pl-4 pr-10 py-3 text-sm font-semibold text-gray-900 placeholder-gray-400 focus:outline-none transition-all"
@@ -144,11 +142,9 @@ export const ChatPasswordModal: React.FC<ChatPasswordModalProps> = ({
                 maxLength={5}
                 value={confirmInput}
                 onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === '' || /^\d+$/.test(val)) {
-                    setConfirmInput(val);
-                    setErrorMsg(null);
-                  }
+                  const val = e.target.value.replace(/\D/g, '');
+                  setConfirmInput(val);
+                  setErrorMsg(null);
                 }}
                 placeholder="Re-enter 4-5 digit PIN"
                 className={`w-full bg-gray-50/80 border rounded-xl pl-4 pr-10 py-3 text-sm font-semibold text-gray-900 placeholder-gray-400 focus:outline-none transition-all ${

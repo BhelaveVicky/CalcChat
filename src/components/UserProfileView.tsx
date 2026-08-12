@@ -1633,12 +1633,15 @@ export const UserProfileView: React.FC = () => {
                 <div className="relative flex items-center">
                   <input
                     type={showNewPass ? 'text' : 'password'}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={newPasscode}
                     onChange={(e) => {
-                      setNewPasscode(e.target.value);
+                      const numericOnly = e.target.value.replace(/\D/g, '');
+                      setNewPasscode(numericOnly);
                       setPassError(null);
                     }}
-                    placeholder="Enter new password (min 4 chars)"
+                    placeholder="Enter new PIN (numbers only)"
                     className={`w-full rounded-2xl pl-4 pr-10 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#0095f6] font-normal transition-all ${
                       isDark 
                         ? 'bg-[#1f2c34] text-[#e9edef] placeholder-[#8696a0] border border-[#2a3942]' 
@@ -1663,12 +1666,15 @@ export const UserProfileView: React.FC = () => {
                 <div className="relative flex items-center">
                   <input
                     type={showConfirmPass ? 'text' : 'password'}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={confirmPasscode}
                     onChange={(e) => {
-                      setConfirmPasscode(e.target.value);
+                      const numericOnly = e.target.value.replace(/\D/g, '');
+                      setConfirmPasscode(numericOnly);
                       setPassError(null);
                     }}
-                    placeholder="Re-enter new password"
+                    placeholder="Re-enter new PIN"
                     className={`w-full rounded-2xl pl-4 pr-10 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#0095f6] font-normal transition-all ${
                       newPasscode && confirmPasscode && newPasscode === confirmPasscode
                         ? 'border-2 border-emerald-500'

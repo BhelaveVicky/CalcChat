@@ -254,8 +254,10 @@ const VaultSecurityView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
           <div className="flex gap-2">
             <input
               type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={passcode}
-              onChange={e => setPasscode(e.target.value)}
+              onChange={e => setPasscode(e.target.value.replace(/\D/g, ''))}
               className="flex-1 bg-[#111b21] border border-[#2a3942] focus:border-[#00a8ff] font-mono text-xl font-bold tracking-widest text-[#00a8ff] rounded-xl px-4 py-2.5 focus:outline-none"
               placeholder="Enter custom passcode..."
             />

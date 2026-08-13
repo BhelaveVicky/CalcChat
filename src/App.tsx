@@ -23,15 +23,16 @@ const AppContent: React.FC = () => {
   const prevAuthUserUid = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
-    // If auth is not ready yet, keep splash screen visible
+    // Absolute maximum safety timeout: Never allow splash screen to stay stuck spinning
+    const forceDismissTimer = setTimeout(() => {
+      setIsFadingOut(true);
+      setTimeout(() => setShowSplash(false), 400);
+    }, 2500);
+
     if (!authReady) {
-      setShowSplash(true);
-      setIsFadingOut(false);
-      return;
+      return () => clearTimeout(forceDismissTimer);
     }
 
-    // Trigger splash screen fade sequence once auth is ready
-    setShowSplash(true);
     setIsFadingOut(false);
 
     let fadeTimer: NodeJS.Timeout;
@@ -39,10 +40,11 @@ const AppContent: React.FC = () => {
       setIsFadingOut(true);
       fadeTimer = setTimeout(() => {
         setShowSplash(false);
-      }, 500); // 500ms fade out transition
-    }, 1200); // 1.2s display time
+      }, 400);
+    }, 800);
 
     return () => {
+      clearTimeout(forceDismissTimer);
       clearTimeout(timer);
       if (fadeTimer) clearTimeout(fadeTimer);
     };

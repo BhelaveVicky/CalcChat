@@ -33,6 +33,49 @@ const ParticipantVideoTile: React.FC<{
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
+  const [hasActiveVideoTrack, setHasActiveVideoTrack] = useState<boolean>(() => {
+    if (!stream) return false;
+    const tracks = stream.getVideoTracks();
+    return tracks.length > 0 && tracks.some(t => t.enabled && t.readyState === 'live');
+  });
+
+  useEffect(() => {
+    if (!stream) {
+      setHasActiveVideoTrack(false);
+      return;
+    }
+
+    const checkTrackState = () => {
+      const tracks = stream.getVideoTracks();
+      const active = tracks.length > 0 && tracks.some(t => t.enabled && t.readyState === 'live');
+      setHasActiveVideoTrack(active);
+    };
+
+    checkTrackState();
+
+    const handleTrackEvent = () => checkTrackState();
+
+    stream.addEventListener('addtrack', handleTrackEvent);
+    stream.addEventListener('removetrack', handleTrackEvent);
+
+    const allTracks = stream.getTracks();
+    allTracks.forEach(t => {
+      t.addEventListener('mute', handleTrackEvent);
+      t.addEventListener('unmute', handleTrackEvent);
+      t.addEventListener('ended', handleTrackEvent);
+    });
+
+    return () => {
+      stream.removeEventListener('addtrack', handleTrackEvent);
+      stream.removeEventListener('removetrack', handleTrackEvent);
+      allTracks.forEach(t => {
+        t.removeEventListener('mute', handleTrackEvent);
+        t.removeEventListener('unmute', handleTrackEvent);
+        t.removeEventListener('ended', handleTrackEvent);
+      });
+    };
+  }, [stream]);
+
   useEffect(() => {
     if (videoRef.current && stream) {
       if (videoRef.current.srcObject !== stream) {
@@ -51,7 +94,9 @@ const ParticipantVideoTile: React.FC<{
     } else if (audioRef.current) {
       audioRef.current.srcObject = null;
     }
-  }, [stream, isSelf]);
+  }, [stream, isSelf, isVideoOff, hasActiveVideoTrack]);
+
+  const shouldShowVideo = !isVideoOff && stream && hasActiveVideoTrack;
 
   return (
     <div 
@@ -71,10 +116,10 @@ const ParticipantVideoTile: React.FC<{
         playsInline
         muted={isSelf}
         style={{ filter: filterCss }}
-        className={`w-full h-full object-cover ${isVideoOff || !stream ? 'hidden' : 'block'}`}
+        className={`w-full h-full object-cover ${!shouldShowVideo ? 'hidden' : 'block'}`}
       />
 
-      {(isVideoOff || !stream) && (
+      {!shouldShowVideo && (
         <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-gradient-to-b from-slate-900 to-slate-950 text-center select-none">
           <img 
             src={participant.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}
@@ -107,14 +152,37 @@ const GroupAudioPlayerTile: React.FC<{ stream: MediaStream | null }> = ({ stream
   const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
-    if (audioRef.current && stream) {
-      if (audioRef.current.srcObject !== stream) {
-        audioRef.current.srcObject = stream;
-      }
-      audioRef.current.play().catch(() => {});
-    } else if (audioRef.current) {
-      audioRef.current.srcObject = null;
+    if (!audioRef.current || !stream) {
+      if (audioRef.current) audioRef.current.srcObject = null;
+      return;
     }
+
+    if (audioRef.current.srcObject !== stream) {
+      audioRef.current.srcObject = stream;
+    }
+
+    const attemptPlay = () => {
+      if (audioRef.current) {
+        audioRef.current.play().catch((err) => {
+          console.warn('[CALL] Audio autoplay blocked by browser policy:', err);
+          const unlock = () => {
+            if (audioRef.current) audioRef.current.play().catch(() => {});
+            window.removeEventListener('click', unlock);
+            window.removeEventListener('touchstart', unlock);
+          };
+          window.addEventListener('click', unlock, { once: true });
+          window.addEventListener('touchstart', unlock, { once: true });
+        });
+      }
+    };
+
+    attemptPlay();
+
+    const handleTrackAdded = () => attemptPlay();
+    stream.addEventListener('addtrack', handleTrackAdded);
+    return () => {
+      stream.removeEventListener('addtrack', handleTrackAdded);
+    };
   }, [stream]);
 
   return <audio ref={audioRef} autoPlay playsInline />;

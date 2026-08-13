@@ -2,17 +2,20 @@ import React, { useState } from 'react';
 import { useVault } from '../context/VaultContext';
 import { CCLogo, CalcChatTitle } from './CalcChatBrand';
 import securityLock from '@assets/security-lock.png';
-import { Shield, Zap, User, Mail, Lock, X } from 'lucide-react';
+import { Shield, Zap, User, Mail, Lock, X, KeyRound } from 'lucide-react';
+import { ForgotPasswordModal } from './ForgotPasswordModal';
 
 const LoginPage: React.FC = () => {
   const { signInWithGoogle, signInWithEmail, signUpWithEmail, authReady, authError } = useVault();
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
 
   const handleGoogleSignIn = async () => {
     try {
@@ -238,7 +241,21 @@ const LoginPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-[11px] font-medium text-gray-600 mb-1">Password</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[11px] font-medium text-gray-600">Password</label>
+                  {authMode === 'login' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowEmailModal(false);
+                        setShowForgotPasswordModal(true);
+                      }}
+                      className="text-[11px] text-blue-600 hover:underline font-semibold cursor-pointer"
+                    >
+                      Forgot Password?
+                    </button>
+                  )}
+                </div>
                 <div className="relative">
                   <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
                   <input
@@ -254,13 +271,21 @@ const LoginPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs transition-all active:scale-95 disabled:opacity-50 mt-2"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs transition-all active:scale-95 disabled:opacity-50 mt-2 cursor-pointer"
               >
                 {isLoading ? 'Processing...' : authMode === 'login' ? 'Sign In' : 'Create Account'}
               </button>
             </form>
           </div>
         </div>
+      )}
+
+      {/* Forgot Password Modal */}
+      {showForgotPasswordModal && (
+        <ForgotPasswordModal
+          initialEmail={email}
+          onClose={() => setShowForgotPasswordModal(false)}
+        />
       )}
 
     </div>

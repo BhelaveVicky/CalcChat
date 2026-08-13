@@ -1211,6 +1211,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setSentFriendRequests([]);
       setAllRegisteredUsers([]);
       setCustomNicknames({});
+      setAuthReady(true);
     };
 
     const ensureUserDocument = async (fbUser: FirebaseUser) => {
@@ -1276,6 +1277,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setSentFriendRequests([]);
           setAllRegisteredUsers([]);
           setCustomNicknames({});
+          setAuthReady(true);
           return;
         }
 
@@ -1295,6 +1297,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (typeof navigator !== 'undefined' && navigator.onLine === false) {
           setAuthError('Firestore is offline. Loading local session.');
           applyFallbackUser(fbUser, !isLocallyCompleted);
+          setAuthReady(true);
           return;
         }
 
@@ -1303,17 +1306,18 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         try {
           await ensureUserDocument(fbUser);
         } catch (seedError) {
-          if (!isPermissionDeniedError(seedError)) {
-            console.warn('User doc seed error:', seedError);
-          }
+          console.warn('User doc seed notice:', seedError);
         }
 
-        const snap = await getDoc(userRef).catch((readError) => {
-          if (isPermissionDeniedError(readError)) {
-            return null;
-          }
-          throw readError;
-        });
+        let snap = null;
+        try {
+          snap = await getDoc(userRef);
+        } catch (readError: any) {
+          console.warn('Firestore read notice (using local session fallback for Quota Exceeded/offline):', readError);
+          applyFallbackUser(fbUser, !isLocallyCompleted);
+          setAuthReady(true);
+          return;
+        }
 
         if (snap && snap.exists()) {
           const uData = snap.data();
@@ -4035,46 +4039,71 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const pairId = myUid < remoteUid ? `${myUid}_${remoteUid}` : `${remoteUid}_${myUid}`;
       const isOfferer = myUid < remoteUid;
 
-      if (isOfferer) {
-        const pc = new RTCPeerConnection(ICE_SERVERS);
-        meshPeerConnectionsRef.current[remoteUid] = pc;
+      console.log(`[CALL] Creating mesh RTCPeerConnection for remote user ${remoteUid} (isOfferer: ${isOfferer})`);
 
-        if (localStreamRef.current) {
-          localStreamRef.current.getTracks().forEach(track => {
-            try { pc.addTrack(track, localStreamRef.current!); } catch (e) {}
-          });
+      const pc = new RTCPeerConnection(ICE_SERVERS);
+      meshPeerConnectionsRef.current[remoteUid] = pc;
+
+      pc.ontrack = (event) => {
+        console.log(`[CALL] Remote track received from ${remoteUid}:`, event.track?.kind);
+        let stream = peerStreamsRef.current[remoteUid];
+        if (!stream) {
+          stream = new MediaStream();
+          peerStreamsRef.current[remoteUid] = stream;
         }
 
-        pc.ontrack = (event) => {
-          let stream: MediaStream | null = null;
-          if (event.streams && event.streams[0]) {
-            stream = event.streams[0];
-          } else if (event.track) {
-            if (!peerStreamsRef.current[remoteUid]) {
-              peerStreamsRef.current[remoteUid] = new MediaStream();
+        if (event.streams && event.streams[0]) {
+          event.streams[0].getTracks().forEach(t => {
+            if (!stream!.getTracks().some(existing => existing.id === t.id)) {
+              stream!.addTrack(t);
             }
-            peerStreamsRef.current[remoteUid].addTrack(event.track);
-            stream = peerStreamsRef.current[remoteUid];
+          });
+        } else if (event.track) {
+          if (!stream.getTracks().some(existing => existing.id === event.track.id)) {
+            stream.addTrack(event.track);
           }
-          if (stream) {
-            peerStreamsRef.current[remoteUid] = stream;
-            setActiveCall(prev => prev ? { ...prev, peerStreams: { ...peerStreamsRef.current } } : null);
-          }
-        };
+        }
 
-        pc.onicecandidate = (event) => {
-          if (event.candidate) {
-            addDoc(collection(db, 'calls', callId, 'signals', pairId, 'candidates_' + myUid), event.candidate.toJSON()).catch(() => {});
-          }
-        };
+        peerStreamsRef.current[remoteUid] = stream;
+        setActiveCall(prev => prev ? { ...prev, peerStreams: { ...peerStreamsRef.current } } : null);
+      };
 
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          addDoc(collection(db, 'calls', callId, 'signals', pairId, 'candidates_' + myUid), event.candidate.toJSON()).catch(() => {});
+        }
+      };
+
+      pc.oniceconnectionstatechange = () => {
+        console.log(`[CALL] ICE state with ${remoteUid}:`, pc.iceConnectionState);
+      };
+
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => {
+          try { pc.addTrack(track, localStreamRef.current!); } catch (e) {}
+        });
+      }
+
+      // Candidate listener (attached once per peer connection)
+      const unsubCand = onSnapshot(collection(db, 'calls', callId, 'signals', pairId, 'candidates_' + remoteUid), (cSnap) => {
+        cSnap.docChanges().forEach(async (change) => {
+          if (change.type === 'added') {
+            try {
+              await pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
+            } catch (e) {}
+          }
+        });
+      }, () => {});
+      meshUnsubsRef.current[remoteUid + '_cand'] = unsubCand;
+
+      if (isOfferer) {
         pc.createOffer().then(async (offer) => {
           await pc.setLocalDescription(offer);
           await setDoc(doc(db, 'calls', callId, 'signals', pairId), {
             offer: { type: offer.type, sdp: offer.sdp },
             offererUid: myUid,
             updatedAt: serverTimestamp(),
-          }, { merge: true });
+          }, { merge: true }).catch(() => {});
         }).catch(err => console.warn('Mesh offer error:', err));
 
         const unsubSig = onSnapshot(doc(db, 'calls', callId, 'signals', pairId), async (snap) => {
@@ -4085,80 +4114,27 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
             } catch (e) {}
           }
-        });
+        }, () => {});
         meshUnsubsRef.current[remoteUid] = unsubSig;
-
-        const unsubCand = onSnapshot(collection(db, 'calls', callId, 'signals', pairId, 'candidates_' + remoteUid), (cSnap) => {
-          cSnap.docChanges().forEach(async (change) => {
-            if (change.type === 'added') {
-              try {
-                await pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
-              } catch (e) {}
-            }
-          });
-        });
-        meshUnsubsRef.current[remoteUid + '_cand'] = unsubCand;
       } else {
         const unsubSig = onSnapshot(doc(db, 'calls', callId, 'signals', pairId), async (snap) => {
           if (!snap.exists()) return;
           const data = snap.data();
-          if (data.offer && !meshPeerConnectionsRef.current[remoteUid]) {
-            const pc = new RTCPeerConnection(ICE_SERVERS);
-            meshPeerConnectionsRef.current[remoteUid] = pc;
-
-            if (localStreamRef.current) {
-              localStreamRef.current.getTracks().forEach(track => {
-                try { pc.addTrack(track, localStreamRef.current!); } catch (e) {}
-              });
-            }
-
-            pc.ontrack = (event) => {
-              let stream: MediaStream | null = null;
-              if (event.streams && event.streams[0]) {
-                stream = event.streams[0];
-              } else if (event.track) {
-                if (!peerStreamsRef.current[remoteUid]) {
-                  peerStreamsRef.current[remoteUid] = new MediaStream();
-                }
-                peerStreamsRef.current[remoteUid].addTrack(event.track);
-                stream = peerStreamsRef.current[remoteUid];
-              }
-              if (stream) {
-                peerStreamsRef.current[remoteUid] = stream;
-                setActiveCall(prev => prev ? { ...prev, peerStreams: { ...peerStreamsRef.current } } : null);
-              }
-            };
-
-            pc.onicecandidate = (event) => {
-              if (event.candidate) {
-                addDoc(collection(db, 'calls', callId, 'signals', pairId, 'candidates_' + myUid), event.candidate.toJSON()).catch(() => {});
-              }
-            };
-
+          if (data.offer && !pc.currentRemoteDescription) {
             try {
               await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
               const answer = await pc.createAnswer();
               await pc.setLocalDescription(answer);
-              await updateDoc(doc(db, 'calls', callId, 'signals', pairId), {
+              await setDoc(doc(db, 'calls', callId, 'signals', pairId), {
                 answer: { type: answer.type, sdp: answer.sdp },
                 answererUid: myUid,
-              });
+                updatedAt: serverTimestamp(),
+              }, { merge: true }).catch(() => {});
             } catch (e) {
               console.warn('Mesh answer error:', e);
             }
-
-            const unsubCand = onSnapshot(collection(db, 'calls', callId, 'signals', pairId, 'candidates_' + remoteUid), (cSnap) => {
-              cSnap.docChanges().forEach(async (change) => {
-                if (change.type === 'added') {
-                  try {
-                    await pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
-                  } catch (e) {}
-                }
-              });
-            });
-            meshUnsubsRef.current[remoteUid + '_cand'] = unsubCand;
           }
-        });
+        }, () => {});
         meshUnsubsRef.current[remoteUid] = unsubSig;
       }
     });
@@ -6576,9 +6552,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  // Real-time listener for Reports Collection
+  // Real-time listener for Reports Collection (Admins & Super Admins only)
   useEffect(() => {
-    if (!db || !authUser) {
+    if (!db || !authUser || (!user.isAdmin && !user.isSuperAdmin)) {
       setReports([]);
       return;
     }

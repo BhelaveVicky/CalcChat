@@ -15,6 +15,7 @@
   "dependencies": {
     "@google/genai": "^2.4.0",
     "@tailwindcss/vite": "^4.1.14",
+    "@types/nodemailer": "^8.0.1",
     "@vitejs/plugin-react": "^5.0.4",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
@@ -23,10 +24,12 @@
     "lucide-react": "^0.546.0",
     "mongoose": "^9.7.4",
     "motion": "^12.23.24",
+    "nodemailer": "^9.0.5",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.18.2",
+    "resend": "^6.19.0",
     "vite": "^6.2.3"
   },
   "devDependencies": {

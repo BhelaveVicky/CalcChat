@@ -101,69 +101,33 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
   }, [resendTimer]);
 
   const sendOtpToUserEmail = async (overrideEmail?: string) => {
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedOtp(code);
-    setOtpSentMsg(true);
-    setResendTimer(180); // 3 Minutes
-    setOtpExpiryTimestamp(Date.now() + 180 * 1000);
     setIsSendingEmail(true);
+    setForgotError(null);
 
-    const targetEmail = (overrideEmail || otpTargetEmail || authUser?.email || profile?.email || 'paurnimabhelave@gmail.com').trim();
+    const targetEmail = (overrideEmail || otpTargetEmail || authUser?.email || profile?.email || 'bhelavevicky66@gmail.com').trim();
     setOtpTargetEmail(targetEmail);
 
-    // Trigger Browser OS Notification if permitted
     try {
-      if ('Notification' in window) {
-        if (Notification.permission === 'granted') {
-          new Notification('CalcChat Security Bot 🤖', {
-            body: `Your Password Reset OTP Code is: ${code} (Valid for 3 mins)`,
-          });
-        } else if (Notification.permission !== 'denied') {
-          Notification.requestPermission().then(perm => {
-            if (perm === 'granted') {
-              new Notification('CalcChat Security Bot 🤖', {
-                body: `Your Password Reset OTP Code is: ${code} (Valid for 3 mins)`,
-              });
-            }
-          });
-        }
-      }
-    } catch (e) {}
-    
-    // 1. Google Firebase Security Mailer Bot
-    if (firebaseAuth && targetEmail) {
-      try {
-        await sendPasswordResetEmail(firebaseAuth, targetEmail);
-      } catch (e) {
-        console.warn('Firebase password reset email attempt:', e);
-      }
-    }
+      const res = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: targetEmail, email: targetEmail }),
+      });
 
-    // 2. Direct Mail Relay API (Instant OTP Delivery - No activation required)
-    if (targetEmail) {
-      try {
-        await fetch('https://api.web3forms.com/submit', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({
-            access_key: '27161b36-a19f-43fb-b78f-efae54848350',
-            subject: `🔐 CalcChat - OTP Verification Code: ${code}`,
-            from_name: 'CalcChat Security Bot',
-            name: 'CalcChat Vault',
-            to_email: targetEmail,
-            email: targetEmail,
-            message: `🤖 [CalcChat Automated Security Bot]\n\nHello ${authUser?.displayName || profile?.name || 'User'},\n\nA request was made to reset your secret CalcChat Vault password.\n\nYour 6-digit OTP Verification Code is:\n\n👉  ${code}  👈\n\n⏰ This OTP is valid for 3 minutes.\nIf you did not request this password reset, please ignore this email.\n\nCalcChat Security Team`
-          })
-        }).catch(err => console.warn('Direct Mail API warning:', err));
-      } catch (err) {
-        console.warn('Direct Mail dispatch error:', err);
-      } finally {
-        setIsSendingEmail(false);
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setForgotError(data.error || 'Failed to deliver OTP email. Please check backend server.');
+        return;
       }
-    } else {
+
+      setOtpSentMsg(true);
+      setResendTimer(300); // 5 Minutes
+      setOtpExpiryTimestamp(Date.now() + 300 * 1000);
+    } catch (err: any) {
+      console.warn('Error calling Postmark OTP API from Settings:', err);
+      setForgotError(err.message || 'Failed to connect to email server.');
+    } finally {
       setIsSendingEmail(false);
     }
   };
@@ -976,18 +940,28 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
               <button
                 type="button"
                 disabled={userOtpInput.length < 6}
-                onClick={() => {
+                onClick={async () => {
                   if (resendTimer === 0 || (otpExpiryTimestamp > 0 && Date.now() > otpExpiryTimestamp)) {
-                    setForgotError('OTP has expired! It is only valid for 3 minutes. Please click Resend OTP to get a new code.');
+                    setForgotError('OTP has expired! Please click Resend OTP to get a new code.');
                     return;
                   }
-                  if (userOtpInput.trim() === generatedOtp) {
+                  try {
+                    const res = await fetch('/api/auth/verify-otp', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ identifier: otpTargetEmail, email: otpTargetEmail, otp: userOtpInput }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok || !data.success) {
+                      setForgotError(data.error || 'Invalid 6-digit OTP code! Please check your email inbox.');
+                      return;
+                    }
                     setForgotNewPass('');
                     setForgotConfirmPass('');
                     setForgotError(null);
                     setForgotStep('new_password');
-                  } else {
-                    setForgotError('Invalid 6-digit OTP code! Please check your Gmail inbox and enter again.');
+                  } catch (err: any) {
+                    setForgotError(err.message || 'OTP verification failed.');
                   }
                 }}
                 className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm transition-all shadow-lg"

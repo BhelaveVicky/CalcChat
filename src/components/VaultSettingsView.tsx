@@ -12,6 +12,7 @@ import { compressImage } from '../lib/mediaCompressor';
 import { checkIsAdmin } from '../lib/adminUtils';
 import { SetChatWallpaperModal } from './SetChatWallpaperModal';
 import { WallpaperSuccessOverlay } from './WallpaperSuccessOverlay';
+import { ForgotPasswordModal } from './ForgotPasswordModal';
 
 /* ─── tiny helpers ───────────────────────────────────────── */
 const Toggle: React.FC<{ on: boolean; onChange: () => void; color?: string }> = ({
@@ -219,9 +220,10 @@ const HistoryView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
 /* ─── Vault Security Sub-page ────────────────────────────── */
 const VaultSecurityView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
-  const { settings, updateSettings, lockVault, clearChatHistory, contacts } = useVault();
+  const { settings, updateSettings, lockVault, clearChatHistory, contacts, user, authUser } = useVault();
   const [passcode, setPasscode] = useState(settings.passcode);
   const [saved, setSaved] = useState(false);
+  const [showForgotModal, setShowForgotModal] = useState(false);
 
   const handleSave = () => {
     if (!passcode.trim()) { alert('Passcode cannot be empty!'); return; }
@@ -270,7 +272,25 @@ const VaultSecurityView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
           </button>
         </div>
 
+        {/* Forgot Password with Email OTP */}
+        <div className="bg-[#1f2c34] rounded-2xl p-5 border border-[#2a3942]">
+          <label className="text-[#00a8ff] font-semibold text-sm flex items-center gap-2 mb-1">
+            <Key className="w-4 h-4" />
+            Forgot Password / Reset via Email OTP
+          </label>
+          <p className="text-[#8696a0] text-xs mb-3">
+            Lost your passcode? Send a 6-digit OTP code to your registered email to create a new password securely.
+          </p>
+          <button
+            onClick={() => setShowForgotModal(true)}
+            className="w-full bg-[#111b21] hover:bg-[#1a232a] border border-[#00a8ff]/40 hover:border-[#00a8ff] text-[#00a8ff] font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2 text-sm cursor-pointer active:scale-95"
+          >
+            🔑 Forgot Password? Reset via Email OTP
+          </button>
+        </div>
+
         {/* Auto-lock */}
+
         <div className="bg-[#1f2c34] rounded-2xl p-5 border border-[#2a3942]">
           <label className="text-[#00a8ff] font-semibold text-sm flex items-center gap-2 mb-1"><Clock className="w-4 h-4" />Auto-Lock Timer</label>
           <p className="text-[#8696a0] text-xs mb-3">Automatically return to calculator when idle</p>
@@ -320,6 +340,12 @@ const VaultSecurityView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
           </button>
         </div>
       </div>
+
+      {showForgotModal && (
+        <ForgotPasswordModal
+          onClose={() => setShowForgotModal(false)}
+        />
+      )}
     </div>
   );
 };

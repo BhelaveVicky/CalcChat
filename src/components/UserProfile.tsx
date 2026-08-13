@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, collection, getDocs, query, where } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, collection, getDocs, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useVault } from '../context/VaultContext';
 import { ProfileCard, ProfileData } from './ProfileCard';
@@ -28,24 +28,25 @@ export const UserProfile: React.FC<UserProfileProps> = ({ targetUserId, onBack }
     messages,
     sendFriendRequest,
     acceptFriendRequest,
-    pendingFriendRequests
+    friendUids,
+    pendingFriendRequests,
   } = useVault();
   const isDark = settings.theme !== 'material-light' && settings.theme !== 'light';
 
-  // Determine effective user ID to view
-  const effectiveUserId = targetUserId || params.userId || (authUser ? authUser.uid : currentUser.id);
+  // Effective target user id (from prop or route param)
+  const effectiveUserId = targetUserId || params.userId;
 
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-
+  const [activeTab, setActiveTabLocal] = useState<'posts' | 'media' | 'followers' | 'following'>('posts');
+  const [isProcessingAction, setIsProcessingAction] = useState<boolean>(false);
   const [followersUsers, setFollowersUsers] = useState<FollowerUser[]>([]);
   const [followingUsers, setFollowingUsers] = useState<FollowingUser[]>([]);
-
   const [showFollowersModal, setShowFollowersModal] = useState<boolean>(false);
   const [showFollowingModal, setShowFollowingModal] = useState<boolean>(false);
 
-  // Edit Profile Modal states (for own profile)
+  // Edit profile states
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
   const [editName, setEditName] = useState<string>('');
   const [editUsername, setEditUsername] = useState<string>('');
@@ -59,9 +60,10 @@ export const UserProfile: React.FC<UserProfileProps> = ({ targetUserId, onBack }
 
   const prevUserIdRef = useRef<string | null>(null);
 
-  // Fetch target user profile from Firestore
+  // Fetch target user profile from Firestore with real-time snapshot
   useEffect(() => {
     let isMounted = true;
+    let unsubSnapshot: (() => void) | null = null;
     
     // Only show full loading screen if switching to a new user or if profileData is missing
     if (prevUserIdRef.current !== effectiveUserId || !profileData) {
@@ -70,120 +72,117 @@ export const UserProfile: React.FC<UserProfileProps> = ({ targetUserId, onBack }
     }
     prevUserIdRef.current = effectiveUserId;
 
-    const fetchProfile = async () => {
-      try {
-        if (!effectiveUserId || effectiveUserId === 'me') {
-          // Self profile
-          if (isMounted) {
-            setProfileData({
-              uid: myUid,
-              id: myUid,
-              name: currentUser.name || authUser?.displayName || 'CalChat User',
-              username: currentUser.username || 'calchat_user',
-              photoURL: currentUser.avatar || authUser?.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-              bio: currentUser.status || currentUser.about || '"An emptiholic heart with quiet dreams" 🌙 💖 🥀',
-              status: currentUser.status,
-              followers: [],
-              following: [],
-              isOnline: true,
-            });
-          }
-        } else if (effectiveUserId && effectiveUserId !== 'me') {
-          // 1. Check in local contacts and groupContacts first
-          const matchContact: any = (contacts || []).find((c: any) => c.id === effectiveUserId || c.uid === effectiveUserId) ||
-                                    (groupContacts || []).find((g: any) => g.id === effectiveUserId || g.uid === effectiveUserId);
+    try {
+      if (!effectiveUserId || effectiveUserId === 'me' || effectiveUserId === myUid) {
+        // Self profile - update dynamically when currentUser state changes
+        if (isMounted) {
+          setProfileData({
+            uid: myUid,
+            id: myUid,
+            name: currentUser.name || authUser?.displayName || 'CalcChat User',
+            username: currentUser.username || 'user',
+            photoURL: currentUser.avatar || authUser?.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+            bio: currentUser.status || currentUser.about || currentUser.bio || 'Available on CalcChat',
+            status: currentUser.status || currentUser.about || currentUser.bio || 'Available on CalcChat',
+            followers: [],
+            following: [],
+            isOnline: true,
+          });
+          setLoading(false);
+        }
+      } else if (effectiveUserId && effectiveUserId !== 'me') {
+        const matchContact: any = (contacts || []).find((c: any) => c.id === effectiveUserId || c.uid === effectiveUserId) ||
+                                  (groupContacts || []).find((g: any) => g.id === effectiveUserId || g.uid === effectiveUserId);
 
-          if (matchContact && isMounted) {
-            setProfileData({
-              uid: matchContact.id,
-              id: matchContact.id,
-              name: matchContact.name,
-              username: matchContact.username || (matchContact.isGroup ? '@group' : matchContact.name.toLowerCase().replace(/\s+/g, '_')),
-              photoURL: matchContact.avatar,
-              bio: matchContact.status || matchContact.about || (matchContact.isGroup ? 'Official Group Chat' : '"An emptiholic heart with quiet dreams" 🌙 💖 🥀'),
-              status: matchContact.status,
-              followers: [],
-              following: [],
-              isOnline: matchContact.isOnline,
-              isGroup: Boolean(matchContact.isGroup || matchContact.id?.startsWith('group_')),
-              groupMembers: matchContact.groupMembers || matchContact.memberNames || [],
-              members: matchContact.members || matchContact.memberUids || [],
-              createdBy: matchContact.createdBy,
-              admins: matchContact.admins,
-            });
-            setLoading(false);
-          }
+        if (matchContact && isMounted && !profileData) {
+          setProfileData({
+            uid: matchContact.id,
+            id: matchContact.id,
+            name: matchContact.name,
+            username: matchContact.username || (matchContact.isGroup ? '@group' : matchContact.name.toLowerCase().replace(/\s+/g, '_')),
+            photoURL: matchContact.avatar,
+            bio: matchContact.status || matchContact.about || (matchContact.isGroup ? 'Official Group Chat' : 'Available on CalcChat'),
+            status: matchContact.status,
+            followers: [],
+            following: [],
+            isOnline: matchContact.isOnline,
+            isGroup: Boolean(matchContact.isGroup || matchContact.id?.startsWith('group_')),
+            groupMembers: matchContact.groupMembers || matchContact.memberNames || [],
+            members: matchContact.members || matchContact.memberUids || [],
+            createdBy: matchContact.createdBy,
+            admins: matchContact.admins,
+          });
+        }
 
-          // 2. If it's a group ID, check 'groups' collection in Firestore
-          if (db && effectiveUserId.startsWith('group_')) {
-            const groupDocRef = doc(db, 'groups', effectiveUserId);
-            const gSnap = await getDoc(groupDocRef);
+        if (db && effectiveUserId.startsWith('group_')) {
+          const groupDocRef = doc(db, 'groups', effectiveUserId);
+          unsubSnapshot = onSnapshot(groupDocRef, (gSnap) => {
+            if (!isMounted) return;
             if (gSnap.exists()) {
               const gData = gSnap.data();
-              if (isMounted) {
-                setProfileData({
-                  uid: gSnap.id,
-                  id: gSnap.id,
-                  name: gData.groupName || gData.name || 'Group',
-                  username: '@group',
-                  photoURL: gData.groupPhoto || gData.avatar || 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=150&auto=format&fit=crop&q=80',
-                  bio: gData.status || 'Official Group Chat',
-                  followers: [],
-                  following: [],
-                  isOnline: true,
-                  isGroup: true,
-                  groupMembers: gData.memberNames || gData.groupMembers || [],
-                  members: gData.members || gData.memberUids || [],
-                  createdBy: gData.createdBy,
-                  admins: gData.admins || [],
-                });
-              }
+              setProfileData({
+                uid: gSnap.id,
+                id: gSnap.id,
+                name: gData.groupName || gData.name || 'Group',
+                username: '@group',
+                photoURL: gData.groupPhoto || gData.avatar || 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=150&auto=format&fit=crop&q=80',
+                bio: gData.description || gData.about || gData.status || 'Official Group Chat',
+                followers: [],
+                following: [],
+                isOnline: true,
+                isGroup: true,
+                groupMembers: gData.memberNames || gData.groupMembers || [],
+                members: gData.members || gData.memberUids || [],
+                createdBy: gData.createdBy,
+                admins: gData.admins || [],
+              });
             }
-          } else if (db) {
-            // 3. User doc in 'users' collection
-            const userDocRef = doc(db, 'users', effectiveUserId);
-            const snap = await getDoc(userDocRef);
-
+            setLoading(false);
+          });
+        } else if (db) {
+          const userDocRef = doc(db, 'users', effectiveUserId);
+          unsubSnapshot = onSnapshot(userDocRef, (snap) => {
+            if (!isMounted) return;
             if (snap.exists()) {
               const data = snap.data();
-              if (isMounted) {
-                setProfileData({
-                  uid: snap.id,
-                  id: snap.id,
-                  name: data.displayName || data.name || 'CalChat User',
-                  username: data.username || 'user',
-                  photoURL: data.photoURL || data.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-                  bio: data.bio || data.status || data.about || '"An emptiholic heart with quiet dreams" 🌙 💖 🥀',
-                  status: data.status,
-                  followers: Array.isArray(data.followers) ? data.followers : [],
-                  following: Array.isArray(data.following) ? data.following : [],
-                  isOnline: data.online || false,
-                });
-              }
-            } else if (isMounted && !matchContact) {
-              // Create default view
+              const bioVal = data.bio || data.about || data.status || 'Available on CalcChat';
+              setProfileData({
+                uid: snap.id,
+                id: snap.id,
+                name: data.displayName || data.name || data.username || 'CalcChat User',
+                username: data.username || 'user',
+                photoURL: data.photoURL || data.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+                bio: bioVal,
+                about: bioVal,
+                status: bioVal,
+                followers: Array.isArray(data.followers) ? data.followers : [],
+                following: Array.isArray(data.following) ? data.following : [],
+                isOnline: Boolean(data.online),
+              });
+            } else if (!matchContact) {
               setProfileData({
                 uid: effectiveUserId,
                 id: effectiveUserId,
-                name: 'CalChat User',
+                name: 'CalcChat User',
                 username: 'user',
                 photoURL: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-                bio: '"An emptiholic heart with quiet dreams" 🌙 💖 🥀',
+                bio: 'Available on CalcChat',
                 followers: [],
                 following: [],
               });
             }
-          }
+            setLoading(false);
+          }, (err) => {
+            console.warn('Realtime profile snapshot notice:', err);
+            setLoading(false);
+          });
         }
-      } catch (err) {
-        console.error('Error fetching user profile:', err);
-        if (isMounted && !profileData) setError('Failed to load profile details');
-      } finally {
-        if (isMounted) setLoading(false);
       }
-    };
-
-    fetchProfile();
+    } catch (err) {
+      console.error('Error fetching user profile:', err);
+      if (isMounted && !profileData) setError('Failed to load profile details');
+      setLoading(false);
+    }
 
     return () => {
       isMounted = false;
@@ -351,26 +350,25 @@ export const UserProfile: React.FC<UserProfileProps> = ({ targetUserId, onBack }
   const handleSaveEditProfile = async () => {
     setIsSavingEdit(true);
     try {
-      await updateProfile({
-        name: editName.trim() || currentUser.name,
-        username: editUsername.trim() || currentUser.username,
-        status: editBio.trim() || currentUser.status,
-      });
+      const cleanName = editName.trim() || currentUser.name;
+      const cleanUsername = editUsername.trim().replace(/^@/, '') || currentUser.username;
+      const cleanBio = editBio.trim();
 
-      if (db && authUser) {
-        await updateDoc(doc(db, 'users', authUser.uid), {
-          displayName: editName.trim(),
-          username: editUsername.trim(),
-          bio: editBio.trim(),
-          status: editBio.trim(),
-        }).catch(() => {});
-      }
+      await updateProfile({
+        name: cleanName,
+        username: cleanUsername,
+        status: cleanBio,
+        about: cleanBio,
+        bio: cleanBio,
+      });
 
       setProfileData(prev => prev ? {
         ...prev,
-        name: editName.trim(),
-        username: editUsername.trim(),
-        bio: editBio.trim(),
+        name: cleanName,
+        username: cleanUsername,
+        bio: cleanBio,
+        about: cleanBio,
+        status: cleanBio,
       } : prev);
 
       setShowEditModal(false);

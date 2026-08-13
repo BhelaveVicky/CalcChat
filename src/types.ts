@@ -7,6 +7,7 @@ export interface UserProfile {
   avatar: string;
   status: string;
   about?: string;
+  bio?: string;
   isOnline: boolean;
   lastSeen?: string;
   email?: string;

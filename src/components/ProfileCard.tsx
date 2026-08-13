@@ -144,7 +144,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   const rawBio = user.description || user.bio || user.status || user.about || '';
   const bioText = isGroup
     ? (rawBio.includes('members:') || rawBio.includes('member:') ? 'Official Group Chat' : (rawBio || 'Official Group Chat'))
-    : (rawBio || '"An emptiholic heart with quiet dreams" 🌙 💖 🥀');
+    : (rawBio || 'Available on CalcChat');
 
   const groupMemberList = getGroupMembersList(groupContact, allRegisteredUsers, contacts, vaultUser, groupContacts);
   const groupMembersCount = isGroup ? groupMemberList.length : 0;

@@ -60,9 +60,8 @@ const AppContent: React.FC = () => {
     return <LoginPage />;
   }
 
-  // If vault is already unlocked (passcode entered in calculator), skip onboarding gate
-  // and go straight to the main app for ALL users
-  if (!isUnlocked && needsUsername) {
+  // If user profile onboarding (username or password creation) is incomplete, force onboarding step
+  if (needsUsername) {
     if (onboardingStep === 'password') {
       return (
         <ChatPasswordModal

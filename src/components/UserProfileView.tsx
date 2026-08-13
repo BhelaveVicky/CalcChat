@@ -161,11 +161,19 @@ export const UserProfileView: React.FC = () => {
   const [activePrivacyItem, setActivePrivacyItem] = useState<{ id: string; title: string; current: string; options: string[] } | null>(null);
 
   // Edit states
-  const [editName, setEditName] = useState(user.name || 'Vicky Ashok Bhelave');
-  const [editUsername, setEditUsername] = useState(user.username || 'vicky_bhelave');
-  const [editStatus, setEditStatus] = useState(user.status || '');
-  const [editAvatar, setEditAvatar] = useState(user.avatar || '');
+  const [editName, setEditName] = useState(user.name || authUser?.displayName || '');
+  const [editUsername, setEditUsername] = useState(user.username || '');
+  const [editStatus, setEditStatus] = useState(user.status || user.about || user.bio || '');
+  const [editAvatar, setEditAvatar] = useState(user.avatar || authUser?.photoURL || '');
   const [saved, setSaved] = useState(false);
+
+  // Sync state whenever user context updates from real-time listener
+  useEffect(() => {
+    if (user.name && !editName) setEditName(user.name);
+    if (user.username && !editUsername) setEditUsername(user.username);
+    if ((user.status || user.about || user.bio) && !editStatus) setEditStatus(user.status || user.about || user.bio || '');
+    if (user.avatar && !editAvatar) setEditAvatar(user.avatar);
+  }, [user.name, user.username, user.status, user.about, user.bio, user.avatar]);
 
   // Crop states
   const [rawImage, setRawImage] = useState<string | null>(null);
@@ -177,9 +185,9 @@ export const UserProfileView: React.FC = () => {
   const isDraggingRef = useRef<boolean>(false);
   const dragStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  const userName = user.name || 'Vicky Ashok Bhelave';
-  const userUsername = user.username || 'vicky_bhelave';
-  const userEmail = user.email || 'paurnimabhelave@gmail.com';
+  const userName = user.name || authUser?.displayName || 'User';
+  const userUsername = user.username || '';
+  const userEmail = user.email || authUser?.email || '';
 
   const showSnack = (msg: string) => {
     setSnack(msg);
@@ -198,10 +206,10 @@ export const UserProfileView: React.FC = () => {
   };
 
   const handleOpenEditModal = () => {
-    setEditName(userName);
-    setEditUsername(userUsername);
-    setEditStatus(user.status || '');
-    setEditAvatar(user.avatar || '');
+    setEditName(user.name || authUser?.displayName || '');
+    setEditUsername(user.username || '');
+    setEditStatus(user.status || user.about || user.bio || '');
+    setEditAvatar(user.avatar || authUser?.photoURL || '');
     setShowProfileOptionsModal(false);
     setShowViewProfileModal(false);
     setShowEditModal(true);
@@ -265,12 +273,18 @@ export const UserProfileView: React.FC = () => {
     };
   };
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateProfile({
-      name: editName.trim() || userName,
-      username: editUsername.trim().replace(/^@/, '') || userUsername,
-      status: editStatus.trim(),
+    const finalName = editName.trim() || userName;
+    const finalUsername = editUsername.trim().replace(/^@/, '') || userUsername;
+    const finalStatus = editStatus.trim();
+
+    await updateProfile({
+      name: finalName,
+      username: finalUsername,
+      status: finalStatus,
+      about: finalStatus,
+      bio: finalStatus,
       avatar: editAvatar
     });
     setSaved(true);

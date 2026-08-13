@@ -109,16 +109,12 @@ async function sendEmailOtp(email, otp) {
   }
 }
 
-async function startServer() {
-  const app = express();
-  const PORT = process.env.PORT || 5000;
+const app = express();
+app.use(cors());
+app.use(express.json());
 
-  // Middleware
-  app.use(cors());
-  app.use(express.json());
-
-  // Check if user is admin
-  const ADMIN_EMAIL = 'bhelavevicky66@gmail.com';
+// Check if user is admin
+const ADMIN_EMAIL = 'bhelavevicky66@gmail.com';
 
   // Save or update user profile
   app.post('/api/user/profile', async (req, res) => {
@@ -520,15 +516,18 @@ YOUR CAPABILITIES & RULES:
     next(err);
   });
 
-  // Mount Vite middleware in dev, serve static in production
-  if (process.env.NODE_ENV !== 'production') {
-    const { createServer: createViteServer } = await import('vite');
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
+  const PORT = process.env.PORT || 5000;
+
+  if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+    try {
+      const { createServer: createViteServer } = await import('vite');
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+    } catch (e) {}
+  } else if (!process.env.VERCEL) {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
@@ -536,14 +535,13 @@ YOUR CAPABILITIES & RULES:
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`CalcChat server running on http://0.0.0.0:${PORT}`);
-  });
-}
+  if (!process.env.VERCEL) {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`CalcChat server running on http://0.0.0.0:${PORT}`);
+    });
+  }
 
-startServer().catch((err) => {
-  console.error('Failed to start CalcChat server:', err);
-});
+export default app;
 
 
 

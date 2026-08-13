@@ -114,7 +114,13 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
         body: JSON.stringify({ identifier: targetEmail, email: targetEmail }),
       });
 
-      const data = await res.json();
+      let data: any = {};
+      const resText = await res.text();
+      try {
+        data = JSON.parse(resText);
+      } catch (e) {
+        throw new Error(!res.ok ? `Server error (${res.status}). Please check Vercel deployment backend.` : 'Invalid server response');
+      }
 
       if (!res.ok || !data.success) {
         setForgotError(data.error || 'Failed to deliver OTP email. Please check backend server.');
@@ -125,7 +131,7 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
       setResendTimer(300); // 5 Minutes
       setOtpExpiryTimestamp(Date.now() + 300 * 1000);
     } catch (err: any) {
-      console.warn('Error calling Postmark OTP API from Settings:', err);
+      console.warn('Error calling OTP API from Settings:', err);
       setForgotError(err.message || 'Failed to connect to email server.');
     } finally {
       setIsSendingEmail(false);

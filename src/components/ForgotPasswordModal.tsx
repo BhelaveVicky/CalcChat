@@ -99,7 +99,13 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
         body: JSON.stringify({ identifier: cleanInput, email: cleanInput }),
       });
 
-      const data = await res.json();
+      let data: any = {};
+      const resText = await res.text();
+      try {
+        data = JSON.parse(resText);
+      } catch (e) {
+        throw new Error(!res.ok ? `Server error (${res.status}). Please check Vercel deployment backend.` : 'Invalid server response');
+      }
 
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'Failed to send OTP code to email.');

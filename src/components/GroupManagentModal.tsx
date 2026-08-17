@@ -266,7 +266,7 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[60] bg-[#00a8ff] text-[#0b141a] px-4 py-2.5 rounded-xl font-bold text-xs shadow-2xl flex items-center gap-2 animate-bounce">
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[60] bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-2xl flex items-center gap-2 animate-bounce">
           <Sparkles className="w-4 h-4" />
           <span>{toastMessage}</span>
         </div>
@@ -284,7 +284,7 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
               <img
                 src={group.avatar || 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=150&auto=format&fit=crop&q=80'}
                 alt={group.name}
-                className="w-10 h-10 rounded-full object-cover border-2 border-[#00a8ff]"
+                className="w-10 h-10 rounded-full object-cover border-2 border-[#ff2e93]"
               />
               {isOwner ? (
                 <div className="absolute -bottom-1 -right-1 bg-amber-500 text-black p-0.5 rounded-full shadow" title="Group Owner">
@@ -336,7 +336,7 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
             onClick={() => setActiveTab('overview')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
               activeTab === 'overview'
-                ? 'bg-[#00a8ff] text-[#0b141a] shadow-md'
+                ? 'bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white shadow-md shadow-[#ff2e93]/25'
                 : isDark ? 'text-[#8696a0] hover:bg-[#182229]' : 'text-gray-600 hover:bg-white'
             }`}
           >
@@ -349,7 +349,7 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
             onClick={() => setActiveTab('members')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
               activeTab === 'members'
-                ? 'bg-[#00a8ff] text-[#0b141a] shadow-md'
+                ? 'bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white shadow-md shadow-[#ff2e93]/25'
                 : isDark ? 'text-[#8696a0] hover:bg-[#182229]' : 'text-gray-600 hover:bg-white'
             }`}
           >
@@ -363,7 +363,7 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
               onClick={() => setActiveTab('requests')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer relative ${
                 activeTab === 'requests'
-                  ? 'bg-[#00a8ff] text-[#0b141a] shadow-md'
+                  ? 'bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white shadow-md shadow-[#ff2e93]/25'
                   : isDark ? 'text-[#8696a0] hover:bg-[#182229]' : 'text-gray-600 hover:bg-white'
               }`}
             >
@@ -383,7 +383,7 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
               onClick={() => setActiveTab('permissions')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
                 activeTab === 'permissions'
-                  ? 'bg-[#00a8ff] text-[#0b141a] shadow-md'
+                  ? 'bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white shadow-md shadow-[#ff2e93]/25'
                   : isDark ? 'text-[#8696a0] hover:bg-[#182229]' : 'text-gray-600 hover:bg-white'
               }`}
             >
@@ -397,7 +397,7 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
             onClick={() => setActiveTab('activity')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
               activeTab === 'activity'
-                ? 'bg-[#00a8ff] text-[#0b141a] shadow-md'
+                ? 'bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white shadow-md shadow-[#ff2e93]/25'
                 : isDark ? 'text-[#8696a0] hover:bg-[#182229]' : 'text-gray-600 hover:bg-white'
             }`}
           >
@@ -411,7 +411,7 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
               onClick={() => setActiveTab('deleted_logs')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
                 activeTab === 'deleted_logs'
-                  ? 'bg-[#00a8ff] text-[#0b141a] shadow-md'
+                  ? 'bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white shadow-md shadow-[#ff2e93]/25'
                   : isDark ? 'text-[#8696a0] hover:bg-[#182229]' : 'text-gray-600 hover:bg-white'
               }`}
             >
@@ -441,7 +441,7 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
                           setEditNameInput(group.name);
                           setIsEditingName(true);
                         }}
-                        className="text-xs text-[#00a8ff] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                        className="text-xs text-[#ff2e93] hover:underline font-bold flex items-center gap-1 cursor-pointer"
                       >
                         <Edit3 className="w-3.5 h-3.5" />
                         <span>Edit</span>
@@ -455,7 +455,7 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
                         type="text"
                         value={editNameInput}
                         onChange={e => setEditNameInput(e.target.value)}
-                        className={`flex-1 px-3 py-2 rounded-xl text-sm font-bold border focus:outline-none focus:ring-2 focus:ring-[#00a8ff] ${
+                        className={`flex-1 px-3 py-2 rounded-xl text-sm font-bold border focus:outline-none focus:ring-2 focus:ring-[#ff2e93] ${
                           isDark ? 'bg-[#0b141a] border-[#202c33] text-white' : 'bg-white border-gray-300 text-gray-900'
                         }`}
                         placeholder="Enter group name..."
@@ -463,7 +463,7 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
                       <button
                         type="button"
                         onClick={handleSaveName}
-                        className="px-3 py-2 rounded-xl bg-[#00a8ff] text-[#0b141a] font-bold text-xs cursor-pointer active:scale-95"
+                        className="px-3 py-2 rounded-xl bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white font-bold text-xs cursor-pointer active:scale-95 shadow-md shadow-[#ff2e93]/25"
                       >
                         Save
                       </button>
@@ -493,7 +493,7 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
                           setEditDescInput(group.description || group.about || '');
                           setIsEditingDesc(true);
                         }}
-                        className="text-xs text-[#00a8ff] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                        className="text-xs text-[#ff2e93] hover:underline font-bold flex items-center gap-1 cursor-pointer"
                       >
                         <Edit3 className="w-3.5 h-3.5" />
                         <span>Edit</span>
@@ -507,7 +507,7 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
                         rows={3}
                         value={editDescInput}
                         onChange={e => setEditDescInput(e.target.value)}
-                        className={`w-full px-3 py-2 rounded-xl text-xs border focus:outline-none focus:ring-2 focus:ring-[#00a8ff] ${
+                        className={`w-full px-3 py-2 rounded-xl text-xs border focus:outline-none focus:ring-2 focus:ring-[#ff2e93] ${
                           isDark ? 'bg-[#0b141a] border-[#202c33] text-white' : 'bg-white border-gray-300 text-gray-900'
                         }`}
                         placeholder="Add group description / rules..."
@@ -525,7 +525,7 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
                         <button
                           type="button"
                           onClick={handleSaveDesc}
-                          className="px-3 py-1.5 rounded-xl bg-[#00a8ff] text-[#0b141a] font-bold text-xs cursor-pointer active:scale-95"
+                          className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white font-bold text-xs cursor-pointer active:scale-95 shadow-md shadow-[#ff2e93]/25"
                         >
                           Save Description
                         </button>
@@ -545,14 +545,14 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
               }`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <LinkIcon className="w-4 h-4 text-[#00a8ff]" />
+                    <LinkIcon className="w-4 h-4 text-[#ff2e93]" />
                     <span className="font-bold text-xs uppercase tracking-wider text-[#8696a0]">Group Invite Link</span>
                   </div>
 
                   <button
                     type="button"
                     onClick={() => setShowQrModal(true)}
-                    className="px-2.5 py-1 rounded-lg bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all"
+                    className="px-2.5 py-1 rounded-lg bg-pink-500/20 text-pink-400 hover:bg-pink-500/30 text-xs font-bold flex items-center gap-1 cursor-pointer transition-all"
                   >
                     <QrCode className="w-3.5 h-3.5" />
                     <span>QR Code</span>
@@ -566,7 +566,7 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
                   <button
                     type="button"
                     onClick={handleCopyInviteLink}
-                    className="p-1.5 rounded-lg bg-[#00a8ff]/20 text-[#00a8ff] hover:bg-[#00a8ff]/30 cursor-pointer shrink-0"
+                    className="p-1.5 rounded-lg bg-[#ff2e93]/20 text-[#ff2e93] hover:bg-[#ff2e93]/30 cursor-pointer shrink-0"
                     title="Copy Link"
                   >
                     <Copy className="w-3.5 h-3.5" />
@@ -578,7 +578,7 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
                     <button
                       type="button"
                       onClick={handleRegenerateLink}
-                      className="text-xs text-[#00a8ff] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                      className="text-xs text-[#ff2e93] hover:underline font-bold flex items-center gap-1 cursor-pointer"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
                       <span>Regenerate Link</span>
@@ -605,7 +605,7 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
                   isDark ? 'bg-[#182229] border-[#202c33]' : 'bg-gray-50 border-gray-200'
                 }`}>
                   <h3 className="font-bold text-xs uppercase tracking-wider text-[#8696a0] mb-2 flex items-center gap-1.5">
-                    <Shield className="w-4 h-4 text-[#00a8ff]" />
+                    <Shield className="w-4 h-4 text-[#ff2e93]" />
                     <span>Privacy & Security Controls</span>
                   </h3>
 
@@ -620,7 +620,7 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
                       type="button"
                       onClick={() => updateGroupPrivacy(groupId, !group.isPublic, !!group.joinApprovalRequired)}
                       className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${
-                        group.isPublic ? 'bg-[#00a8ff]' : isDark ? 'bg-[#222e35]' : 'bg-gray-300'
+                        group.isPublic ? 'bg-[#ff2e93]' : isDark ? 'bg-[#222e35]' : 'bg-gray-300'
                       }`}
                     >
                       <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${
@@ -640,7 +640,7 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
                       type="button"
                       onClick={() => updateGroupPrivacy(groupId, !!group.isPublic, !group.joinApprovalRequired)}
                       className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${
-                        group.joinApprovalRequired ? 'bg-[#00a8ff]' : isDark ? 'bg-[#222e35]' : 'bg-gray-300'
+                        group.joinApprovalRequired ? 'bg-[#ff2e93]' : isDark ? 'bg-[#222e35]' : 'bg-gray-300'
                       }`}
                     >
                       <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${
@@ -732,7 +732,7 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowSelectMembersModal(true)}
-                    className="px-3.5 py-2 rounded-xl bg-[#00a8ff] hover:bg-[#0088cc] text-[#0b141a] font-extrabold text-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-md shrink-0"
+                    className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white font-extrabold text-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shadow-md shadow-[#ff2e93]/25 shrink-0"
                   >
                     <UserPlus className="w-4 h-4" />
                     <span>Add Members</span>
@@ -767,7 +767,7 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
                             <img
                               src={m.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}
                               alt={m.name}
-                              className="w-10 h-10 rounded-full object-cover border border-[#00a8ff]/30"
+                              className="w-10 h-10 rounded-full object-cover border border-[#ff2e93]/30"
                             />
                             {isTargetMuted && (
                               <div className="absolute -bottom-1 -right-1 bg-rose-500 text-white p-0.5 rounded-full" title="Muted">
@@ -878,7 +878,7 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
                         <img
                           src={req.userAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}
                           alt={req.userName}
-                          className="w-10 h-10 rounded-full object-cover border border-[#00a8ff]"
+                          className="w-10 h-10 rounded-full object-cover border border-[#ff2e93]"
                         />
                         <div className="min-w-0">
                           <p className="font-bold text-xs truncate">{req.userName}</p>
@@ -960,13 +960,13 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
                       onClick={() => handleTogglePermission(permKey)}
                       className={`p-3.5 rounded-2xl border flex items-start justify-between cursor-pointer transition-all ${
                         isChecked
-                          ? isDark ? 'bg-[#182229] border-[#00a8ff]/40' : 'bg-blue-50/50 border-[#00a8ff]/40'
+                          ? isDark ? 'bg-[#182229] border-[#ff2e93]/40' : 'bg-pink-50/50 border-[#ff2e93]/40'
                           : isDark ? 'bg-[#182229]/50 border-[#202c33] opacity-60' : 'bg-gray-100 border-gray-200 opacity-60'
                       }`}
                     >
                       <div className="flex items-start gap-3 min-w-0 pr-2">
                         <div className={`p-2 rounded-xl shrink-0 ${
-                          isChecked ? 'bg-[#00a8ff]/15 text-[#00a8ff]' : 'bg-gray-500/10 text-gray-400'
+                          isChecked ? 'bg-[#ff2e93]/15 text-[#ff2e93]' : 'bg-gray-500/10 text-gray-400'
                         }`}>
                           <Icon className="w-4 h-4" />
                         </div>
@@ -977,7 +977,7 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
                       </div>
 
                       <div className={`relative w-10 h-5 rounded-full transition-colors shrink-0 mt-1 ${
-                        isChecked ? 'bg-[#00a8ff]' : 'bg-gray-400'
+                        isChecked ? 'bg-gradient-to-r from-[#ff2e93] to-[#ff60b5]' : 'bg-gray-400'
                       }`}>
                         <span className={`absolute top-0.5 left-0.5 bg-white w-4 h-4 rounded-full transition-transform ${
                           isChecked ? 'translate-x-5' : 'translate-x-0'
@@ -1021,13 +1021,13 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
                         isDark ? 'bg-[#182229] border-[#202c33]' : 'bg-gray-50 border-gray-200'
                       }`}
                     >
-                      <div className="p-2 rounded-xl bg-[#00a8ff]/15 text-[#00a8ff] shrink-0 mt-0.5">
+                      <div className="p-2 rounded-xl bg-[#ff2e93]/15 text-[#ff2e93] shrink-0 mt-0.5">
                         <History className="w-4 h-4" />
                       </div>
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between">
-                          <span className="font-bold text-xs text-[#00a8ff]">{log.action || 'ACTION'}</span>
+                          <span className="font-bold text-xs text-[#ff2e93]">{log.action || 'ACTION'}</span>
                           <span className={`text-[10px] ${isDark ? 'text-[#8696a0]' : 'text-gray-500'}`}>
                             {log.timestamp ? new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}
                           </span>
@@ -1107,22 +1107,22 @@ export const GroupManagementModal: React.FC<GroupManagementModalProps> = ({
               </button>
             </div>
 
-            <div className="bg-white p-6 rounded-2xl inline-block shadow-xl border-4 border-[#00a8ff]">
+            <div className="bg-white p-6 rounded-2xl inline-block shadow-xl border-4 border-[#ff2e93]">
               <div className="w-48 h-48 bg-gradient-to-br from-gray-900 to-black rounded-xl flex flex-col items-center justify-center text-white p-4 font-mono text-[10px]">
-                <QrCode className="w-24 h-24 text-[#00a8ff] mb-2 animate-pulse" />
-                <span className="text-emerald-400 font-bold truncate max-w-full">{group.name}</span>
+                <QrCode className="w-24 h-24 text-[#ff2e93] mb-2 animate-pulse" />
+                <span className="text-pink-400 font-bold truncate max-w-full">{group.name}</span>
                 <span className="text-gray-400 text-[8px] mt-1">Scan to join group</span>
               </div>
             </div>
 
             <p className={`text-xs ${isDark ? 'text-[#8696a0]' : 'text-gray-500'}`}>
-              Anyone with this QR code can scan to join <span className="font-bold text-[#00a8ff]">{group.name}</span>.
+              Anyone with this QR code can scan to join <span className="font-bold text-[#ff2e93]">{group.name}</span>.
             </p>
 
             <button
               type="button"
               onClick={handleCopyInviteLink}
-              className="w-full py-2.5 rounded-xl bg-[#00a8ff] text-[#0b141a] font-bold text-xs cursor-pointer active:scale-95"
+              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white font-bold text-xs cursor-pointer active:scale-95 shadow-md shadow-[#ff2e93]/25"
             >
               Copy Invite Link
             </button>

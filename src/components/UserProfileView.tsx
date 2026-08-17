@@ -361,127 +361,251 @@ export const UserProfileView: React.FC = () => {
   );
 
   return (
-    <div className={`flex-1 flex flex-col h-full overflow-y-auto select-none font-sans transition-colors ${
-      isDark ? 'bg-[#0b141a] text-[#e9edef]' : 'bg-white text-gray-900'
+    <div className={`flex-1 flex w-full h-full overflow-hidden select-none font-sans transition-colors ${
+      isDark ? 'bg-[#0b141a] text-[#e9edef]' : 'bg-[#f0f2f5] text-gray-900'
     }`}>
       
-      {/* Search Bar */}
-      <div className={`px-4 py-3 sticky top-0 z-10 ${isDark ? 'bg-[#0b141a]' : 'bg-white'}`}>
-        <div className={`flex items-center gap-3 rounded-full px-4 py-2.5 ${isDark ? 'bg-[#1f2c34]' : 'bg-gray-100'}`}>
-          <Search className={`w-4 h-4 shrink-0 ${isDark ? 'text-[#8696a0]' : 'text-gray-500'}`} />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search"
-            className={`flex-1 bg-transparent text-[14.5px] focus:outline-none ${
-              isDark ? 'text-[#e9edef] placeholder-[#8696a0]' : 'text-gray-900 placeholder-gray-400'
-            }`}
-          />
-          {search && (
-            <button onClick={() => setSearch('')}>
-              <X className={`w-4 h-4 ${isDark ? 'text-[#8696a0]' : 'text-gray-500'}`} />
-            </button>
-          )}
-        </div>
-      </div>
+      {/* Left Column: Profile Sidebar Matching Image 2 */}
+      <div className={`h-full flex flex-col border-r ${
+        isDark ? 'border-[#202c33] bg-[#111b21]' : 'border-gray-200 bg-white'
+      } w-full md:w-80 lg:w-[380px] xl:w-[420px] 2xl:w-[460px] shrink-0 overflow-y-auto`}>
 
-      {/* User Info Header Section (Matches Screenshot) */}
-      <div className="flex flex-col items-center justify-center pt-2 pb-6 px-4">
-        <div 
-          className="relative cursor-pointer group"
-          onClick={openProfileOptions}
-        >
-          {user.avatar ? (
-            <img
-              src={user.avatar}
-              alt={userName}
-              className={`w-24 h-24 rounded-full object-cover border group-hover:opacity-90 transition-opacity ${
-                isDark ? 'border-[#2a3942]' : 'border-gray-200 shadow-md'
+        {/* Top Header with Vibrant "Profile" Logo matching Image 2 (Desktop only - mobile uses WhatsAppTopBar) */}
+        <div className={`hidden md:flex pt-4 pb-2 px-4 items-center justify-center border-b shrink-0 ${
+          isDark ? 'border-[#202c33] bg-[#111b21]' : 'border-gray-100 bg-white'
+        }`}>
+          <h1 className="text-2xl font-black tracking-wide flex items-center justify-center">
+            <span className="text-[#00a8ff]">P</span>
+            <span className="text-[#ff2e93]">r</span>
+            <span className="text-[#25d366]">o</span>
+            <span className="text-[#ff9800]">f</span>
+            <span className="text-[#00d2ff]">i</span>
+            <span className="text-[#a855f7]">l</span>
+            <span className="text-[#ff60b5]">e</span>
+          </h1>
+        </div>
+
+        {/* Search Bar */}
+        <div className={`px-4 py-3 sticky top-0 z-10 ${isDark ? 'bg-[#111b21]' : 'bg-white'}`}>
+          <div className={`flex items-center gap-3 rounded-full px-4 py-2.5 ${isDark ? 'bg-[#1f2c34]' : 'bg-gray-100'}`}>
+            <Search className={`w-4 h-4 shrink-0 ${isDark ? 'text-[#8696a0]' : 'text-gray-500'}`} />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search"
+              className={`flex-1 bg-transparent text-[14.5px] focus:outline-none ${
+                isDark ? 'text-[#e9edef] placeholder-[#8696a0]' : 'text-gray-900 placeholder-gray-400'
               }`}
             />
-          ) : (
-            <div className="w-24 h-24 rounded-full bg-[#5c6bc0] text-white flex items-center justify-center text-4xl font-normal border border-[#3b4a54] group-hover:opacity-90 transition-opacity">
-              {userName ? userName.charAt(0).toLowerCase() : 'p'}
-            </div>
-          )}
-          {/* Sky Blue Online Status Dot */}
-          <span className={`w-4 h-4 bg-[#00a8ff] border-2 rounded-full absolute bottom-0.5 right-0.5 ${
-            isDark ? 'border-[#0b141a]' : 'border-white'
-          }`}></span>
+            {search && (
+              <button onClick={() => setSearch('')}>
+                <X className={`w-4 h-4 ${isDark ? 'text-[#8696a0]' : 'text-gray-500'}`} />
+              </button>
+            )}
+          </div>
         </div>
 
-        <h2 className={`text-xl font-bold mt-3 tracking-wide text-center flex items-center justify-center gap-1.5 ${
-          isDark ? 'text-[#e9edef]' : 'text-gray-900'
-        }`}>
-          <span>{userName}</span>
-          {isAdmin && <VerifiedBadge className="w-5 h-5 shrink-0" />}
-        </h2>
-        <p className="text-xs text-[#0095f6] font-medium mt-0.5 text-center">
-          @{userUsername}
-        </p>
-
-        {/* Followers & Following Statistics */}
-        <div className="flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold mt-2.5 text-center">
-          <button
-            type="button"
-            onClick={() => {
-              if (isAdmin) {
-                setShowPrivateFollowersNotice(true);
-              } else {
-                setShowFollowersListModal(true);
-              }
-            }}
-            className={`hover:underline cursor-pointer transition-colors ${
-              isDark ? 'text-[#e9edef] hover:text-[#00a8ff]' : 'text-gray-900 hover:text-[#00a8ff]'
-            }`}
+        {/* User Info Header Section (Matches Image 2) */}
+        <div className="flex flex-col items-center justify-center pt-2 pb-6 px-4 shrink-0">
+          <div 
+            className="relative cursor-pointer group"
+            onClick={openProfileOptions}
           >
-            <span className="font-bold">{isAdmin ? '2K' : (Array.isArray(user.followers) ? user.followers.length : 0)}</span>{' '}
-            <span className={isDark ? 'text-[#8696a0]' : 'text-gray-500'}>followers</span>
-          </button>
-          
-          <span className={isDark ? 'text-[#8696a0]' : 'text-gray-400'}>•</span>
+            {user.avatar ? (
+              <img
+                src={user.avatar}
+                alt={userName}
+                className={`w-24 h-24 rounded-full object-cover border group-hover:opacity-90 transition-opacity ${
+                  isDark ? 'border-[#2a3942]' : 'border-gray-200 shadow-md'
+                }`}
+              />
+            ) : (
+              <div className="w-24 h-24 rounded-full bg-[#5c6bc0] text-white flex items-center justify-center text-4xl font-normal border border-[#3b4a54] group-hover:opacity-90 transition-opacity">
+                {userName ? userName.charAt(0).toLowerCase() : 'p'}
+              </div>
+            )}
+            {/* Sky Blue Online Status Dot */}
+            <span className={`w-4 h-4 bg-[#00a8ff] border-2 rounded-full absolute bottom-0.5 right-0.5 ${
+              isDark ? 'border-[#111b21]' : 'border-white'
+            }`}></span>
+          </div>
 
-          <button
-            type="button"
-            onClick={() => setShowFollowingListModal(true)}
-            className={`hover:underline cursor-pointer transition-colors ${
-              isDark ? 'text-[#e9edef] hover:text-[#00a8ff]' : 'text-gray-900 hover:text-[#00a8ff]'
-            }`}
-          >
-            <span className="font-bold">{Array.isArray(user.following) ? user.following.length : 0}</span>{' '}
-            <span className={isDark ? 'text-[#8696a0]' : 'text-gray-500'}>following</span>
-          </button>
+          <h2 className={`text-xl font-bold mt-3 tracking-wide text-center flex items-center justify-center gap-1.5 ${
+            isDark ? 'text-[#e9edef]' : 'text-gray-900'
+          }`}>
+            <span>{userName}</span>
+            {isAdmin && <VerifiedBadge className="w-5 h-5 shrink-0" />}
+          </h2>
+          <p className="text-xs text-[#0095f6] font-medium mt-0.5 text-center">
+            @{userUsername}
+          </p>
+
+          {/* Followers & Following Statistics */}
+          <div className="flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold mt-2.5 text-center">
+            <button
+              type="button"
+              onClick={() => {
+                if (isAdmin) {
+                  setShowPrivateFollowersNotice(true);
+                } else {
+                  setShowFollowersListModal(true);
+                }
+              }}
+              className={`hover:underline cursor-pointer transition-colors ${
+                isDark ? 'text-[#e9edef] hover:text-[#00a8ff]' : 'text-gray-900 hover:text-[#00a8ff]'
+              }`}
+            >
+              <span className="font-bold">{isAdmin ? '2K' : (Array.isArray(user.followers) ? user.followers.length : 0)}</span>{' '}
+              <span className={isDark ? 'text-[#8696a0]' : 'text-gray-500'}>followers</span>
+            </button>
+            
+            <span className={isDark ? 'text-[#8696a0]' : 'text-gray-400'}>•</span>
+
+            <button
+              type="button"
+              onClick={() => setShowFollowingListModal(true)}
+              className={`hover:underline cursor-pointer transition-colors ${
+                isDark ? 'text-[#e9edef] hover:text-[#00a8ff]' : 'text-gray-900 hover:text-[#00a8ff]'
+              }`}
+            >
+              <span className="font-bold">{Array.isArray(user.following) ? user.following.length : 0}</span>{' '}
+              <span className={isDark ? 'text-[#8696a0]' : 'text-gray-500'}>following</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Menu Options List */}
+        <div className={`flex-1 divide-y ${isDark ? 'divide-[#1f2c34]/40' : 'divide-gray-100'}`}>
+          {filteredItems.map((item) => (
+            <div
+              key={item.id}
+              onClick={item.onClick}
+              className={`w-full flex items-center gap-5 px-6 py-4.5 transition-colors cursor-pointer text-left ${
+                isDark ? 'hover:bg-white/5 active:bg-white/10' : 'hover:bg-gray-50 active:bg-gray-100'
+              }`}
+            >
+              <span className="shrink-0">{item.icon}</span>
+              <div className="flex-1 min-w-0">
+                <p className={`text-[15px] font-medium leading-tight ${
+                  item.danger ? 'text-rose-500 font-semibold' : (isDark ? 'text-[#e9edef]' : 'text-gray-900')
+                }`}>
+                  {item.label}
+                </p>
+                <p className={`text-[12.5px] mt-1.5 truncate ${isDark ? 'text-[#8696a0]' : 'text-gray-500'}`}>
+                  {item.sub}
+                </p>
+              </div>
+            </div>
+          ))}
+          {filteredItems.length === 0 && (
+            <div className={`text-center py-12 text-sm ${isDark ? 'text-[#8696a0]' : 'text-gray-500'}`}>
+              No matching settings found
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Menu Options List */}
-      <div className={`flex-1 divide-y ${isDark ? 'divide-[#1f2c34]/40' : 'divide-gray-100'}`}>
-        {filteredItems.map((item) => (
-          <div
-            key={item.id}
-            onClick={item.onClick}
-            className={`w-full flex items-center gap-5 px-6 py-4.5 transition-colors cursor-pointer text-left ${
-              isDark ? 'hover:bg-white/5 active:bg-white/10' : 'hover:bg-gray-50 active:bg-gray-100'
-            }`}
-          >
-            <span className="shrink-0">{item.icon}</span>
-            <div className="flex-1 min-w-0">
-              <p className={`text-[15px] font-medium leading-tight ${
-                item.danger ? 'text-rose-500 font-semibold' : (isDark ? 'text-[#e9edef]' : 'text-gray-900')
-              }`}>
-                {item.label}
-              </p>
-              <p className={`text-[12.5px] mt-1.5 truncate ${isDark ? 'text-[#8696a0]' : 'text-gray-500'}`}>
-                {item.sub}
-              </p>
+      {/* Right Column: Desktop Welcome / Placeholder Screen ("bhajume jagh") */}
+      <div className={`hidden md:flex flex-1 flex-col items-center justify-center p-8 text-center relative select-none ${
+        isDark ? 'bg-[#0b141a] text-[#8696a0]' : 'bg-[#f0f2f5] text-gray-600'
+      }`}>
+        <div className="max-w-md w-full flex flex-col items-center animate-fade-in space-y-6">
+          {/* Profile Big Ring */}
+          <div className="relative">
+            <div className="w-24 h-24 rounded-full border-4 border-pink-300 dark:border-pink-900/50 p-1 flex items-center justify-center shadow-lg">
+              <img
+                src={user.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}
+                alt={userName}
+                className="w-full h-full rounded-full object-cover"
+              />
             </div>
+            {isAdmin && (
+              <span className="absolute -bottom-1 -right-1 p-1.5 bg-[#00a8ff] text-white rounded-full shadow-lg">
+                <ShieldCheck className="w-4 h-4" />
+              </span>
+            )}
           </div>
-        ))}
-        {filteredItems.length === 0 && (
-          <div className={`text-center py-12 text-sm ${isDark ? 'text-[#8696a0]' : 'text-gray-500'}`}>
-            No matching settings found
+
+          <div>
+            <h3 className={`text-2xl font-bold tracking-tight flex items-center justify-center gap-1.5 ${isDark ? 'text-[#e9edef]' : 'text-gray-900'}`}>
+              <span>{userName}</span>
+              {isAdmin && <VerifiedBadge className="w-5 h-5" />}
+            </h3>
+            <p className="text-sm font-semibold text-[#ff2e93] mt-0.5">@{userUsername}</p>
+            <p className="text-xs sm:text-sm mt-2 leading-relaxed max-w-sm mx-auto text-gray-500 dark:text-[#8696a0]">
+              {user.about || user.status || 'Hey there! I am using CalcChat to securely text and call.'}
+            </p>
           </div>
-        )}
+
+          {/* Quick Action Buttons */}
+          <div className="grid grid-cols-2 gap-3 w-full pt-2">
+            <button
+              type="button"
+              onClick={openProfileOptions}
+              className={`p-3.5 rounded-2xl border text-left transition-all flex items-center gap-3 cursor-pointer group ${
+                isDark
+                  ? 'bg-[#111b21] border-[#202c33] hover:border-[#ff2e93]/50 hover:bg-[#182229]'
+                  : 'bg-white border-gray-200 hover:border-[#ff2e93]/50 hover:bg-pink-50/40 shadow-xs'
+              }`}
+            >
+              <div className="w-9 h-9 rounded-xl bg-[#ff2e93]/10 text-[#ff2e93] flex items-center justify-center shrink-0">
+                <User className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <div className={`text-xs font-bold leading-tight ${isDark ? 'text-[#e9edef]' : 'text-gray-900'}`}>
+                  Edit Profile
+                </div>
+                <div className="text-[11px] opacity-75 truncate">Photo & Name</div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowPrivacyModal(true)}
+              className={`p-3.5 rounded-2xl border text-left transition-all flex items-center gap-3 cursor-pointer group ${
+                isDark
+                  ? 'bg-[#111b21] border-[#202c33] hover:border-[#ff2e93]/50 hover:bg-[#182229]'
+                  : 'bg-white border-gray-200 hover:border-[#ff2e93]/50 hover:bg-pink-50/40 shadow-xs'
+              }`}
+            >
+              <div className="w-9 h-9 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center shrink-0">
+                <Lock className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <div className={`text-xs font-bold leading-tight ${isDark ? 'text-[#e9edef]' : 'text-gray-900'}`}>
+                  Privacy
+                </div>
+                <div className="text-[11px] opacity-75 truncate">Block & Security</div>
+              </div>
+            </button>
+          </div>
+
+          {/* Passcode Security Banner */}
+          <div className={`w-full p-3.5 rounded-2xl border text-xs flex items-center justify-between gap-3 ${
+            isDark ? 'bg-[#111b21]/70 border-[#202c33]' : 'bg-white border-gray-200 shadow-xs'
+          }`}>
+            <div className="flex items-center gap-2.5 text-left">
+              <Key className="w-4 h-4 text-[#ff2e93] shrink-0" />
+              <div>
+                <span className="font-semibold block leading-tight">CalcChat Account Protected</span>
+                <span className="text-[10px] opacity-75">Encrypted with calculator disguise vault</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowChangePasscodeModal(true)}
+              className="px-3 py-1.5 rounded-xl bg-[#ff2e93]/10 hover:bg-[#ff2e93]/20 text-[#ff2e93] text-xs font-bold transition-colors cursor-pointer"
+            >
+              Passcode
+            </button>
+          </div>
+        </div>
+
+        {/* End-to-end Encrypted Footer Note */}
+        <div className="absolute bottom-8 flex items-center justify-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
+          <Lock className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
+          <span>End-to-end encrypted user credentials</span>
+        </div>
       </div>
 
       {/* Edit Profile Full View (Adapts to Dark / Light Mode) */}

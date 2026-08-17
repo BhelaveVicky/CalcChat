@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import { 
   Search, Phone, Video, PhoneCall, Trash2, Plus, Clock, 
   PhoneMissed, PhoneIncoming, PhoneOutgoing, Check, CheckSquare, X,
-  AlertTriangle
+  AlertTriangle, Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useVault } from '../context/VaultContext';
@@ -135,365 +135,388 @@ export const CallsView: React.FC = () => {
   };
 
   return (
-    <div className={`flex-1 flex flex-col overflow-y-auto no-scrollbar font-sans select-none relative h-full min-h-0 pb-20 transition-colors ${
-      isDark ? 'bg-[#0b141a] text-[#e9edef]' : 'bg-white text-gray-900'
+    <div className={`flex-1 flex w-full h-full overflow-hidden font-sans select-none relative transition-colors ${
+      isDark ? 'bg-[#111b21] text-[#e9edef]' : 'bg-white text-gray-900'
     }`}>
       
-      {/* Top Header */}
-      <div className={`px-4 pt-4 pb-2 sticky top-0 z-20 space-y-3 backdrop-blur-md transition-all ${
-        isDark ? 'bg-[#0b141a]/95 border-b border-[#202c33]/50' : 'bg-white/95 border-b border-gray-100'
-      }`}>
-        {isSelectionMode ? (
-          /* Selection Header Toolbar */
-          <div className="flex items-center justify-between py-1 animate-fade-in">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={exitSelectionMode}
-                className={`p-2 rounded-full transition-all ${
-                  isDark ? 'hover:bg-[#202c33] text-gray-300' : 'hover:bg-gray-100 text-gray-700'
-                }`}
-                title="Cancel Selection"
-              >
-                <X className="w-5 h-5" />
-              </button>
-              <span className="font-bold text-base text-[#ff2e93]">
-                {selectedLogIds.size} Selected
-              </span>
-            </div>
+      {/* Left Column: Calls Sidebar */}
+      <div className={`h-full flex flex-col border-r ${
+        isDark ? 'border-[#202c33] bg-[#111b21]' : 'border-gray-200 bg-white'
+      } w-full md:w-80 lg:w-[380px] xl:w-[420px] 2xl:w-[460px] shrink-0 overflow-hidden`}>
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleSelectAll}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
-                  isDark ? 'border-[#202c33] hover:bg-[#202c33] text-gray-200' : 'border-gray-200 hover:bg-gray-100 text-gray-800'
-                }`}
-              >
-                {selectedLogIds.size === filteredLogs.length ? 'Deselect All' : 'Select All'}
-              </button>
-
-              <button
-                disabled={selectedLogIds.size === 0}
-                onClick={() => setShowDeleteSelectedConfirm(true)}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 text-white transition-all shadow-md ${
-                  selectedLogIds.size > 0
-                    ? 'bg-rose-600 hover:bg-rose-700 active:scale-95 shadow-rose-500/25'
-                    : 'bg-rose-400/50 cursor-not-allowed opacity-50'
-                }`}
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Delete ({selectedLogIds.size})</span>
-              </button>
-            </div>
-          </div>
-        ) : (
-          /* Standard Header */
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#ff2e93] to-[#ff758c] flex items-center justify-center text-white shadow-md shadow-blue-500/20">
-                <PhoneCall className="w-4.5 h-4.5" />
+        {/* Top Header */}
+        <div className={`px-4 py-3.5 flex flex-col gap-3 border-b ${
+          isDark ? 'border-[#202c33] bg-[#111b21]' : 'border-gray-100 bg-white'
+        } shrink-0`}>
+          {isSelectionMode ? (
+            /* Selection Header Toolbar */
+            <div className="flex items-center justify-between py-1 animate-fade-in">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={exitSelectionMode}
+                  className={`p-2 rounded-full transition-all cursor-pointer ${
+                    isDark ? 'hover:bg-[#202c33] text-gray-300' : 'hover:bg-gray-100 text-gray-700'
+                  }`}
+                  title="Cancel Selection"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+                <span className="font-bold text-base text-[#ff2e93]">
+                  {selectedLogIds.size} Selected
+                </span>
               </div>
-              <h2 className={`text-xl font-bold tracking-tight ${isDark ? 'text-[#e9edef]' : 'text-gray-900'}`}>
-                Call History
-              </h2>
-            </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowNewCallModal(true)}
-                className="p-2 rounded-full bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white hover:opacity-90 transition-all active:scale-95 shadow-md shadow-[#ff2e93]/25 flex items-center justify-center cursor-pointer"
-                title="Start New Call"
-              >
-                <Plus className="w-5 h-5 stroke-[2.5]" />
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleSelectAll}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border cursor-pointer ${
+                    isDark ? 'border-[#202c33] hover:bg-[#202c33] text-gray-200' : 'border-gray-200 hover:bg-gray-100 text-gray-800'
+                  }`}
+                >
+                  {selectedLogIds.size === filteredLogs.length ? 'Deselect All' : 'Select All'}
+                </button>
+
+                <button
+                  disabled={selectedLogIds.size === 0}
+                  onClick={() => setShowDeleteSelectedConfirm(true)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 text-white transition-all shadow-md cursor-pointer ${
+                    selectedLogIds.size > 0
+                      ? 'bg-rose-600 hover:bg-rose-700 active:scale-95 shadow-rose-500/25'
+                      : 'bg-rose-400/50 cursor-not-allowed opacity-50'
+                  }`}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete ({selectedLogIds.size})</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Standard Header Matching Image 1 (Responsive for mobile & desktop) */
+            <div className="flex items-center justify-between">
+              <div className="hidden md:flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#ff2e93] to-[#ff60b5] text-white flex items-center justify-center shadow-md shadow-[#ff2e93]/25 shrink-0">
+                  <Phone className="w-4.5 h-4.5 fill-white text-transparent" />
+                </div>
+                <h2 className="text-xl font-bold tracking-tight">Call History</h2>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 w-full md:w-auto">
+                <button
+                  onClick={() => setShowNewCallModal(true)}
+                  className="w-8 h-8 rounded-full bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white hover:opacity-95 transition-all active:scale-95 shadow-md shadow-[#ff2e93]/25 flex items-center justify-center cursor-pointer shrink-0"
+                  title="Start New Call"
+                >
+                  <Plus className="w-4.5 h-4.5 stroke-[2.5]" />
+                </button>
+
+                <button
+                  onClick={() => {
+                    setIsSelectionMode(true);
+                    setSelectedLogIds(new Set());
+                  }}
+                  className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                    isDark ? 'text-[#8696a0] hover:text-white hover:bg-[#202c33]' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
+                  }`}
+                  title="Select Multiple"
+                >
+                  <CheckSquare className="w-5 h-5" />
+                </button>
+
+                <button
+                  onClick={() => setShowClearAllConfirm(true)}
+                  className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                    isDark ? 'text-[#ff2e93] hover:text-rose-400 hover:bg-[#202c33]' : 'text-[#ff2e93] hover:text-rose-600 hover:bg-rose-50'
+                  }`}
+                  title="Clear All Call History"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Search Bar - Rounded Pill matching Image 1 */}
+          <div className={`flex items-center gap-2.5 px-4 py-2 rounded-full text-sm transition-all ${
+            isDark 
+              ? 'bg-[#202c33] text-[#e9edef] border border-transparent focus-within:border-[#ff2e93]/50' 
+              : 'bg-gray-100 text-gray-900 border border-transparent focus-within:border-[#ff2e93]/50'
+          }`}>
+            <Search className={`w-4 h-4 shrink-0 ${isDark ? 'text-pink-400' : 'text-[#ff2e93]'}`} />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by name or number..."
+              className={`bg-transparent border-none outline-none w-full text-[13.5px] ${
+                isDark 
+                  ? 'placeholder:text-[#8696a0] text-[#e9edef]' 
+                  : 'placeholder:text-gray-400 text-gray-900'
+              }`}
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="text-gray-400 hover:text-gray-600">
+                <X className="w-3.5 h-3.5" />
               </button>
-
-              {callLogs.length > 0 && (
-                <>
-                  <button
-                    onClick={() => {
-                      setIsSelectionMode(true);
-                      setSelectedLogIds(new Set());
-                    }}
-                    className={`p-2 rounded-full transition-all ${
-                      isDark ? 'hover:bg-[#202c33] text-gray-300' : 'hover:bg-gray-100 text-gray-700'
-                    }`}
-                    title="Select Multiple"
-                  >
-                    <CheckSquare className="w-4 h-4" />
-                  </button>
-
-                  <button
-                    onClick={() => setShowClearAllConfirm(true)}
-                    className={`p-2 rounded-full transition-all ${
-                      isDark ? 'hover:bg-[#202c33] text-rose-400' : 'hover:bg-rose-50 text-rose-600'
-                    }`}
-                    title="Clear All Call History"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </>
-              )}
-            </div>
+            )}
           </div>
-        )}
 
-        {/* Search Bar */}
-        <div className={`flex items-center gap-3 px-4 py-2 rounded-full text-sm transition-all border ${
-          isDark 
-            ? 'bg-[#202c33] text-[#e9edef] border-[#ff2e93]/10 focus-within:border-[#ff2e93]/50' 
-            : 'bg-gray-100 text-gray-900 border-gray-200 focus-within:border-[#ff2e93]/50'
-        }`}>
-          <Search className={`w-4 h-4 shrink-0 ${isDark ? 'text-pink-400/70' : 'text-[#ff2e93]/70'}`} />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by name or number..."
-            className={`bg-transparent border-none outline-none w-full text-sm ${
-              isDark 
-                ? 'placeholder:text-[#8596a0] text-[#e9edef]' 
-                : 'placeholder:text-gray-400 text-gray-900'
-            }`}
-          />
+          {/* Filter Chips / Tabs Matching Image 1 */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-0.5 pb-0.5">
+            {[
+              { id: 'all', label: 'All Calls' },
+              { id: 'missed', label: 'Missed Calls' },
+              { id: 'received_voice', label: 'Received Voice' },
+              { id: 'received_video', label: 'Received Video' },
+            ].map(tab => {
+              const isActive = filterTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setFilterTab(tab.id as FilterTab)}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                    isActive
+                      ? 'bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white shadow-md shadow-[#ff2e93]/25'
+                      : isDark
+                        ? 'bg-[#202c33] text-pink-400/90 border border-[#ff2e93]/20 hover:bg-[#202c33]/80'
+                        : 'bg-pink-50/80 text-[#ff2e93] border border-pink-100 hover:bg-pink-100/60'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* 4 Filter Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-0.5 pb-0.5">
-          {[
-            { id: 'all', label: 'All Calls' },
-            { id: 'missed', label: 'Missed Calls' },
-            { id: 'received_voice', label: 'Received Voice' },
-            { id: 'received_video', label: 'Received Video' },
-          ].map(tab => {
-            const isActive = filterTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setFilterTab(tab.id as FilterTab)}
-                className={`relative px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
-                  isActive
-                    ? 'bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white shadow-md shadow-blue-500/30'
-                    : isDark
-                      ? 'bg-[#202c33] text-gray-300 hover:text-white hover:bg-[#202c33]/80'
-                      : 'bg-pink-50 text-pink-700 hover:bg-pink-100'
-                }`}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
+        {/* Scrollable Call History List */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-3 no-scrollbar">
+          {/* Section: RECENT */}
+          <div className="space-y-1">
+            <h4 className="text-xs font-bold uppercase tracking-wider px-2 text-gray-400 dark:text-[#8696a0]">
+              RECENT
+            </h4>
+
+            {sortedLogs.length > 0 ? (
+              <div className="space-y-2.5 pt-1">
+                {sortedLogs.map((log) => {
+                  const contact = contacts.find(c => c.id === log.contactId);
+                  const registeredUser = allRegisteredUsers.find(u => u.uid === log.contactId || u.id === log.contactId);
+                  const name = getContactDisplayName(contact || log.contactId) || registeredUser?.displayName || registeredUser?.username || 'User';
+                  const avatar = contact?.avatar || registeredUser?.photoURL || registeredUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
+                  
+                  const isSelected = selectedLogIds.has(log.id);
+                  const { dateStr, timeStr } = formatCallDateTime(log.createdAt || log.startedAt, log.timestamp);
+
+                  const isOutgoing = log.direction === 'outgoing' || (log.callerId && log.callerId === user?.id);
+                  let normStatus = log.status || 'completed';
+                  if ((normStatus as string) === 'ended' || (normStatus as string) === 'connected') {
+                    normStatus = 'completed';
+                  }
+
+                  const isAnswered = normStatus === 'completed';
+                  const isMissed = !isAnswered && !isOutgoing;
+
+                  return (
+                    <div
+                      key={log.id}
+                      onMouseDown={() => startLongPressTimer(log.id)}
+                      onMouseUp={clearLongPressTimer}
+                      onTouchStart={() => startLongPressTimer(log.id)}
+                      onTouchEnd={clearLongPressTimer}
+                      onClick={() => {
+                        if (isSelectionMode) {
+                          toggleSelectLog(log.id);
+                        } else if (contact) {
+                          setActiveContactId(contact.id);
+                        }
+                      }}
+                      className={`p-3 rounded-2xl flex items-center justify-between transition-all cursor-pointer border select-none group relative shadow-xs hover:shadow-md ${
+                        isSelected
+                          ? isDark
+                            ? 'bg-[#202c33] border-[#ff2e93] ring-1 ring-[#ff2e93]'
+                            : 'bg-pink-50 border-[#ff2e93] ring-1 ring-[#ff2e93]'
+                          : isDark
+                          ? 'bg-[#182229]/60 hover:bg-[#182229] border-[#202c33]'
+                          : 'bg-white hover:bg-gray-50/80 border-gray-100'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        {/* Selection Checkbox */}
+                        {isSelectionMode && (
+                          <div 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleSelectLog(log.id);
+                            }}
+                            className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-all shrink-0 ${
+                              isSelected 
+                                ? 'bg-[#ff2e93] border-[#ff2e93] text-white' 
+                                : isDark ? 'border-[#8696a0]' : 'border-gray-300'
+                            }`}
+                          >
+                            {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                          </div>
+                        )}
+
+                        {/* Avatar with Status Badge */}
+                        <div className="relative shrink-0">
+                          <img
+                            src={avatar}
+                            alt={name}
+                            className="w-11 h-11 rounded-full object-cover border border-gray-200 dark:border-gray-700"
+                          />
+                          <div className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-white dark:border-[#111b21] flex items-center justify-center text-white shadow-xs ${
+                            isAnswered ? 'bg-emerald-500' : isOutgoing ? 'bg-amber-500' : 'bg-rose-500'
+                          }`}>
+                            {log.type === 'video' && isAnswered ? (
+                              <Video className="w-2.5 h-2.5" />
+                            ) : isAnswered ? (
+                              <Phone className="w-2.5 h-2.5" />
+                            ) : isOutgoing ? (
+                              <PhoneOutgoing className="w-2.5 h-2.5" />
+                            ) : (
+                              <PhoneMissed className="w-2.5 h-2.5" />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Middle: Contact Name & Call Details */}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1">
+                            <h4 className="font-bold text-[13.5px] truncate text-teal-600 dark:text-teal-400">
+                              {name}
+                            </h4>
+                            {checkIsAdmin(log.contactId) && <VerifiedBadge className="w-3.5 h-3.5" />}
+                          </div>
+                          
+                          <div className="flex items-center gap-1 text-xs mt-0.5">
+                            {log.type === 'video' && isAnswered ? (
+                              <>
+                                <Video className="w-3.5 h-3.5 text-teal-500 shrink-0" />
+                                <span className="text-teal-600 dark:text-teal-400 font-semibold text-[11.5px]">{log.duration || '00:21'}</span>
+                              </>
+                            ) : isAnswered ? (
+                              <>
+                                <Phone className="w-3.5 h-3.5 text-teal-500 shrink-0" />
+                                <span className="text-teal-600 dark:text-teal-400 font-semibold text-[11.5px]">{log.duration || '00:14'}</span>
+                              </>
+                            ) : isMissed ? (
+                              <>
+                                <PhoneMissed className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                                <span className="text-rose-500 font-semibold text-[11.5px]">Missed</span>
+                              </>
+                            ) : (
+                              <>
+                                <PhoneOutgoing className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                                <span className="text-amber-500 font-semibold text-[11.5px]">Declined / Busy</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right Side: Stacked Date/Time & Action Buttons */}
+                      <div className="flex items-center gap-2 shrink-0 ml-2">
+                        <div className="flex flex-col items-end text-right">
+                          <span className="text-[#ff2e93] font-semibold text-[11px] leading-tight">
+                            {dateStr}
+                          </span>
+                          <span className="text-gray-400 dark:text-[#8696a0] text-[10px] mt-0.5">
+                            {timeStr}
+                          </span>
+                        </div>
+
+                        {!isSelectionMode && (
+                          <div className="flex items-center gap-0.5">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteCallLog(log.id);
+                              }}
+                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                isDark 
+                                  ? 'text-pink-400/80 hover:text-rose-400 hover:bg-[#202c33]' 
+                                  : 'text-pink-400/80 hover:text-rose-600 hover:bg-rose-50'
+                              }`}
+                              title="Delete Call Log"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                startCall(log.contactId, log.type || 'voice');
+                              }}
+                              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                isDark 
+                                  ? 'text-[#ff2e93] hover:text-[#ff60b5] hover:bg-[#202c33]' 
+                                  : 'text-[#ff2e93] hover:text-[#ff0077] hover:bg-pink-50'
+                              }`}
+                              title={`Call back with ${log.type === 'video' ? 'Video' : 'Voice'}`}
+                            >
+                              {log.type === 'video' ? (
+                                <Video className="w-4.5 h-4.5" />
+                              ) : (
+                                <Phone className="w-4.5 h-4.5" />
+                              )}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="px-3 py-8 text-center text-sm text-gray-400 dark:text-[#8696a0]">
+                {filterTab === 'missed' && 'No missed calls'}
+                {filterTab === 'received_voice' && 'No voice calls'}
+                {filterTab === 'received_video' && 'No video calls'}
+                {filterTab === 'all' && 'No recent calls'}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Call History List */}
-      <div className="mt-2 px-3 flex-1">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={filterTab}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.15 }}
-            className="space-y-2"
+      {/* Right Column: Desktop Welcome / Calls Standby Screen */}
+      <div className={`hidden md:flex flex-1 flex-col items-center justify-center p-8 text-center relative select-none ${
+        isDark ? 'bg-[#0b141a] text-[#8696a0]' : 'bg-[#f0f2f5] text-gray-600'
+      }`}>
+        <div className="max-w-md w-full flex flex-col items-center animate-fade-in">
+          {/* Circular Phone Icon with dashed ring */}
+          <div className="w-20 h-20 rounded-full border-4 border-pink-300 dark:border-pink-900/50 border-dashed flex items-center justify-center mb-6 opacity-75">
+            <Phone className="w-8 h-8 text-[#ff2e93] stroke-[1.75]" />
+          </div>
+
+          {/* Heading */}
+          <h3 className={`text-2xl font-bold mb-2 tracking-tight ${isDark ? 'text-[#e9edef]' : 'text-gray-900'}`}>
+            Make free calls
+          </h3>
+
+          {/* Subtitle */}
+          <p className="text-sm leading-relaxed max-w-sm text-gray-500 dark:text-[#8696a0] mb-6">
+            Call your contacts with end-to-end encrypted voice and video calls directly from your desktop.
+          </p>
+
+          <button
+            type="button"
+            onClick={() => setShowNewCallModal(true)}
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] hover:opacity-90 text-white text-sm font-semibold shadow-md shadow-[#ff2e93]/25 transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
           >
-            {sortedLogs.map((log) => {
-              const contact = contacts.find(c => c.id === log.contactId);
-              const registeredUser = allRegisteredUsers.find(u => u.uid === log.contactId || u.id === log.contactId);
-              const name = getContactDisplayName(contact || log.contactId) || registeredUser?.displayName || registeredUser?.username || 'User';
-              const avatar = contact?.avatar || registeredUser?.photoURL || registeredUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
-              
-              const isSelected = selectedLogIds.has(log.id);
-              const { dateStr, timeStr } = formatCallDateTime(log.createdAt || log.startedAt, log.timestamp);
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <span>Start a new call</span>
+          </button>
+        </div>
 
-              const isOutgoing = log.direction === 'outgoing' || (log.callerId && log.callerId === user?.id);
-              let normStatus = log.status || 'completed';
-              if ((normStatus as string) === 'ended' || (normStatus as string) === 'connected') {
-                normStatus = 'completed';
-              }
-
-              const isAnswered = normStatus === 'completed';
-
-              let statusText = '';
-              let textColorClass = '';
-              let nameColorClass = '';
-              let badgeBg = '';
-              let avatarBorderClass = '';
-
-              if (isAnswered) {
-                // Call Answered Successfully: Display entire call entry in Green, replace status text with actual call duration
-                statusText = log.duration || '00:00';
-                textColorClass = 'text-emerald-500 dark:text-emerald-400';
-                nameColorClass = 'text-emerald-600 dark:text-emerald-400';
-                badgeBg = 'bg-emerald-500';
-                avatarBorderClass = 'border-emerald-500/80';
-              } else if (isOutgoing) {
-                // Outgoing Call Not Answered / Busy: Display entire call entry in Orange, status text "Busy"
-                statusText = 'Busy';
-                textColorClass = 'text-orange-500 dark:text-amber-400';
-                nameColorClass = 'text-orange-500 dark:text-amber-400';
-                badgeBg = 'bg-orange-500';
-                avatarBorderClass = 'border-orange-500/80';
-              } else {
-                // Receiver Missed Call: Display entire call entry in Red, status text "Missed Call"
-                statusText = 'Missed Call';
-                textColorClass = 'text-rose-500 dark:text-rose-400';
-                nameColorClass = 'text-rose-500 dark:text-rose-400';
-                badgeBg = 'bg-rose-500';
-                avatarBorderClass = 'border-rose-500/80';
-              }
-
-              const IconComponent = log.type === 'video' ? Video : Phone;
-
-              return (
-                <motion.div
-                  key={log.id}
-                  layout
-                  onMouseDown={() => startLongPressTimer(log.id)}
-                  onTouchStart={() => startLongPressTimer(log.id)}
-                  onMouseUp={clearLongPressTimer}
-                  onMouseLeave={clearLongPressTimer}
-                  onTouchEnd={clearLongPressTimer}
-                  onClick={() => {
-                    if (isSelectionMode) {
-                      toggleSelectLog(log.id);
-                    } else if (contact) {
-                      setActiveContactId(contact.id);
-                    }
-                  }}
-                  className={`p-3 flex items-center gap-3.5 cursor-pointer rounded-2xl transition-all border ${
-                    isSelected
-                      ? isDark 
-                        ? 'bg-[#ff2e93]/20 border-[#ff2e93]' 
-                        : 'bg-pink-100 border-pink-400'
-                      : isDark 
-                        ? 'bg-[#111b21] hover:bg-[#202c33]/70 border-[#202c33]' 
-                        : 'bg-white hover:bg-pink-50/40 border-gray-100 shadow-xs'
-                  }`}
-                >
-                  {/* Selection Checkbox */}
-                  {isSelectionMode && (
-                    <div className={`w-5 h-5 rounded-md flex items-center justify-center transition-all shrink-0 border ${
-                      isSelected 
-                        ? 'bg-[#ff2e93] border-[#ff2e93] text-white' 
-                        : isDark ? 'border-gray-600 bg-[#202c33]' : 'border-gray-300 bg-gray-50'
-                    }`}>
-                      {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                    </div>
-                  )}
-
-                  {/* Avatar */}
-                  <div className="relative shrink-0">
-                    <img
-                      src={avatar}
-                      alt={name}
-                      className={`w-12 h-12 rounded-full object-cover border-2 ${avatarBorderClass}`}
-                    />
-                    <div className={`absolute -bottom-0.5 -right-0.5 p-1 rounded-full text-white ${badgeBg}`}>
-                      <IconComponent className="w-2.5 h-2.5" />
-                    </div>
-                  </div>
-
-                  {/* Call Details */}
-                  <div className="flex-1 min-w-0 flex flex-col justify-center">
-                    <h4 className={`text-sm font-semibold truncate flex items-center gap-1 ${nameColorClass}`}>
-                      <span className="truncate">{name}</span>
-                      {checkIsAdmin(contact || registeredUser || log.contactId) && (
-                        <VerifiedBadge className="w-3.5 h-3.5 shrink-0 text-[#ff2e93]" />
-                      )}
-                    </h4>
-
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <IconComponent className={`w-3.5 h-3.5 ${textColorClass} shrink-0`} />
-                      <span className={`text-xs truncate font-medium ${textColorClass}`}>
-                        {statusText}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Date & Time */}
-                  <div className="flex flex-col items-end shrink-0 text-right gap-0.5">
-                    <div className="text-xs font-semibold text-[#ff2e93] dark:text-pink-400">
-                      {dateStr}
-                    </div>
-                    <div className={`text-[11px] ${isDark ? 'text-[#8596a0]' : 'text-gray-500'}`}>
-                      {timeStr}
-                    </div>
-                  </div>
-
-                  {/* Actions (Re-call / Single Delete) */}
-                  {!isSelectionMode && (
-                    <div className="flex items-center gap-1 shrink-0 ml-1">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteCallLog(log.id);
-                        }}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onTouchStart={(e) => e.stopPropagation()}
-                        onTouchEnd={(e) => e.stopPropagation()}
-                        className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-500/10 rounded-full transition-all active:scale-95"
-                        title="Delete this call record"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          startCall(log.contactId, log.type);
-                        }}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onTouchStart={(e) => e.stopPropagation()}
-                        onTouchEnd={(e) => e.stopPropagation()}
-                        className="p-2 text-[#ff2e93] hover:bg-[#ff2e93]/10 rounded-full transition-all active:scale-95"
-                        title={`Call ${name} again`}
-                      >
-                        {log.type === 'video' ? (
-                          <Video className="w-4.5 h-4.5" />
-                        ) : (
-                          <Phone className="w-4.5 h-4.5" />
-                        )}
-                      </button>
-                    </div>
-                  )}
-                </motion.div>
-              );
-            })}
-
-            {/* Empty State when no logs match */}
-            {filteredLogs.length === 0 && (
-              <div className={`py-16 px-6 text-center text-sm flex flex-col items-center justify-center gap-3 rounded-3xl border border-dashed my-4 ${
-                isDark ? 'border-[#202c33] bg-[#111b21]/50 text-[#8596a0]' : 'border-pink-200 text-gray-500 bg-pink-50/20'
-              }`}>
-                <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-[#ff2e93]/20 to-[#ff758c]/20 flex items-center justify-center text-[#ff2e93]">
-                  <PhoneCall className="w-8 h-8" />
-                </div>
-                
-                <div className="space-y-1">
-                  <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100 flex items-center justify-center gap-1.5">
-                    <span>📞</span>
-                    <span>No call history yet</span>
-                  </h3>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 max-w-xs mx-auto">
-                    {filterTab === 'missed' && 'You have no missed call records.'}
-                    {filterTab === 'received_voice' && 'No answered incoming voice calls.'}
-                    {filterTab === 'received_video' && 'No answered incoming video calls.'}
-                    {filterTab === 'all' && 'Your recent calls will appear here.'}
-                  </p>
-                </div>
-
-                {filterTab === 'all' && (
-                  <button
-                    onClick={() => setShowNewCallModal(true)}
-                    className="mt-2 px-4 py-2 rounded-full bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white text-xs font-semibold shadow-md shadow-blue-500/20 hover:opacity-90 transition-all active:scale-95 flex items-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Start a New Call</span>
-                  </button>
-                )}
-              </div>
-            )}
-          </motion.div>
-        </AnimatePresence>
+        {/* End-to-end Encrypted Footer Note */}
+        <div className="absolute bottom-8 flex items-center justify-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
+          <Lock className="w-3.5 h-3.5 shrink-0" />
+          <span>Your personal calls are end-to-end encrypted</span>
+        </div>
       </div>
 
       {/* Start New Call Modal */}

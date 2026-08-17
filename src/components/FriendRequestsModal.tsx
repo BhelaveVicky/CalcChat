@@ -158,8 +158,8 @@ export const FriendRequestsModal: React.FC<FriendRequestsModalProps> = ({
         <div className="mb-3 relative">
           <div className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl border transition-colors ${
             isDark 
-              ? 'bg-[#111b21] border-[#202c33] focus-within:border-[#00a8ff]' 
-              : 'bg-[#f0f4f9] border-slate-200/80 focus-within:border-blue-500/80'
+              ? 'bg-[#111b21] border-[#202c33] focus-within:border-[#ff2e93]' 
+              : 'bg-[#fdf2f8] border-pink-100 focus-within:border-[#ff2e93]'
           }`}>
             <Search className="w-5 h-5 text-slate-400 shrink-0" />
             <input
@@ -184,14 +184,14 @@ export const FriendRequestsModal: React.FC<FriendRequestsModalProps> = ({
 
         {/* Tabs: Friends & Requests */}
         <div className={`flex items-center gap-2 mb-4 p-1 rounded-2xl border ${
-          isDark ? 'bg-[#111b21] border-[#202c33]' : 'bg-slate-100 border-slate-200'
+          isDark ? 'bg-[#111b21] border-[#202c33]' : 'bg-pink-50 border-pink-100'
         }`}>
           <button
             onClick={() => setActiveTab('friends')}
             className={`flex-1 py-2 px-3 rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
               activeTab === 'friends'
-                ? 'bg-[#00a8ff] text-[#0b141a] shadow'
-                : isDark ? 'text-slate-400 hover:text-white hover:bg-[#1f2c34]/50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                ? 'bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white shadow-md shadow-[#ff2e93]/25'
+                : isDark ? 'text-slate-400 hover:text-white hover:bg-[#1f2c34]/50' : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
             }`}
           >
             <Users className="w-4 h-4" />
@@ -201,15 +201,15 @@ export const FriendRequestsModal: React.FC<FriendRequestsModalProps> = ({
             onClick={() => setActiveTab('requests')}
             className={`flex-1 py-2 px-3 rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer relative ${
               activeTab === 'requests'
-                ? 'bg-[#00a8ff] text-[#0b141a] shadow'
-                : isDark ? 'text-slate-400 hover:text-white hover:bg-[#1f2c34]/50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                ? 'bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white shadow-md shadow-[#ff2e93]/25'
+                : isDark ? 'text-slate-400 hover:text-white hover:bg-[#1f2c34]/50' : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
             }`}
           >
             <UserPlus className="w-4 h-4" />
             <span>Requests</span>
             {pendingFriendRequests.length > 0 && (
               <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${
-                activeTab === 'requests' ? 'bg-[#0b141a] text-[#00a8ff]' : 'bg-rose-500 text-white'
+                activeTab === 'requests' ? 'bg-white text-[#ff2e93]' : 'bg-rose-500 text-white'
               }`}>
                 {pendingFriendRequests.length}
               </span>
@@ -252,8 +252,8 @@ export const FriendRequestsModal: React.FC<FriendRequestsModalProps> = ({
                     onClick={() => navigate(`/profile/${targetUid}`)}
                     className={`flex items-center justify-between p-3 rounded-2xl border transition-all duration-300 cursor-pointer ${
                       isDark 
-                        ? 'bg-[#111b21] border-[#202c33] hover:border-[#00a8ff]/40 hover:-translate-y-0.5' 
-                        : 'bg-slate-50 border-slate-200 hover:border-[#00a8ff]/40 hover:-translate-y-0.5'
+                        ? 'bg-[#111b21] border-[#202c33] hover:border-[#ff2e93]/40 hover:-translate-y-0.5' 
+                        : 'bg-slate-50 border-slate-200 hover:border-[#ff2e93]/40 hover:-translate-y-0.5'
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
@@ -261,7 +261,7 @@ export const FriendRequestsModal: React.FC<FriendRequestsModalProps> = ({
                         <img
                           src={u.avatar}
                           alt={u.name}
-                          className="w-11 h-11 rounded-full object-cover border border-[#00a8ff]/40 shrink-0"
+                          className="w-11 h-11 rounded-full object-cover border border-[#ff2e93]/40 shrink-0"
                         />
                         {u.online && (
                           <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-[#111b21] rounded-full" title="Online" />
@@ -277,7 +277,7 @@ export const FriendRequestsModal: React.FC<FriendRequestsModalProps> = ({
                           ) : null}
                         </div>
                         {u.username && (
-                          <p className="text-xs text-[#00a8ff] font-medium truncate">
+                          <p className="text-xs text-[#ff2e93] font-medium truncate">
                             @{u.username}
                           </p>
                         )}
@@ -285,7 +285,7 @@ export const FriendRequestsModal: React.FC<FriendRequestsModalProps> = ({
                           {u.bio}
                         </p>
                         {u.mutualFriendsCount > 0 ? (
-                          <p className="text-[10px] mt-1 text-[#00a8ff] font-medium">{u.mutualFriendsCount} mutual friends</p>
+                          <p className="text-[10px] mt-1 text-[#ff2e93] font-medium">{u.mutualFriendsCount} mutual friends</p>
                         ) : null}
                       </div>
                     </div>
@@ -306,7 +306,7 @@ export const FriendRequestsModal: React.FC<FriendRequestsModalProps> = ({
                             await sendFriendRequest(u.uid);
                             showToast('Friend request sent.');
                           }}
-                          className="px-3.5 py-1.5 rounded-xl bg-[#00a8ff] hover:bg-[#0088cc] text-[#0b141a] font-bold text-xs flex items-center gap-1 transition-all active:scale-95 shadow cursor-pointer"
+                          className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white font-bold text-xs flex items-center gap-1 transition-all hover:opacity-90 active:scale-95 shadow-md shadow-[#ff2e93]/25 cursor-pointer"
                         >
                           <UserPlus className="w-3.5 h-3.5 stroke-[2.5]" />
                           <span>Add Friend</span>
@@ -345,8 +345,8 @@ export const FriendRequestsModal: React.FC<FriendRequestsModalProps> = ({
                   onClick={() => navigate(`/profile/${req.senderId}`)}
                   className={`flex items-center justify-between p-3 rounded-2xl border transition-all duration-300 cursor-pointer ${
                     isDark 
-                      ? 'bg-[#111b21] border-[#202c33] hover:border-[#00a8ff]/40 hover:-translate-y-0.5' 
-                      : 'bg-slate-50 border-slate-200 hover:border-[#00a8ff]/40 hover:-translate-y-0.5'
+                      ? 'bg-[#111b21] border-[#202c33] hover:border-[#ff2e93]/40 hover:-translate-y-0.5' 
+                      : 'bg-slate-50 border-slate-200 hover:border-[#ff2e93]/40 hover:-translate-y-0.5'
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
@@ -354,33 +354,33 @@ export const FriendRequestsModal: React.FC<FriendRequestsModalProps> = ({
                       <img
                         src={req.senderPhoto || req.senderPhotoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}
                         alt={req.senderName || req.senderDisplayName || req.senderUsername}
-                        className="w-11 h-11 rounded-full object-cover border border-[#00a8ff]/40 shrink-0"
+                        className="w-11 h-11 rounded-full object-cover border border-[#ff2e93]/40 shrink-0"
                       />
-                      <span className="absolute bottom-0 right-0 w-3 h-3 bg-[#00a8ff] border-2 border-[#111b21] rounded-full" />
+                      <span className="absolute bottom-0 right-0 w-3 h-3 bg-[#ff2e93] border-2 border-[#111b21] rounded-full" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <h4 className={`font-bold text-sm truncate flex items-center gap-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                         <span className="truncate">{req.senderName || req.senderDisplayName || req.senderUsername || 'User'}</span>
                         {checkIsAdmin(req.senderUsername || req.senderName || req.senderId) && (
-                          <VerifiedBadge className="w-3.5 h-3.5 shrink-0 text-[#00a8ff]" />
+                          <VerifiedBadge className="w-3.5 h-3.5 shrink-0 text-[#ff2e93]" />
                         )}
                       </h4>
                       {req.senderUsername && (
-                        <p className="text-xs text-[#00a8ff] font-medium truncate">
+                        <p className="text-xs text-[#ff2e93] font-medium truncate">
                           @{req.senderUsername}
                         </p>
                       )}
                       <p className={`text-[11px] truncate mt-0.5 ${isDark ? 'text-[#8696a0]' : 'text-slate-500'}`}>
                         {req.senderDisplayName || req.senderName || 'User'} sent you a request
                       </p>
-                      <p className="text-[10px] mt-1 text-[#00a8ff] font-medium">{new Date(req.createdAt?.seconds ? req.createdAt.seconds * 1000 : Date.now()).toLocaleString()}</p>
+                      <p className="text-[10px] mt-1 text-[#ff2e93] font-medium">{new Date(req.createdAt?.seconds ? req.createdAt.seconds * 1000 : Date.now()).toLocaleString()}</p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => handleAccept(req.id, req.senderId)}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-[#0b141a] font-bold text-xs flex items-center gap-1 transition-all active:scale-95 shadow cursor-pointer"
+                      className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs flex items-center gap-1 transition-all active:scale-95 shadow cursor-pointer"
                       title="Accept Friend Request"
                     >
                       <Check className="w-4 h-4 stroke-[3]" />
@@ -411,7 +411,7 @@ export const FriendRequestsModal: React.FC<FriendRequestsModalProps> = ({
               initial={{ opacity: 0, y: 12, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.98 }}
-              className="absolute bottom-5 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-[#00a8ff] text-[#0b141a] font-bold text-xs shadow-xl"
+              className="absolute bottom-5 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white font-bold text-xs shadow-xl"
             >
               {toastMsg}
             </motion.div>
@@ -421,7 +421,7 @@ export const FriendRequestsModal: React.FC<FriendRequestsModalProps> = ({
         {/* Footer */}
         <div className={`pt-3 mt-2 border-t text-center ${isDark ? 'border-[#1f2c34]' : 'border-slate-200'}`}>
           <p className={`text-[11px] flex items-center justify-center gap-1.5 ${isDark ? 'text-[#8696a0]' : 'text-slate-500'}`}>
-            <ShieldCheck className="w-3.5 h-3.5 text-[#00a8ff]" />
+            <ShieldCheck className="w-3.5 h-3.5 text-[#ff2e93]" />
             <span>Connect & chat in real time across all devices</span>
           </p>
         </div>

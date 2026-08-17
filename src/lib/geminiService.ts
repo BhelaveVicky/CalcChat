@@ -87,7 +87,7 @@ export async function streamAIChatResponse(
   if (clientGenAI) {
     try {
       const responseStream = await clientGenAI.models.generateContentStream({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.7-flash',
         contents: userPrompt,
         config: {
           systemInstruction: CALCCHAT_SYSTEM_PROMPT,
@@ -110,12 +110,17 @@ export async function streamAIChatResponse(
     }
   }
 
-  // 3. Try calling backend Express API server endpoint
+  // 3. Try calling backend Express API server endpoint with history
   try {
+    const historyPayload = (conversationHistory || [])
+      .filter(m => m && m.text && !m.error)
+      .slice(-6)
+      .map(m => ({ sender: m.sender, text: m.text }));
+
     const response = await fetch('/api/ai/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: userPrompt })
+      body: JSON.stringify({ prompt: userPrompt, history: historyPayload })
     });
 
     if (response.ok) {
@@ -127,7 +132,7 @@ export async function streamAIChatResponse(
         for (let i = 0; i < words.length; i++) {
           textSoFar += (i === 0 ? '' : ' ') + words[i];
           onChunk(words[i] + ' ', textSoFar);
-          await new Promise(r => setTimeout(r, 25));
+          await new Promise(r => setTimeout(r, 20));
         }
         return fullText;
       }

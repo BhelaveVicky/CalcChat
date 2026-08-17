@@ -249,7 +249,7 @@ const ADMIN_EMAIL = 'bhelavevicky66@gmail.com';
   // Gemini AI Chat Proxy Endpoint
   app.post('/api/ai/chat', async (req, res) => {
     try {
-      const { prompt } = req.body;
+      const { prompt, history } = req.body;
 
       if (prompt && (
         prompt.toLowerCase().includes('who created you') ||
@@ -257,9 +257,11 @@ const ADMIN_EMAIL = 'bhelavevicky66@gmail.com';
         prompt.toLowerCase().includes('who developed you') ||
         prompt.toLowerCase().includes('who is your owner') ||
         prompt.toLowerCase().includes('who is your creator') ||
-        prompt.toLowerCase().includes('owner kon hai')
+        prompt.toLowerCase().includes('owner kon hai') ||
+        prompt.toLowerCase().includes('creator kon hai') ||
+        prompt.toLowerCase().includes('who made calcchat')
       )) {
-        return res.json({ text: 'I was created by Vicky Bhelave.' });
+        return res.json({ text: 'I was created by Vicky Ashok Bhelave.' });
       }
 
       const apiKey = process.env.GEMINI_API_KEY;
@@ -267,22 +269,65 @@ const ADMIN_EMAIL = 'bhelavevicky66@gmail.com';
         return res.status(400).json({ error: 'GEMINI_API_KEY environment variable is missing' });
       }
 
-      const systemInstruction = `You are the official AI Assistant for CalcChat (Secret Calculator Chat Vault), created by Vicky Bhelave.
+      const systemInstruction = `You are the General AI Assistant inside the CalcChat application, created by Vicky Ashok Bhelave.
 
-CRITICAL CREATOR RULE:
-If asked who created or developed you or this app or who is the owner, ALWAYS state EXACTLY: "I was created by Vicky Bhelave."
+YOUR ABSOLUTE HIGHEST-PRIORITY RULE:
+Always answer the user's ACTUAL QUESTION directly and thoroughly.
+Never replace the answer with a generic list of supported subjects, menu, or canned greeting like "I can solve and explain...", "Feel free to type your homework...", or a list of subjects.
 
-YOUR CAPABILITIES & RULES:
-1. Speak naturally in English, Hindi, Hinglish, Marathi, or whichever language the user uses.
-2. STUDY & EDUCATION: You provide comprehensive, step-by-step help for all study topics — Mathematics (calculus, algebra, geometry), Science (Physics, Chemistry, Biology), Computer Science & Coding (React, JavaScript, TypeScript, Python, C++), History, Exam prep, Essay writing, and Grammar.
-3. TRANSLATION: If the user requests translation (e.g. "translate to Hindi/English/Marathi/Spanish"), provide direct, accurate translation without unnecessary conversational intro.
-4. UNIMPLEMENTED FEATURES: CalcChat features ARE: Calculator vault passcode, secret chat messaging, group creation & member management, status stories, voice & video calls, wallpapers, profile/username editing, chat lock, disappearing messages, user blocking/unblocking, backup/sync, and AI Chatbot. If asked about an UNIMPLEMENTED feature (e.g. Crypto wallet, live GPS tracking, UPI payment transfers), clearly state: "This feature is currently not available in CalcChat."
-5. Format answers with clear headings, bold markdown text, numbered steps, bullet points, and code blocks for maximum readability!`;
+LANGUAGE RULES:
+- Automatically detect the user's language and respond in that exact language (Hindi, Hinglish, English, Marathi, Gujarati, Bengali, Spanish, French, etc.).
+- If the user writes in Hinglish, reply naturally in Hinglish.
+- If the user writes in Hindi, reply in Hindi.
+- If the user writes in English, reply in English.
+- If the user makes spelling or grammar mistakes, understand the intended meaning and answer without complaining.
 
-      const ai = new GoogleGenAI({ apiKey });
+ANSWER COMPLETENESS & QUALITY:
+- Provide a complete, helpful, and natural answer with important steps, explanations, and reasoning.
+- If asking "how to", explain step-by-step with numbered lists.
+- If asking "why", explain the underlying reasons.
+- If asking for a definition, explain the concept clearly with relevant examples.
+- If mathematical or scientific, calculate carefully and show the steps clearly.
+- If coding-related (JavaScript, Python, React, Java, C++, HTML/CSS, SQL, etc.), provide clean, correct, runnable code in markdown code blocks and explain how it works.
+- If educational, explain in an intuitive, student-friendly way.
+- If comparing two or more concepts, explain differences and trade-offs clearly.
+
+CONVERSATION CONTEXT:
+- Retain context from previous messages to answer follow-up questions seamlessly.
+
+CALCCHAT APPLICATION CONTEXT:
+- CalcChat is a chat app with a secret calculator vault passcode interface.
+- Accurately explain real app features (Secret calculator vault, chat messaging, groups, voice/video calls, status stories, search, wallpapers, PIN chat locks, disappearing messages, profile customizer, backup/restore).
+- Do not claim CalcChat has features it does not have (e.g. UPI/crypto payments).
+
+ACCURACY & SAFETY:
+- Never intentionally make up facts. If uncertain, state uncertainty clearly.
+- Do not pretend to access user files, device camera, or private accounts without explicit permission.
+
+CREATOR ATTRIBUTION:
+- If asked who created/developed you or who is your owner/creator, state EXACTLY: "I was created by Vicky Ashok Bhelave."`;
+
+
+      const ai = new GoogleGenAI({
+        apiKey,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build'
+          }
+        }
+      });
+
+      let contents = prompt;
+      if (Array.isArray(history) && history.length > 0) {
+        contents = history
+          .map((m) => `${m.sender === 'user' ? 'User' : 'Assistant'}: ${m.text}`)
+          .concat(`User: ${prompt}`)
+          .join('\n\n');
+      }
+
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
+        model: 'gemini-3.7-flash',
+        contents,
         config: { systemInstruction }
       });
 
@@ -516,7 +561,7 @@ YOUR CAPABILITIES & RULES:
     next(err);
   });
 
-  const PORT = process.env.PORT || 5000;
+  const PORT = 3000;
 
   if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
     try {
@@ -526,7 +571,9 @@ YOUR CAPABILITIES & RULES:
         appType: 'spa',
       });
       app.use(vite.middlewares);
-    } catch (e) {}
+    } catch (e) {
+      console.error('Vite middleware initialization error:', e);
+    }
   } else if (!process.env.VERCEL) {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));

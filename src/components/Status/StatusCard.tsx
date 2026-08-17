@@ -33,7 +33,7 @@ export const StatusCard: React.FC<StatusCardProps> = ({
   const ringColor = isSelf && statuses.length === 0
     ? 'border-2 border-dashed border-gray-400'
     : hasUnviewed
-    ? 'p-[2.5px] bg-gradient-to-tr from-blue-500 via-rose-400 to-cyan-400 rounded-full'
+    ? 'p-[2.5px] bg-gradient-to-tr from-[#ff2e93] via-[#ff60b5] to-[#ff758c] rounded-full'
     : 'p-[2px] bg-gray-400 dark:bg-gray-600 rounded-full';
 
   return (
@@ -68,7 +68,7 @@ export const StatusCard: React.FC<StatusCardProps> = ({
                 e.stopPropagation();
                 if (onAddStatus) onAddStatus();
               }}
-              className="absolute bottom-0 right-0 p-1 rounded-full bg-[#ff2e93] text-white shadow-lg border-2 border-white dark:border-[#111b21] hover:scale-110 active:scale-95 transition-transform"
+              className="absolute bottom-0 right-0 p-1 rounded-full bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white shadow-md border-2 border-white dark:border-[#111b21] hover:scale-110 active:scale-95 transition-transform"
               title="Add Status Update"
             >
               <Plus className="w-3.5 h-3.5 stroke-[3]" />

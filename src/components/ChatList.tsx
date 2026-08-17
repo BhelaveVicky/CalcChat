@@ -14,6 +14,8 @@ import { WhatsAppProfileViewer } from './WhatsAppProfileViewer';
 import { checkIsAdmin, VerifiedBadge } from '../lib/adminUtils';
 import { AIChatWindow } from './AIChatWindow';
 import { PINK_AI_AVATAR_SVG } from '../assets/aiAvatarData';
+import { FriendRequestsModal } from './FriendRequestsModal';
+import { CCLogo } from './CalcChatBrand';
 
 export const ChatList: React.FC = () => {
   const navigate = useNavigate();
@@ -43,6 +45,7 @@ export const ChatList: React.FC = () => {
     friendUids,
     sendFriendRequest,
     acceptFriendRequest,
+    rejectFriendRequest,
     blockedContactIds,
     blockedByContactIds,
     blockContact,
@@ -68,6 +71,7 @@ export const ChatList: React.FC = () => {
   }>>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'all' | 'pin' | 'favourites' | 'groups'>('all');
+  const [isFriendRequestsOpen, setIsFriendRequestsOpen] = useState(false);
   const [showArchivedOnly, setShowArchivedOnly] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
@@ -444,6 +448,52 @@ export const ChatList: React.FC = () => {
     <div className={`flex-1 flex flex-col overflow-hidden relative font-sans select-none h-full min-h-0 transition-colors ${isDark ? 'bg-[#0b141a] text-[#e9edef]' : 'bg-white text-gray-900'
       }`}>
 
+      {/* Top Header with Title and Action Icons (Desktop only - mobile uses WhatsAppTopBar) */}
+      <div className={`hidden md:flex px-4 pt-3.5 pb-2.5 items-center justify-between shrink-0 border-b ${
+        isDark ? 'bg-[#111b21] border-[#202c33]' : 'bg-white border-gray-100'
+      }`}>
+        <div className="flex items-center gap-2.5">
+          <CCLogo className="w-8 h-8 shrink-0" />
+          <h2 className="text-xl font-bold tracking-tight">Chats</h2>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Friend Requests / Add Friends Button ("friend banane wala option") */}
+          <button
+            type="button"
+            onClick={() => setIsFriendRequestsOpen(true)}
+            className={`relative p-2 rounded-full transition-all cursor-pointer ${
+              isDark
+                ? 'bg-[#202c33] text-[#ff2e93] hover:bg-[#2a3942]'
+                : 'bg-pink-50 text-[#ff2e93] hover:bg-pink-100'
+            }`}
+            title="Add Friends & Friend Requests"
+          >
+            <UserPlus className="w-4.5 h-4.5" />
+            {pendingFriendRequests.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold w-4.5 h-4.5 rounded-full flex items-center justify-center animate-pulse shadow-md">
+                {pendingFriendRequests.length}
+              </span>
+            )}
+          </button>
+
+          {/* New Group Button */}
+          <button
+            id="chatlist_new_group_btn"
+            type="button"
+            onClick={() => setShowCreateGroupModal(true)}
+            className={`p-2 rounded-full transition-all cursor-pointer ${
+              isDark
+                ? 'text-[#8696a0] hover:text-[#e9edef] hover:bg-[#202c33]'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+            }`}
+            title="Create New Group"
+          >
+            <Users className="w-4.5 h-4.5" />
+          </button>
+        </div>
+      </div>
+
       {/* Search Bar Container */}
       <div className={`px-4 py-2 shrink-0 ${isDark ? 'bg-[#0b141a]' : 'bg-white'}`}>
         <div className={`relative flex items-center rounded-full px-4 py-2 text-sm ${isDark ? 'bg-[#202c33]' : 'bg-gray-100'
@@ -460,8 +510,8 @@ export const ChatList: React.FC = () => {
         </div>
       </div>
 
-      {/* Filter Chips Horizontal Row */}
-      <div className="flex items-center gap-2 px-4 py-2 shrink-0 text-xs sm:text-sm overflow-x-auto no-scrollbar">
+      {/* Filter Chips Horizontal Row - Equal width distribution */}
+      <div className="flex items-center gap-2 px-4 py-2 shrink-0 text-xs sm:text-sm">
         {[
           { id: 'all', label: 'All' },
           { id: 'pin', label: 'Pin' },
@@ -473,8 +523,8 @@ export const ChatList: React.FC = () => {
             <button
               key={filter.id}
               onClick={() => setActiveFilter(filter.id as any)}
-              className={`flex-1 min-w-[68px] py-1.5 px-3 rounded-full font-medium text-center flex items-center justify-center transition-all whitespace-nowrap cursor-pointer ${isActive
-                  ? (isDark ? 'bg-[#ff2e93]/20 text-[#ff2e93] font-bold border border-[#ff2e93]/40' : 'bg-pink-100 text-pink-700 font-bold border border-pink-300')
+              className={`flex-1 py-1.5 px-2 rounded-full font-medium text-center flex items-center justify-center transition-all whitespace-nowrap cursor-pointer text-xs sm:text-sm ${isActive
+                  ? (isDark ? 'bg-[#ff2e93]/20 text-[#ff2e93] font-bold border border-[#ff2e93]/40 shadow-xs' : 'bg-pink-100 text-pink-700 font-bold border border-pink-300 shadow-xs')
                   : (isDark ? 'bg-[#202c33] text-[#8596a0] hover:bg-[#2a3942]' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')
                 }`}
             >
@@ -547,10 +597,10 @@ export const ChatList: React.FC = () => {
 
       {/* Conversations & Global Search List */}
       <div className="flex-1 overflow-y-auto divide-y divide-transparent min-h-0 no-scrollbar">
-        {/* AI Assistant Contact Item - ONLY VISIBLE AFTER USER SENDS FIRST MESSAGE */}
-        {!showArchivedOnly && (!search.trim() || 'calcchat ai assistant'.includes(search.toLowerCase()) || 'ai'.includes(search.toLowerCase())) && activeAiConv && (
+        {/* AI Assistant Contact Item - Visible in default chat list */}
+        {!showArchivedOnly && (!search.trim() || 'calcchat ai assistant'.includes(search.toLowerCase()) || 'ai'.includes(search.toLowerCase())) && (
           (() => {
-            const lastAiMsg = activeAiConv.messages && activeAiConv.messages.length > 0 
+            const lastAiMsg = activeAiConv && activeAiConv.messages && activeAiConv.messages.length > 0 
               ? activeAiConv.messages[activeAiConv.messages.length - 1] 
               : null;
             return (
@@ -559,7 +609,7 @@ export const ChatList: React.FC = () => {
                 className={`p-3 sm:p-3.5 mx-2 my-1.5 rounded-2xl transition-all cursor-pointer flex items-center justify-between border select-none group relative ${
                   isDark
                     ? 'bg-[#182229] hover:bg-[#202c33] border-[#2a3942]/60 text-white'
-                    : 'bg-white hover:bg-slate-50 border-gray-100 text-gray-900 shadow-sm'
+                    : 'bg-white hover:bg-slate-50 border-gray-100 text-gray-900 shadow-xs'
                 }`}
               >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -567,25 +617,29 @@ export const ChatList: React.FC = () => {
                     <div className="w-12 h-12 rounded-2xl overflow-hidden p-0.5 bg-gradient-to-tr from-[#ff2e93] via-[#ff62b0] to-[#f43f5e] shadow-md shadow-pink-500/20 group-hover:scale-105 transition-transform">
                       <img src={PINK_AI_AVATAR_SVG} alt="AI Bot" className="w-full h-full object-cover rounded-xl" />
                     </div>
-                    <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-[#0b141a] rounded-full animate-pulse" />
+                    <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-500 border-2 border-white dark:border-[#0b141a] rounded-full animate-pulse" />
                   </div>
 
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-1">
                       <div className="flex items-center gap-1.5 min-w-0">
-                        <h4 className="font-bold text-sm truncate tracking-wide text-white">CalcChat AI Assistant</h4>
-                        <span className="bg-[#ff2e93] text-white text-[9px] font-black px-1.5 py-0.2 rounded shadow-sm">AI</span>
+                        <h4 className={`font-bold text-sm truncate tracking-wide ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          CalcChat AI Assistant
+                        </h4>
+                        <span className="bg-[#ff2e93] text-white text-[9px] font-black px-1.5 py-0.2 rounded shadow-xs">AI</span>
                         {aiMuted && <BellOff className="w-3.5 h-3.5 text-gray-400 shrink-0 opacity-80" />}
                         {aiPinned && <Pin className="w-3.5 h-3.5 rotate-45 text-pink-400 shrink-0" />}
                       </div>
                       <span className="text-[10px] text-gray-400 font-medium">
-                        {lastAiMsg ? lastAiMsg.timestamp : ''}
+                        {lastAiMsg ? lastAiMsg.timestamp : '18:50'}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-400 truncate mt-0.5 flex items-center gap-1">
+                    <p className={`text-xs truncate mt-0.5 flex items-center gap-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                       <Sparkles className="w-3 h-3 text-[#ff2e93] shrink-0" />
                       <span className="truncate">
-                        {lastAiMsg ? (lastAiMsg.sender === 'user' ? `You: ${lastAiMsg.text}` : lastAiMsg.text) : 'Ask me anything'}
+                        {lastAiMsg 
+                          ? (lastAiMsg.sender === 'user' ? `You: ${lastAiMsg.text}` : lastAiMsg.text) 
+                          : "Hello! 👋 I'm your **CalcChat AI Assistant**! I can help..."}
                       </span>
                     </p>
                   </div>
@@ -599,7 +653,9 @@ export const ChatList: React.FC = () => {
                       e.stopPropagation();
                       setOpenMenuId(openMenuId === 'ai_chat_menu' ? null : 'ai_chat_menu');
                     }}
-                    className="p-1.5 text-gray-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+                    className={`p-1.5 rounded-lg transition-colors ${
+                      isDark ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'
+                    }`}
                     title="More options"
                   >
                     <MoreVertical className="w-4 h-4" />
@@ -717,7 +773,7 @@ export const ChatList: React.FC = () => {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <h5 className="font-bold text-sm text-white truncate">{resUser.name}</h5>
-                          {checkIsAdmin(resUser) && <VerifiedBadge className="w-4 h-4 shrink-0 text-[#00a8ff]" />}
+                          {checkIsAdmin(resUser) && <VerifiedBadge className="w-4 h-4 shrink-0 text-[#ff2e93]" />}
                           {resUser.isOnline && (
                             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">Online</span>
                           )}
@@ -814,13 +870,13 @@ export const ChatList: React.FC = () => {
             </p>
           </div>
         ) : sortedContacts.length === 0 && !search.trim() ? (
-          <div className={`p-8 text-center text-sm flex flex-col items-center justify-center gap-3 h-full min-h-[300px] ${isDark ? 'text-[#8596a0]' : 'text-gray-500'
+          <div className="p-8 text-center text-sm flex flex-col items-center justify-center gap-4 h-full min-h-[300px] select-none">
+            <div className={`w-16 h-16 rounded-3xl flex items-center justify-center transition-all ${
+              isDark ? 'bg-[#ff2e93]/15 text-[#ff2e93]' : 'bg-pink-100/70 text-[#ff2e93]'
             }`}>
-            <div className="w-16 h-16 rounded-3xl bg-[#ff2e93]/10 text-[#ff2e93] flex items-center justify-center border border-[#ff2e93]/20 shadow-inner">
-              <Users className="w-8 h-8" />
+              <Users className="w-8 h-8 stroke-[1.8]" />
             </div>
-            <h3 className="font-bold text-lg text-white">No Friends Yet</h3>
-            <p className="max-w-xs text-xs text-gray-400 leading-relaxed">
+            <p className={`max-w-xs text-xs leading-relaxed ${isDark ? 'text-[#8696a0]' : 'text-gray-500'}`}>
               Use the search bar above to search for users by their username or display name and send them a friend request to unlock real-time chatting!
             </p>
           </div>
@@ -1040,7 +1096,7 @@ export const ChatList: React.FC = () => {
                     <div className="flex items-center gap-1.5 min-w-0">
                       <h3 className={`font-semibold text-[16px] truncate ${isDark ? 'text-[#e9edef]' : 'text-gray-900'
                         }`}>{getContactDisplayName(contact)}</h3>
-                      {checkIsAdmin(contact) && <VerifiedBadge className="w-4 h-4 shrink-0 text-[#00a8ff]" />}
+                      {checkIsAdmin(contact) && <VerifiedBadge className="w-4 h-4 shrink-0 text-[#ff2e93]" />}
                       {contact.isMuted && <BellOff className="w-3.5 h-3.5 text-gray-400 shrink-0 opacity-80" />}
                       {contact.isPinned && <Pin className={`w-3.5 h-3.5 rotate-45 shrink-0 ${isDark ? 'text-[#8596a0]' : 'text-gray-400'}`} />}
                       {contact.isLocked && <Lock className="w-3 h-3 text-amber-400 shrink-0" />}
@@ -1397,7 +1453,7 @@ export const ChatList: React.FC = () => {
                             <img src={m.avatar} alt={m.name} className="w-7 h-7 rounded-full object-cover shrink-0" />
                             <div className="flex items-center gap-1 min-w-0">
                               <span className="text-xs font-medium truncate">{m.name}</span>
-                              {checkIsAdmin(m) && <VerifiedBadge className="w-3.5 h-3.5 shrink-0 text-[#00a8ff]" />}
+                              {checkIsAdmin(m) && <VerifiedBadge className="w-3.5 h-3.5 shrink-0 text-[#ff2e93]" />}
                             </div>
                           </div>
                           {isSelected ? (
@@ -1563,7 +1619,7 @@ export const ChatList: React.FC = () => {
             <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent text-white px-4 py-3 z-10 flex items-center justify-between">
               <div className="flex items-center gap-1 min-w-0">
                 <span className="font-semibold text-[15px] truncate pr-1 shadow-sm">{previewContact.name}</span>
-                {checkIsAdmin(previewContact) && <VerifiedBadge className="w-4 h-4 shrink-0 text-[#00a8ff]" />}
+                {checkIsAdmin(previewContact) && <VerifiedBadge className="w-4 h-4 shrink-0 text-[#ff2e93]" />}
               </div>
             </div>
 
@@ -1656,6 +1712,19 @@ export const ChatList: React.FC = () => {
         onClose={() => {
           setShowNicknameModal(false);
           setNicknameTargetContact(null);
+        }}
+      />
+
+      {/* Friend Requests / Add Friends Modal */}
+      <FriendRequestsModal
+        isOpen={isFriendRequestsOpen}
+        onClose={() => setIsFriendRequestsOpen(false)}
+        requests={pendingFriendRequests}
+        onAccept={async (reqId, senderId) => {
+          await acceptFriendRequest(reqId, senderId);
+        }}
+        onReject={async (reqId) => {
+          await rejectFriendRequest(reqId);
         }}
       />
 

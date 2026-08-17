@@ -460,9 +460,17 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     return loadedSettings;
   });
 
+  const defaultHistoryItems: CalculationHistory[] = [
+    { expression: '123 + 456', result: '579', date: 'Today', time: '12:00 PM' },
+    { expression: '789 × 2', result: '1,578', date: 'Today', time: '11:55 AM' },
+    { expression: '2,500 ÷ 5', result: '500', date: 'Today', time: '11:50 AM' },
+    { expression: '1,200 - 300', result: '900', date: 'Today', time: '11:45 AM' },
+    { expression: '50 + 25 × 4', result: '150', date: 'Today', time: '11:40 AM' },
+  ];
+
   const [history, setHistory] = useState<CalculationHistory[]>(() => {
     const saved = localStorage.getItem('calculatorHistory');
-    return saved ? JSON.parse(saved) : [];
+    return saved && JSON.parse(saved).length > 0 ? JSON.parse(saved) : defaultHistoryItems;
   });
 
   useEffect(() => {

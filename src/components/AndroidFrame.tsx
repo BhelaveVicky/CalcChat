@@ -22,7 +22,7 @@ export const AndroidFrame: React.FC<{ children: React.ReactNode }> = ({ children
 
   if (!settings.showAndroidFrame) {
     return (
-      <div className="h-[100dvh] max-h-[100dvh] bg-[#0b141a] text-[#e9edef] flex flex-col relative font-sans w-full overflow-hidden select-none">
+      <div className="w-full h-full min-h-[100dvh] h-[100dvh] max-h-[100dvh] bg-[#f8fafc] dark:bg-[#0b141a] text-gray-900 dark:text-[#e9edef] flex flex-col relative font-sans overflow-hidden select-none">
         <div className="flex-1 min-h-0 flex flex-col w-full h-full overflow-hidden">
           {children}
         </div>

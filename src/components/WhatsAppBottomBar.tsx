@@ -30,7 +30,7 @@ export const WhatsAppBottomBar: React.FC = () => {
         <span className="text-[10px] sm:text-xs">Chats</span>
       </button>
 
-      {/* 2. Updates / Stori */}
+      {/* 2. Updates / Status */}
       <button
         onClick={() => setActiveTab('gallery')}
         className={`flex flex-col items-center justify-center gap-1 flex-1 transition-all group ${activeTab === 'gallery' ? 'text-[#ff2e93] font-semibold' : (isDark ? 'text-[#8596a0] hover:text-[#d1d7db]' : 'text-gray-500 hover:text-gray-800')
@@ -47,7 +47,7 @@ export const WhatsAppBottomBar: React.FC = () => {
             </span>
           )}
         </div>
-        <span className="text-[10px] sm:text-xs">Stori</span>
+        <span className="text-[10px] sm:text-xs">Status</span>
       </button>
 
       {/* 3. Calls */}

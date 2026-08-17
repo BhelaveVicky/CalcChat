@@ -281,15 +281,17 @@ const AIChatWindowInner: React.FC<AIChatWindowProps> = ({ onClose, onClearAIChat
     const welcomeMsg: AIMessage = {
       id: 'welcome_' + Date.now(),
       sender: 'ai',
-      text: `Hello! 👋 I'm your **CalcChat AI Assistant**!
+      text: `Hello! 👋 I'm your **Universal CalcChat AI Assistant**!
 
-I'm powered by Gemini and ready to answer **everything** including your **Studies & Homework**:
-- 📚 **Study & Learning**: Step-by-step Math, Science (Physics, Chemistry, Biology), History & Exams
-- 💻 **Coding & Tech**: React, JavaScript, Python, C++, HTML/CSS & debugging
-- 🌐 **Translations & Languages**: Translate text to Hindi, English, Hinglish, Marathi, Spanish, etc.
-- 🔒 **CalcChat App Features**: Passcode change, group creation, wallpapers, chat lock & privacy settings
+I have limitless intelligence to answer **any question or task from around the world**:
+- 🌍 **Duniya Ka Koi Bhi Sawaal**: World history, geography, space, science, GK, culture & current affairs
+- 📚 **Studies & Homework**: Step-by-step Math (Algebra, Calculus), Physics, Chemistry, Biology & Exams
+- 💻 **Coding & Technology**: JavaScript, Python, React, Java, C++, HTML/CSS, algorithms & bug fixes
+- 🌐 **All-Language Translations**: Translate fluently to/from Hindi, English, Hinglish, Marathi, Spanish, etc.
+- ✍️ **Creative & Writing**: Essays, stories, professional emails, letters & resumes
+- 🔒 **CalcChat App Guides**: Passcode change, group creation, wallpapers, chat lock & privacy settings
 
-Ask me any study question, translation, or CalcChat app guide below! 😊`,
+Ask me anything in Hindi, English, or any language below! 😊`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
@@ -505,11 +507,11 @@ Ask me any study question, translation, or CalcChat app guide below! 😊`,
 
   // Quick prompt suggestions
   const QUICK_PROMPTS = [
-    '📚 Help me with study & homework',
-    '🌐 Translate English to Hindi',
-    '🔒 How to change password',
-    '👥 How to create a group',
-    '💻 Explain React hooks with code',
+    '🌍 Duniya ka koi bhi sawaal pucho',
+    '📚 Solve Math/Physics step-by-step',
+    '🌐 Translate to Hindi/English/Marathi',
+    '💻 Write code in React / Python / JS',
+    '🔒 How to change passcode',
     '❓ Who created you?'
   ];
 
@@ -638,8 +640,8 @@ Ask me any study question, translation, or CalcChat app guide below! 😊`,
             <div className="w-16 h-16 rounded-3xl p-1 bg-gradient-to-tr from-[#ff2e93] to-[#f43f5e] shadow-xl shadow-pink-500/30">
               <img src={PINK_AI_AVATAR_SVG} alt="AI Avatar" className="w-full h-full object-cover rounded-2xl" />
             </div>
-            <h2 className="text-lg font-bold text-white">How can I help you today?</h2>
-            <p className="text-xs text-gray-400 max-w-xs">Ask me anything about CalcChat features or general programming, science, and math!</p>
+            <h2 className="text-lg font-bold text-white">Ask Anything in the World!</h2>
+            <p className="text-xs text-gray-400 max-w-xs">Duniya ka koi bhi sawaal pucho — Studies, Math, Coding, Science, Translations, GK ya CalcChat settings!</p>
           </div>
         )}
 
@@ -776,7 +778,7 @@ Ask me any study question, translation, or CalcChat app guide below! 😊`,
                 handleSendMessage();
               }
             }}
-            placeholder="Ask CalcChat AI anything..."
+            placeholder="Ask any question in the world (Duniya ka koi bhi sawal)..."
             className="w-full bg-transparent text-white placeholder-gray-400 text-xs sm:text-sm focus:outline-none pr-2"
           />
         </div>

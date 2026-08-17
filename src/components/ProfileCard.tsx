@@ -541,7 +541,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
             <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
               {groupMemberList.length === 0 ? (
                 <p className={`text-xs py-2 ${isDark ? 'text-[#8596a0]' : 'text-gray-500'}`}>
-                  No members added yet. Click <span className="text-[#00a8ff] font-bold">Add (+)</span> to add members!
+                  No members added yet. Click <span className="text-[#ff2e93] font-bold">Add (+)</span> to add members!
                 </p>
               ) : (
                 groupMemberList.map((m, idx) => (
@@ -550,9 +550,9 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                   }`}>
                     <div className="flex items-center gap-2.5 min-w-0">
                       {m.avatar ? (
-                        <img src={m.avatar} alt={m.name} className="w-7 h-7 rounded-full object-cover shrink-0 border border-[#00a8ff]/30" />
+                        <img src={m.avatar} alt={m.name} className="w-7 h-7 rounded-full object-cover shrink-0 border border-[#ff2e93]/30" />
                       ) : (
-                        <div className="w-7 h-7 rounded-full bg-[#00a8ff]/20 text-[#00a8ff] flex items-center justify-center font-bold text-xs shrink-0">
+                        <div className="w-7 h-7 rounded-full bg-[#ff2e93]/20 text-[#ff2e93] flex items-center justify-center font-bold text-xs shrink-0">
                           {m.name.charAt(0).toUpperCase()}
                         </div>
                       )}
@@ -561,7 +561,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                     <div className="flex items-center gap-2 shrink-0">
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
                         m.role === 'Creator'
-                          ? 'bg-[#00a8ff]/20 text-[#00a8ff] border border-[#00a8ff]/30'
+                          ? 'bg-[#ff2e93]/20 text-[#ff2e93] border border-[#ff2e93]/30'
                           : m.role === 'Admin'
                             ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
                             : 'bg-emerald-500/15 text-emerald-400'
@@ -654,7 +654,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                   ) : item.type === 'image' ? (
                     <img src={item.url} alt="Media photo" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                   ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center bg-[#00a8ff]/10 text-[#00a8ff] p-2 text-center">
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-[#ff2e93]/10 text-[#ff2e93] p-2 text-center">
                       <Download className="w-6 h-6 mb-1" />
                       <span className="text-[10px] truncate max-w-full font-bold">{item.name || 'Document'}</span>
                     </div>
@@ -687,7 +687,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className={`w-9 h-9 rounded-xl shrink-0 flex items-center justify-center ${
-                    notifSettings.chatNotifications ? 'bg-[#00a8ff]/15 text-[#00a8ff]' : 'bg-gray-500/15 text-gray-400'
+                    notifSettings.chatNotifications ? 'bg-[#ff2e93]/15 text-[#ff2e93]' : 'bg-gray-500/15 text-gray-400'
                   }`}>
                     {notifSettings.chatNotifications ? <Bell className="w-5 h-5" /> : <BellOff className="w-5 h-5" />}
                   </div>
@@ -706,7 +706,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                   type="button"
                   onClick={handleToggleChatNotif}
                   className={`w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors shrink-0 ${
-                    notifSettings.chatNotifications ? 'bg-[#00a8ff]' : (isDark ? 'bg-[#202c33]' : 'bg-gray-300')
+                    notifSettings.chatNotifications ? 'bg-[#ff2e93]' : (isDark ? 'bg-[#202c33]' : 'bg-gray-300')
                   }`}
                   title={notifSettings.chatNotifications ? 'Turn Off Chat Notification' : 'Turn On Chat Notification'}
                 >
@@ -722,7 +722,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className={`w-9 h-9 rounded-xl shrink-0 flex items-center justify-center ${
-                    notifSettings.callNotifications ? 'bg-[#00a8ff]/15 text-[#00a8ff]' : 'bg-gray-500/15 text-gray-400'
+                    notifSettings.callNotifications ? 'bg-[#ff2e93]/15 text-[#ff2e93]' : 'bg-gray-500/15 text-gray-400'
                   }`}>
                     {notifSettings.callNotifications ? <Phone className="w-5 h-5" /> : <PhoneOff className="w-5 h-5" />}
                   </div>
@@ -741,7 +741,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                   type="button"
                   onClick={handleToggleCallNotif}
                   className={`w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors shrink-0 ${
-                    notifSettings.callNotifications ? 'bg-[#00a8ff]' : (isDark ? 'bg-[#202c33]' : 'bg-gray-300')
+                    notifSettings.callNotifications ? 'bg-[#ff2e93]' : (isDark ? 'bg-[#202c33]' : 'bg-gray-300')
                   }`}
                   title={notifSettings.callNotifications ? 'Turn Off Calls Notification' : 'Turn On Calls Notification'}
                 >
@@ -760,7 +760,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
             <div className={`w-full max-w-sm rounded-3xl p-6 shadow-2xl border text-center ${
               isDark ? 'bg-[#111b21] border-[#202c33] text-[#e9edef]' : 'bg-white border-gray-200 text-gray-900'
             }`}>
-              <div className="w-12 h-12 rounded-full bg-[#00a8ff]/10 text-[#00a8ff] flex items-center justify-center mx-auto mb-3">
+              <div className="w-12 h-12 rounded-full bg-[#ff2e93]/10 text-[#ff2e93] flex items-center justify-center mx-auto mb-3">
                 <Lock className="w-6 h-6" />
               </div>
               <h3 className="text-lg font-bold mb-1">Followers Hidden</h3>
@@ -770,7 +770,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
               <button
                 type="button"
                 onClick={() => setShowPrivateNotice(false)}
-                className="w-full py-2.5 rounded-xl text-sm font-bold bg-[#00a8ff] text-[#0b141a] hover:bg-[#0088cc] cursor-pointer"
+                className="w-full py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white hover:opacity-90 cursor-pointer shadow-lg shadow-[#ff2e93]/25"
               >
                 Got it
               </button>
@@ -787,7 +787,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
               {/* Modal Header */}
               <div className="flex items-center justify-between pb-3 border-b border-gray-200 dark:border-[#202c33]">
                 <div className="flex items-center gap-2">
-                  <Images className="w-5 h-5 text-[#00a8ff]" />
+                  <Images className="w-5 h-5 text-[#ff2e93]" />
                   <h3 className="font-bold text-lg">Photos, videos and links</h3>
                 </div>
                 <button
@@ -809,7 +809,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                   onClick={() => setActiveMediaTab('photos')}
                   className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold cursor-pointer transition-colors ${
                     activeMediaTab === 'photos'
-                      ? 'bg-[#00a8ff] text-[#0b141a]'
+                      ? 'bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white shadow-sm'
                       : (isDark ? 'bg-[#1f2c34] text-gray-400 hover:text-white' : 'bg-gray-100 text-gray-600')
                   }`}
                 >
@@ -820,7 +820,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                   onClick={() => setActiveMediaTab('videos')}
                   className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold cursor-pointer transition-colors ${
                     activeMediaTab === 'videos'
-                      ? 'bg-[#00a8ff] text-[#0b141a]'
+                      ? 'bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white shadow-sm'
                       : (isDark ? 'bg-[#1f2c34] text-gray-400 hover:text-white' : 'bg-gray-100 text-gray-600')
                   }`}
                 >
@@ -831,7 +831,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                   onClick={() => setActiveMediaTab('links')}
                   className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold cursor-pointer transition-colors ${
                     activeMediaTab === 'links'
-                      ? 'bg-[#00a8ff] text-[#0b141a]'
+                      ? 'bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white shadow-sm'
                       : (isDark ? 'bg-[#1f2c34] text-gray-400 hover:text-white' : 'bg-gray-100 text-gray-600')
                   }`}
                 >
@@ -843,12 +843,12 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
               <div className="flex-1 overflow-y-auto min-h-[250px] p-1">
                 {activeMediaTab === 'links' ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center text-gray-400">
-                    <LinkIcon className="w-10 h-10 mb-2 opacity-40 text-[#00a8ff]" />
+                    <LinkIcon className="w-10 h-10 mb-2 opacity-40 text-[#ff2e93]" />
                     <p className="text-sm font-medium">No shared links found in this chat</p>
                   </div>
                 ) : filteredMedia.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center text-gray-400">
-                    <FileText className="w-10 h-10 mb-2 opacity-40 text-[#00a8ff]" />
+                    <FileText className="w-10 h-10 mb-2 opacity-40 text-[#ff2e93]" />
                     <p className="text-sm font-medium">No media found in this category</p>
                   </div>
                 ) : (
@@ -871,7 +871,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                         ) : item.type === 'image' ? (
                           <img src={item.url} alt="Photo" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                         ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center bg-[#00a8ff]/10 text-[#00a8ff]">
+                          <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center bg-[#ff2e93]/10 text-[#ff2e93]">
                             <Download className="w-8 h-8 mb-1" />
                             <span className="text-xs font-bold truncate max-w-full">{item.name || 'Document'}</span>
                           </div>
@@ -900,14 +900,14 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                       <img src={selectedPreviewItem.url} alt="Full view" className="max-w-full max-h-[70vh] rounded-2xl object-contain" />
                     ) : (
                       <div className="p-8 bg-[#111b21] rounded-3xl border border-[#202c33] text-center text-white">
-                        <Download className="w-12 h-12 text-[#00a8ff] mx-auto mb-3" />
+                        <Download className="w-12 h-12 text-[#ff2e93] mx-auto mb-3" />
                         <p className="font-bold text-lg mb-4">{selectedPreviewItem.name || 'Shared Document'}</p>
                         <a
                           href={selectedPreviewItem.url}
                           download={selectedPreviewItem.name || 'file'}
                           target="_blank"
                           rel="noreferrer"
-                          className="px-6 py-2.5 rounded-xl bg-[#00a8ff] text-[#0b141a] font-bold text-sm inline-block"
+                          className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white font-bold text-sm inline-block shadow-lg shadow-[#ff2e93]/25"
                         >
                           Download File
                         </a>

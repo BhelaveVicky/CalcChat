@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Plus, Camera, Eye, Download, Shield, Upload, FileText, Video, Image as ImageIcon, X, Send, Lock, 
-  ChevronLeft, ChevronRight, Pause, Play, Volume2, VolumeX, MoreVertical, Pencil, Type, Palette, 
+import {
+  Plus, Camera, Eye, Download, Shield, Upload, FileText, Video, Image as ImageIcon, X, Send, Lock,
+  ChevronLeft, ChevronRight, Pause, Play, Volume2, VolumeX, MoreVertical, Pencil, Type, Palette,
   Smile, Trash2, ShieldCheck, Check, ChevronDown, Share2, Sparkles, Heart, EyeOff, RotateCw,
   Move, ZoomIn, ZoomOut, Sliders, RefreshCw, Maximize2, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Loader2
 } from 'lucide-react';
@@ -44,7 +44,7 @@ export interface StatusUser {
 }
 
 export const MediaGallery: React.FC = () => {
-  const { 
+  const {
     sendMessage, contacts, user, authUser, settings: vaultSettings,
     statusUpdates, postStatusUpdate, reshareStatus, deleteStatusUpdate, likeStatusUpdate,
     markStatusAsSeen, replyToStatus, reactToStatus, getSeenRecords, getLikeRecords,
@@ -53,6 +53,7 @@ export const MediaGallery: React.FC = () => {
 
   // Selected Status Viewer group index
   const [selectedGroupIndex, setSelectedGroupIndex] = useState<number | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'my'>('all');
 
   // Mention Suggestions State
   const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
@@ -104,8 +105,8 @@ export const MediaGallery: React.FC = () => {
   const getPrivacyLabel = () => {
     if (privacySetting === 'contacts') return 'My all contacts';
     if (privacySetting === 'only') {
-      return selectedPrivacyContactIds.length > 0 
-        ? `Only (${selectedPrivacyContactIds.length})` 
+      return selectedPrivacyContactIds.length > 0
+        ? `Only (${selectedPrivacyContactIds.length})`
         : 'Only share with...';
     }
     return 'My all contacts';
@@ -116,7 +117,7 @@ export const MediaGallery: React.FC = () => {
   const [creatorType, setCreatorType] = useState<'text' | 'media'>('text');
   const [creatorMediaType, setCreatorMediaType] = useState<'image' | 'video'>('image');
   const [statusText, setStatusText] = useState('');
-  const [statusBgColor, setStatusBgColor] = useState('from-[#00a8ff] to-[#0284c7]');
+  const [statusBgColor, setStatusBgColor] = useState('from-[#ff2e93] to-[#ff60b5]');
   const [statusCaption, setStatusCaption] = useState('');
   const [selectedMediaUrl, setSelectedMediaUrl] = useState<string | null>(null);
   const [selectedFilter, setSelectedFilter] = useState<'normal' | 'vintage' | 'mono' | 'cyber' | 'warm' | 'dramatic'>('normal');
@@ -256,14 +257,14 @@ export const MediaGallery: React.FC = () => {
   const [showViewersSheet, setShowViewersSheet] = useState(false);
   const [reactionBubble, setReactionBubble] = useState<string | null>(null);
 
-  const activeUser: StatusUser | null = activeUserIndex === -1 
+  const activeUser: StatusUser | null = activeUserIndex === -1
     ? {
-        id: 'my',
-        name: 'My Status',
-        time: mySlides[mySlides.length - 1]?.time || 'Just now',
-        avatar: user.avatar,
-        slides: mySlides
-      }
+      id: 'my',
+      name: 'My Status',
+      time: mySlides[mySlides.length - 1]?.time || 'Just now',
+      avatar: user.avatar,
+      slides: mySlides
+    }
     : (activeUserIndex !== null ? contactsStatus[activeUserIndex] : null);
 
   const activeSlide: StatusSlide | null = activeUser?.slides[currentSlideIndex] || null;
@@ -291,7 +292,7 @@ export const MediaGallery: React.FC = () => {
   // Mark status as viewed when opened
   useEffect(() => {
     if (activeUserIndex !== null && activeUserIndex >= 0) {
-      setContactsStatus((prev) => 
+      setContactsStatus((prev) =>
         prev.map((item, idx) => idx === activeUserIndex ? { ...item, isViewed: true } : item)
       );
     }
@@ -644,7 +645,7 @@ export const MediaGallery: React.FC = () => {
 
   const handleToggleMute = (statusId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setContactsStatus((prev) => 
+    setContactsStatus((prev) =>
       prev.map((c) => c.id === statusId ? { ...c, isMuted: !c.isMuted } : c)
     );
   };
@@ -663,140 +664,165 @@ export const MediaGallery: React.FC = () => {
   const mutedStatuses = contactsStatus.filter((s) => s.isMuted);
 
   const bgColorsList = [
-    'from-[#00a8ff] to-[#0284c7]',
+    'from-[#ff2e93] to-[#ff60b5]',
     'from-purple-600 to-indigo-800',
     'from-rose-500 to-pink-700',
     'from-amber-500 to-orange-700',
-    'from-blue-600 to-cyan-800',
+    'from-pink-600 to-rose-800',
     'from-[#202c33] to-[#111b21]'
   ];
 
   return (
-    <div className={`flex-1 flex flex-col h-full overflow-y-auto ${
-      isDark ? 'bg-[#111b21] text-[#e9edef]' : 'bg-gray-50 text-gray-900'
-    } select-none relative`}>
-      
-      {/* Top Title Bar */}
-      <div className={`px-4 py-3 flex items-center justify-between border-b ${
-        isDark ? 'border-[#202c33] bg-[#111b21]' : 'border-gray-200 bg-white'
-      } sticky top-0 z-20`}>
-        <div className="flex items-center gap-2">
-          <h2 className="text-xl font-bold tracking-tight">Status</h2>
-          <span className="bg-[#00a8ff]/20 text-[#00a8ff] text-xs font-semibold px-2 py-0.5 rounded-full">
-            Encrypted
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setShowPrivacyModal(true)}
-            className={`p-2 rounded-full transition-colors ${
-              isDark ? 'hover:bg-[#202c33] text-[#8596a0]' : 'hover:bg-gray-100 text-gray-600'
-            }`}
-            title="Status Privacy"
-          >
-            <ShieldCheck className="w-5 h-5 text-[#00a8ff]" />
-          </button>
-        </div>
-      </div>
+    <div className={`flex-1 flex w-full h-full overflow-hidden select-none relative ${isDark ? 'bg-[#111b21] text-[#e9edef]' : 'bg-white text-gray-900'
+      }`}>
+      {/* Left Column: Status List Sidebar */}
+      <div className={`h-full flex flex-col border-r ${isDark ? 'border-[#202c33] bg-[#111b21]' : 'border-gray-200 bg-white'
+        } w-full md:w-80 lg:w-[380px] xl:w-[420px] 2xl:w-[460px] shrink-0 overflow-hidden`}>
 
-      <div className="p-3 sm:p-4 space-y-4 max-w-2xl mx-auto w-full">
-        {/* My Status Card */}
-        <StatusCard
-          statusGroup={myGroup}
-          isSelf={true}
-          isDark={isDark}
-          onClick={() => {
-            if (myStatuses.length > 0) {
-              setSelectedGroupIndex(0);
-            } else {
+        {/* Top Title Bar */}
+        <div className={`px-5 py-4 flex items-center justify-between border-b ${isDark ? 'border-[#202c33] bg-[#111b21]' : 'border-gray-100 bg-white'
+          } shrink-0`}>
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl font-bold tracking-tight">Status</h2>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setShowPrivacyModal(true)}
+              className={`p-2 rounded-full transition-colors ${isDark ? 'hover:bg-[#202c33] text-[#8596a0]' : 'hover:bg-gray-100 text-gray-600'
+                }`}
+              title="Status Privacy"
+            >
+              <ShieldCheck className="w-5 h-5 text-[#ff2e93]" />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setCreatorType('text');
+                setShowCreatorModal(true);
+              }}
+              className={`p-2 rounded-full transition-colors ${isDark ? 'hover:bg-[#202c33] text-[#8596a0]' : 'hover:bg-gray-100 text-gray-600'
+                }`}
+              title="Create Text Status"
+            >
+              <Pencil className="w-5 h-5" />
+            </button>
+            <label
+              className={`p-2 rounded-full transition-colors cursor-pointer ${isDark ? 'hover:bg-[#202c33] text-[#8596a0]' : 'hover:bg-gray-100 text-gray-600'
+                }`}
+              title="Upload Media Status"
+            >
+              <Camera className="w-5 h-5" />
+              <input type="file" accept="image/*,video/*" onChange={handleFileUpload} className="hidden" />
+            </label>
+          </div>
+        </div>
+
+        {/* Scrollable Status Content */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-4 no-scrollbar">
+          {/* My Status Card */}
+          <StatusCard
+            statusGroup={myGroup}
+            isSelf={true}
+            isDark={isDark}
+            onClick={() => {
+              if (myStatuses.length > 0) {
+                setSelectedGroupIndex(0);
+              } else {
+                setCreatorType('text');
+                setShowCreatorModal(true);
+              }
+            }}
+            onAddStatus={() => {
               setCreatorType('text');
               setShowCreatorModal(true);
-            }
-          }}
-          onAddStatus={() => {
-            setCreatorType('text');
-            setShowCreatorModal(true);
-          }}
-        />
+            }}
+          />
 
-        {/* Section: Recent Updates */}
-        {recentFriendGroups.length > 0 && (
-          <div className="space-y-2">
-            <h4 className={`text-xs font-bold uppercase tracking-wider px-1 ${
-              isDark ? 'text-[#8596a0]' : 'text-gray-500'
-            }`}>
-              Recent updates ({recentFriendGroups.length})
-            </h4>
-            <div className="space-y-1">
-              {recentFriendGroups.map((group) => {
-                const groupIdx = allViewerGroups.findIndex(g => g.userId === group.userId);
-                return (
-                  <StatusCard
-                    key={group.userId}
-                    statusGroup={group}
-                    isDark={isDark}
-                    onClick={() => {
-                      if (groupIdx !== -1) setSelectedGroupIndex(groupIdx);
-                    }}
-                  />
-                );
-              })}
+          {/* Section: RECENT */}
+          {statusFilter === 'all' && (
+            <div className="space-y-2 pt-1">
+              <h4 className="text-xs font-bold uppercase tracking-wider px-2 text-gray-400 dark:text-[#8696a0]">
+                RECENT
+              </h4>
+
+              {recentFriendGroups.length > 0 ? (
+                <div className="space-y-1">
+                  {recentFriendGroups.map((group) => {
+                    const groupIdx = allViewerGroups.findIndex(g => g.userId === group.userId);
+                    return (
+                      <StatusCard
+                        key={group.userId}
+                        statusGroup={group}
+                        isDark={isDark}
+                        onClick={() => {
+                          if (groupIdx !== -1) setSelectedGroupIndex(groupIdx);
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="px-3 py-1 text-sm text-gray-400 dark:text-[#8696a0]">
+                  No recent statuses
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Section: Viewed Updates */}
-        {viewedFriendGroups.length > 0 && (
-          <div className="space-y-2 pt-2">
-            <h4 className={`text-xs font-bold uppercase tracking-wider px-1 ${
-              isDark ? 'text-[#8596a0]' : 'text-gray-500'
-            }`}>
-              Viewed updates ({viewedFriendGroups.length})
-            </h4>
-            <div className="space-y-1">
-              {viewedFriendGroups.map((group) => {
-                const groupIdx = allViewerGroups.findIndex(g => g.userId === group.userId);
-                return (
-                  <StatusCard
-                    key={group.userId}
-                    statusGroup={group}
-                    isDark={isDark}
-                    onClick={() => {
-                      if (groupIdx !== -1) setSelectedGroupIndex(groupIdx);
-                    }}
-                  />
-                );
-              })}
+          {/* Section: VIEWED (if any) */}
+          {viewedFriendGroups.length > 0 && statusFilter === 'all' && (
+            <div className="space-y-2 pt-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider px-2 text-gray-400 dark:text-[#8696a0]">
+                VIEWED
+              </h4>
+              <div className="space-y-1">
+                {viewedFriendGroups.map((group) => {
+                  const groupIdx = allViewerGroups.findIndex(g => g.userId === group.userId);
+                  return (
+                    <StatusCard
+                      key={group.userId}
+                      statusGroup={group}
+                      isDark={isDark}
+                      onClick={() => {
+                        if (groupIdx !== -1) setSelectedGroupIndex(groupIdx);
+                      }}
+                    />
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
+
+        </div>
       </div>
 
-      {/* Floating Action Buttons for Quick Create on Mobile */}
-      <div className="fixed bottom-20 right-4 z-30 flex flex-col gap-3">
-        <button
-          type="button"
-          onClick={() => {
-            setCreatorType('text');
-            setShowCreatorModal(true);
-          }}
-          className={`w-11 h-11 rounded-full shadow-lg flex items-center justify-center transition-transform active:scale-90 ${
-            isDark ? 'bg-[#202c33] text-[#e9edef] border border-[#2a3942]' : 'bg-white text-gray-700 border border-gray-200'
-          }`}
-          title="Create text status"
-        >
-          <Pencil className="w-5 h-5" />
-        </button>
+      {/* Right Column: Desktop Welcome / Placeholder Screen */}
+      <div className={`hidden md:flex flex-1 flex-col items-center justify-center p-8 text-center relative select-none ${isDark ? 'bg-[#0b141a] text-[#8696a0]' : 'bg-[#f0f2f5] text-gray-600'
+        }`}>
+        <div className="max-w-md w-full flex flex-col items-center animate-fade-in">
+          {/* Status Circular Ring Icon */}
+          <div className="w-20 h-20 rounded-full border-4 border-gray-300 dark:border-gray-700 border-dashed flex items-center justify-center mb-6 opacity-75">
+            <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-800" />
+          </div>
 
-        <label 
-          className="w-13 h-13 rounded-2xl bg-[#00a8ff] text-[#0b141a] shadow-xl flex items-center justify-center cursor-pointer transition-transform active:scale-90 border border-[#00a8ff]/40"
-          title="Upload image / video"
-        >
-          <Camera className="w-6 h-6 stroke-[2.2]" />
-          <input type="file" accept="image/*,video/*" onChange={handleFileUpload} className="hidden" />
-        </label>
+          {/* Heading */}
+          <h3 className={`text-2xl font-bold mb-2 tracking-tight ${isDark ? 'text-[#e9edef]' : 'text-gray-900'}`}>
+            Share status updates
+          </h3>
+
+          {/* Subtitle */}
+          <p className="text-sm leading-relaxed max-w-sm text-gray-500 dark:text-[#8696a0]">
+            Share photos, videos and text that disappear after 24 hours.
+          </p>
+        </div>
+
+        {/* End-to-end Encrypted Footer Note */}
+        <div className="absolute bottom-8 flex items-center justify-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
+          <Lock className="w-3.5 h-3.5 shrink-0" />
+          <span>Your status updates are end-to-end encrypted</span>
+        </div>
       </div>
 
       {/* Real-time Firestore Status Viewer Modal */}
@@ -839,7 +865,7 @@ export const MediaGallery: React.FC = () => {
 
             {creatorType === 'media' && (
               <h3 className="font-bold text-sm sm:text-base flex items-center gap-2">
-                <Sliders className="w-4 h-4 text-[#00a8ff]" />
+                <Sliders className="w-4 h-4 text-[#ff2e93]" />
                 <span>{creatorMediaType === 'video' ? 'Video Status Studio' : 'Photo Editor & Positioning'}</span>
               </h3>
             )}
@@ -852,9 +878,8 @@ export const MediaGallery: React.FC = () => {
                       key={idx}
                       type="button"
                       onClick={() => setStatusBgColor(bg)}
-                      className={`w-6 h-6 rounded-full bg-gradient-to-br ${bg} border-2 ${
-                        statusBgColor === bg ? 'border-white scale-110' : 'border-transparent'
-                      }`}
+                      className={`w-6 h-6 rounded-full bg-gradient-to-br ${bg} border-2 ${statusBgColor === bg ? 'border-white scale-110' : 'border-transparent'
+                        }`}
                     />
                   ))}
                 </div>
@@ -890,7 +915,7 @@ export const MediaGallery: React.FC = () => {
             ) : (
               <div className="w-full max-w-md flex flex-col items-center gap-3">
                 {/* Live Photo / Video Workspace Canvas Frame */}
-                <div 
+                <div
                   className="relative w-full h-[45vh] sm:h-[52vh] max-h-[520px] rounded-2xl overflow-hidden flex items-center justify-center border border-white/20 shadow-2xl transition-all relative bg-black"
                   style={{ backgroundColor: photoCanvasBg }}
                 >
@@ -909,16 +934,15 @@ export const MediaGallery: React.FC = () => {
                       </div>
                     </div>
                   ) : selectedMediaUrl ? (
-                    <img 
-                      src={selectedMediaUrl} 
-                      alt="Status Preview" 
-                      className={`transition-all duration-150 select-none ${
-                        selectedFilter === 'vintage' ? 'sepia contrast-125' :
-                        selectedFilter === 'mono' ? 'grayscale' :
-                        selectedFilter === 'cyber' ? 'hue-rotate-90 saturate-200' :
-                        selectedFilter === 'warm' ? 'brightness-105 saturate-150' :
-                        selectedFilter === 'dramatic' ? 'contrast-150 brightness-90' : ''
-                      }`}
+                    <img
+                      src={selectedMediaUrl}
+                      alt="Status Preview"
+                      className={`transition-all duration-150 select-none ${selectedFilter === 'vintage' ? 'sepia contrast-125' :
+                          selectedFilter === 'mono' ? 'grayscale' :
+                            selectedFilter === 'cyber' ? 'hue-rotate-90 saturate-200' :
+                              selectedFilter === 'warm' ? 'brightness-105 saturate-150' :
+                                selectedFilter === 'dramatic' ? 'contrast-150 brightness-90' : ''
+                        }`}
                       style={{
                         transform: `rotate(${photoRotation}deg) scale(${photoZoom}) translate(${photoPositionX}px, ${photoPositionY}px)`,
                         objectFit: photoFitMode,
@@ -937,7 +961,7 @@ export const MediaGallery: React.FC = () => {
 
                   {/* Text Overlay on Canvas (For Image Status) */}
                   {creatorMediaType === 'image' && photoTextOverlay && (
-                    <div 
+                    <div
                       className="absolute z-20 px-4 py-2 rounded-xl backdrop-blur-md bg-black/50 font-bold text-center max-w-[85%] shadow-lg drop-shadow border border-white/20 pointer-events-none"
                       style={{ color: photoTextColor }}
                     >
@@ -950,260 +974,251 @@ export const MediaGallery: React.FC = () => {
 
                 {/* Photo Editor Tabs & Toolbar (Only shown for images) */}
                 {creatorMediaType === 'image' && (
-                <div className="w-full bg-[#111b21] border border-[#202c33] rounded-2xl p-3 space-y-3 shadow-xl">
-                  {/* Tool Category Selector */}
-                  <div className="flex items-center justify-around border-b border-[#202c33] pb-2 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setActivePhotoTool('adjust')}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition-all ${
-                        activePhotoTool === 'adjust' ? 'bg-[#00a8ff] text-[#0b141a] font-bold' : 'text-gray-300 hover:bg-white/5'
-                      }`}
-                    >
-                      <Move className="w-3.5 h-3.5" />
-                      <span>Position & Scale</span>
-                    </button>
+                  <div className="w-full bg-[#111b21] border border-[#202c33] rounded-2xl p-3 space-y-3 shadow-xl">
+                    {/* Tool Category Selector */}
+                    <div className="flex items-center justify-around border-b border-[#202c33] pb-2 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setActivePhotoTool('adjust')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition-all ${activePhotoTool === 'adjust' ? 'bg-[#ff2e93] text-white font-bold' : 'text-gray-300 hover:bg-white/5'
+                          }`}
+                      >
+                        <Move className="w-3.5 h-3.5" />
+                        <span>Position & Scale</span>
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() => setActivePhotoTool('filter')}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition-all ${
-                        activePhotoTool === 'filter' ? 'bg-[#00a8ff] text-[#0b141a] font-bold' : 'text-gray-300 hover:bg-white/5'
-                      }`}
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>Filter</span>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => setActivePhotoTool('filter')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition-all ${activePhotoTool === 'filter' ? 'bg-[#ff2e93] text-white font-bold' : 'text-gray-300 hover:bg-white/5'
+                          }`}
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Filter</span>
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() => setActivePhotoTool('text')}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition-all ${
-                        activePhotoTool === 'text' ? 'bg-[#00a8ff] text-[#0b141a] font-bold' : 'text-gray-300 hover:bg-white/5'
-                      }`}
-                    >
-                      <Type className="w-3.5 h-3.5" />
-                      <span>Sticker/Text</span>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => setActivePhotoTool('text')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition-all ${activePhotoTool === 'text' ? 'bg-[#ff2e93] text-white font-bold' : 'text-gray-300 hover:bg-white/5'
+                          }`}
+                      >
+                        <Type className="w-3.5 h-3.5" />
+                        <span>Sticker/Text</span>
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={() => setActivePhotoTool('bg')}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition-all ${
-                        activePhotoTool === 'bg' ? 'bg-[#00a8ff] text-[#0b141a] font-bold' : 'text-gray-300 hover:bg-white/5'
-                      }`}
-                    >
-                      <Palette className="w-3.5 h-3.5" />
-                      <span>Canvas Bg</span>
-                    </button>
-                  </div>
+                      <button
+                        type="button"
+                        onClick={() => setActivePhotoTool('bg')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition-all ${activePhotoTool === 'bg' ? 'bg-[#ff2e93] text-white font-bold' : 'text-gray-300 hover:bg-white/5'
+                          }`}
+                      >
+                        <Palette className="w-3.5 h-3.5" />
+                        <span>Canvas Bg</span>
+                      </button>
+                    </div>
 
-                  {/* Tool Active Panel */}
-                  {activePhotoTool === 'adjust' && (
-                    <div className="space-y-3 pt-1 text-xs">
-                      {/* Zoom & Rotate Controls */}
-                      <div className="grid grid-cols-2 gap-3 items-center">
-                        {/* Zoom Control */}
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-between text-gray-300 text-[11px]">
-                            <span className="flex items-center gap-1"><ZoomIn className="w-3 h-3 text-[#00a8ff]" /> Zoom</span>
-                            <span className="font-mono text-[#00a8ff]">{Math.round(photoZoom * 100)}%</span>
+                    {/* Tool Active Panel */}
+                    {activePhotoTool === 'adjust' && (
+                      <div className="space-y-3 pt-1 text-xs">
+                        {/* Zoom & Rotate Controls */}
+                        <div className="grid grid-cols-2 gap-3 items-center">
+                          {/* Zoom Control */}
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between text-gray-300 text-[11px]">
+                              <span className="flex items-center gap-1"><ZoomIn className="w-3 h-3 text-[#ff2e93]" /> Zoom</span>
+                              <span className="font-mono text-[#ff2e93]">{Math.round(photoZoom * 100)}%</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setPhotoZoom((z) => Math.max(0.5, +(z - 0.1).toFixed(1)))}
+                                className="p-1 bg-white/10 hover:bg-white/20 rounded"
+                              >
+                                <ZoomOut className="w-3.5 h-3.5" />
+                              </button>
+                              <input
+                                type="range"
+                                min="0.5"
+                                max="2.5"
+                                step="0.05"
+                                value={photoZoom}
+                                onChange={(e) => setPhotoZoom(parseFloat(e.target.value))}
+                                className="flex-1 accent-[#ff2e93] h-1.5 bg-gray-700 rounded-lg cursor-pointer"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setPhotoZoom((z) => Math.min(2.5, +(z + 0.1).toFixed(1)))}
+                                className="p-1 bg-white/10 hover:bg-white/20 rounded"
+                              >
+                                <ZoomIn className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <button 
-                              type="button" 
-                              onClick={() => setPhotoZoom((z) => Math.max(0.5, +(z - 0.1).toFixed(1)))}
-                              className="p-1 bg-white/10 hover:bg-white/20 rounded"
-                            >
-                              <ZoomOut className="w-3.5 h-3.5" />
-                            </button>
-                            <input 
-                              type="range" 
-                              min="0.5" 
-                              max="2.5" 
-                              step="0.05"
-                              value={photoZoom}
-                              onChange={(e) => setPhotoZoom(parseFloat(e.target.value))}
-                              className="flex-1 accent-[#00a8ff] h-1.5 bg-gray-700 rounded-lg cursor-pointer"
-                            />
-                            <button 
-                              type="button" 
-                              onClick={() => setPhotoZoom((z) => Math.min(2.5, +(z + 0.1).toFixed(1)))}
-                              className="p-1 bg-white/10 hover:bg-white/20 rounded"
-                            >
-                              <ZoomIn className="w-3.5 h-3.5" />
-                            </button>
+
+                          {/* Rotation Control */}
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between text-gray-300 text-[11px]">
+                              <span className="flex items-center gap-1"><RotateCw className="w-3 h-3 text-[#ff2e93]" /> Rotation</span>
+                              <span className="font-mono text-[#ff2e93]">{photoRotation}°</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {[0, 90, 180, 270].map((deg) => (
+                                <button
+                                  key={deg}
+                                  type="button"
+                                  onClick={() => setPhotoRotation(deg)}
+                                  className={`flex-1 py-1 rounded text-[10px] font-bold transition-colors ${photoRotation === deg ? 'bg-[#ff2e93] text-white' : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                                    }`}
+                                >
+                                  {deg}°
+                                </button>
+                              ))}
+                            </div>
                           </div>
                         </div>
 
-                        {/* Rotation Control */}
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-between text-gray-300 text-[11px]">
-                            <span className="flex items-center gap-1"><RotateCw className="w-3 h-3 text-[#00a8ff]" /> Rotation</span>
-                            <span className="font-mono text-[#00a8ff]">{photoRotation}°</span>
-                          </div>
+                        {/* Directional Shift & Fit Mode */}
+                        <div className="flex items-center justify-between gap-2 pt-1 border-t border-[#202c33]">
+                          {/* 4-way Nudge buttons */}
                           <div className="flex items-center gap-1">
-                            {[0, 90, 180, 270].map((deg) => (
+                            <span className="text-[10px] text-gray-400 mr-1">Shift:</span>
+                            <button
+                              type="button"
+                              onClick={() => setPhotoPositionY((y) => y - 15)}
+                              className="p-1 bg-white/10 hover:bg-white/20 rounded"
+                              title="Nudge Up"
+                            >
+                              <ArrowUp className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPhotoPositionY((y) => y + 15)}
+                              className="p-1 bg-white/10 hover:bg-white/20 rounded"
+                              title="Nudge Down"
+                            >
+                              <ArrowDown className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPhotoPositionX((x) => x - 15)}
+                              className="p-1 bg-white/10 hover:bg-white/20 rounded"
+                              title="Nudge Left"
+                            >
+                              <ArrowLeft className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPhotoPositionX((x) => x + 15)}
+                              className="p-1 bg-white/10 hover:bg-white/20 rounded"
+                              title="Nudge Right"
+                            >
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { setPhotoPositionX(0); setPhotoPositionY(0); }}
+                              className="text-[10px] bg-white/10 hover:bg-white/20 px-1.5 py-1 rounded text-gray-300 ml-1"
+                            >
+                              Center
+                            </button>
+                          </div>
+
+                          {/* Fit Mode */}
+                          <div className="flex items-center gap-1">
+                            {(['contain', 'cover', 'fill'] as const).map((mode) => (
                               <button
-                                key={deg}
+                                key={mode}
                                 type="button"
-                                onClick={() => setPhotoRotation(deg)}
-                                className={`flex-1 py-1 rounded text-[10px] font-bold transition-colors ${
-                                  photoRotation === deg ? 'bg-[#00a8ff] text-[#0b141a]' : 'bg-white/10 text-gray-300 hover:bg-white/20'
-                                }`}
+                                onClick={() => setPhotoFitMode(mode)}
+                                className={`px-2 py-1 rounded text-[10px] capitalize font-medium ${photoFitMode === mode ? 'bg-[#ff2e93] text-white font-bold' : 'bg-white/10 text-gray-300'
+                                  }`}
                               >
-                                {deg}°
+                                {mode}
                               </button>
                             ))}
                           </div>
                         </div>
                       </div>
+                    )}
 
-                      {/* Directional Shift & Fit Mode */}
-                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-[#202c33]">
-                        {/* 4-way Nudge buttons */}
-                        <div className="flex items-center gap-1">
-                          <span className="text-[10px] text-gray-400 mr-1">Shift:</span>
-                          <button 
-                            type="button" 
-                            onClick={() => setPhotoPositionY((y) => y - 15)}
-                            className="p-1 bg-white/10 hover:bg-white/20 rounded" 
-                            title="Nudge Up"
-                          >
-                            <ArrowUp className="w-3.5 h-3.5" />
-                          </button>
-                          <button 
-                            type="button" 
-                            onClick={() => setPhotoPositionY((y) => y + 15)}
-                            className="p-1 bg-white/10 hover:bg-white/20 rounded" 
-                            title="Nudge Down"
-                          >
-                            <ArrowDown className="w-3.5 h-3.5" />
-                          </button>
-                          <button 
-                            type="button" 
-                            onClick={() => setPhotoPositionX((x) => x - 15)}
-                            className="p-1 bg-white/10 hover:bg-white/20 rounded" 
-                            title="Nudge Left"
-                          >
-                            <ArrowLeft className="w-3.5 h-3.5" />
-                          </button>
-                          <button 
-                            type="button" 
-                            onClick={() => setPhotoPositionX((x) => x + 15)}
-                            className="p-1 bg-white/10 hover:bg-white/20 rounded" 
-                            title="Nudge Right"
-                          >
-                            <ArrowRight className="w-3.5 h-3.5" />
-                          </button>
+                    {/* Filter Panel */}
+                    {activePhotoTool === 'filter' && (
+                      <div className="flex items-center justify-around gap-1.5 py-1 text-xs overflow-x-auto">
+                        {[
+                          { id: 'normal', label: 'Normal' },
+                          { id: 'vintage', label: 'Vintage' },
+                          { id: 'mono', label: 'B&W Mono' },
+                          { id: 'cyber', label: 'Cyber' },
+                          { id: 'warm', label: 'Warm Sun' },
+                          { id: 'dramatic', label: 'Dramatic' }
+                        ].map((f) => (
                           <button
+                            key={f.id}
                             type="button"
-                            onClick={() => { setPhotoPositionX(0); setPhotoPositionY(0); }}
-                            className="text-[10px] bg-white/10 hover:bg-white/20 px-1.5 py-1 rounded text-gray-300 ml-1"
-                          >
-                            Center
-                          </button>
-                        </div>
-
-                        {/* Fit Mode */}
-                        <div className="flex items-center gap-1">
-                          {(['contain', 'cover', 'fill'] as const).map((mode) => (
-                            <button
-                              key={mode}
-                              type="button"
-                              onClick={() => setPhotoFitMode(mode)}
-                              className={`px-2 py-1 rounded text-[10px] capitalize font-medium ${
-                                photoFitMode === mode ? 'bg-[#00a8ff] text-[#0b141a] font-bold' : 'bg-white/10 text-gray-300'
+                            onClick={() => setSelectedFilter(f.id as any)}
+                            className={`px-3 py-1.5 rounded-xl font-medium shrink-0 transition-colors ${selectedFilter === f.id ? 'bg-[#ff2e93] text-white font-bold' : 'bg-white/10 text-gray-200 hover:bg-white/20'
                               }`}
-                            >
-                              {mode}
-                            </button>
+                          >
+                            {f.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Text Overlay Panel */}
+                    {activePhotoTool === 'text' && (
+                      <div className="space-y-2 py-1 text-xs">
+                        <input
+                          type="text"
+                          placeholder="Type text/sticker to put on photo..."
+                          value={photoTextOverlay}
+                          onChange={(e) => setPhotoTextOverlay(e.target.value)}
+                          className="w-full bg-[#202c33] border border-white/20 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-400 focus:outline-none focus:border-[#ff2e93]"
+                        />
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-gray-400">Color:</span>
+                          {['#ffffff', '#ff2e93', '#ff60b5', '#ffcc00', '#38bdf8', '#a855f7', '#000000'].map((c) => (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => setPhotoTextColor(c)}
+                              className={`w-6 h-6 rounded-full border-2 ${photoTextColor === c ? 'border-white scale-110' : 'border-transparent'
+                                }`}
+                              style={{ backgroundColor: c }}
+                            />
                           ))}
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Filter Panel */}
-                  {activePhotoTool === 'filter' && (
-                    <div className="flex items-center justify-around gap-1.5 py-1 text-xs overflow-x-auto">
-                      {[
-                        { id: 'normal', label: 'Normal' },
-                        { id: 'vintage', label: 'Vintage' },
-                        { id: 'mono', label: 'B&W Mono' },
-                        { id: 'cyber', label: 'Cyber' },
-                        { id: 'warm', label: 'Warm Sun' },
-                        { id: 'dramatic', label: 'Dramatic' }
-                      ].map((f) => (
-                        <button
-                          key={f.id}
-                          type="button"
-                          onClick={() => setSelectedFilter(f.id as any)}
-                          className={`px-3 py-1.5 rounded-xl font-medium shrink-0 transition-colors ${
-                            selectedFilter === f.id ? 'bg-[#00a8ff] text-[#0b141a] font-bold' : 'bg-white/10 text-gray-200 hover:bg-white/20'
-                          }`}
-                        >
-                          {f.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Text Overlay Panel */}
-                  {activePhotoTool === 'text' && (
-                    <div className="space-y-2 py-1 text-xs">
-                      <input
-                        type="text"
-                        placeholder="Type text/sticker to put on photo..."
-                        value={photoTextOverlay}
-                        onChange={(e) => setPhotoTextOverlay(e.target.value)}
-                        className="w-full bg-[#202c33] border border-white/20 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-400 focus:outline-none focus:border-[#00a8ff]"
-                      />
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] text-gray-400">Color:</span>
-                        {['#ffffff', '#00a8ff', '#ff3b30', '#ffcc00', '#38bdf8', '#a855f7', '#000000'].map((c) => (
-                          <button
-                            key={c}
-                            type="button"
-                            onClick={() => setPhotoTextColor(c)}
-                            className={`w-6 h-6 rounded-full border-2 ${
-                              photoTextColor === c ? 'border-white scale-110' : 'border-transparent'
-                            }`}
-                            style={{ backgroundColor: c }}
-                          />
-                        ))}
+                    {/* Canvas Bg Panel */}
+                    {activePhotoTool === 'bg' && (
+                      <div className="flex items-center justify-between py-1 text-xs">
+                        <span className="text-gray-300 text-[11px]">Background Canvas Color:</span>
+                        <div className="flex items-center gap-1.5">
+                          {[
+                            { color: '#000000', label: 'Black' },
+                            { color: '#111b21', label: 'WhatsApp Dark' },
+                            { color: '#2a081a', label: 'Dark Rose' },
+                            { color: '#1e1b4b', label: 'Navy' },
+                            { color: '#31102f', label: 'Plum' },
+                            { color: '#1f2937', label: 'Slate' }
+                          ].map((b) => (
+                            <button
+                              key={b.color}
+                              type="button"
+                              onClick={() => setPhotoCanvasBg(b.color)}
+                              className={`w-6 h-6 rounded-full border-2 transition-transform ${photoCanvasBg === b.color ? 'border-white scale-110' : 'border-transparent'
+                                }`}
+                              style={{ backgroundColor: b.color }}
+                              title={b.label}
+                            />
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
-
-                  {/* Canvas Bg Panel */}
-                  {activePhotoTool === 'bg' && (
-                    <div className="flex items-center justify-between py-1 text-xs">
-                      <span className="text-gray-300 text-[11px]">Background Canvas Color:</span>
-                      <div className="flex items-center gap-1.5">
-                        {[
-                          { color: '#000000', label: 'Black' },
-                          { color: '#111b21', label: 'WhatsApp Dark' },
-                          { color: '#0f382c', label: 'Emerald' },
-                          { color: '#1e1b4b', label: 'Navy' },
-                          { color: '#31102f', label: 'Plum' },
-                          { color: '#1f2937', label: 'Slate' }
-                        ].map((b) => (
-                          <button
-                            key={b.color}
-                            type="button"
-                            onClick={() => setPhotoCanvasBg(b.color)}
-                            className={`w-6 h-6 rounded-full border-2 transition-transform ${
-                              photoCanvasBg === b.color ? 'border-white scale-110' : 'border-transparent'
-                            }`}
-                            style={{ backgroundColor: b.color }}
-                            title={b.label}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
                 )}
               </div>
             )}
@@ -1216,7 +1231,7 @@ export const MediaGallery: React.FC = () => {
               <div className="absolute bottom-16 left-0 right-0 max-h-48 overflow-y-auto bg-[#1f2c34] border border-[#2a3942] rounded-2xl shadow-2xl z-50 p-2 space-y-1">
                 <p className="text-[10px] text-gray-400 font-bold uppercase px-3 py-1">Mention a contact (@)</p>
                 {availableContacts
-                  .filter(c => 
+                  .filter(c =>
                     (c.name && c.name.toLowerCase().includes(mentionQuery)) ||
                     (c.username && c.username.toLowerCase().includes(mentionQuery))
                   )
@@ -1227,10 +1242,10 @@ export const MediaGallery: React.FC = () => {
                       onClick={() => handleSelectMentionContact(c, creatorType === 'text')}
                       className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white/10 text-left transition-colors cursor-pointer"
                     >
-                      <img src={c.avatar} alt={c.name} className="w-8 h-8 rounded-full object-cover border border-[#00a8ff]" />
+                      <img src={c.avatar} alt={c.name} className="w-8 h-8 rounded-full object-cover border border-[#ff2e93]" />
                       <div className="min-w-0 flex-1">
                         <p className="font-bold text-xs text-white truncate">{c.name}</p>
-                        <p className="text-[10px] text-[#00a8ff] truncate">@{c.username || c.name.toLowerCase().replace(/\s+/g, '')}</p>
+                        <p className="text-[10px] text-[#ff2e93] truncate">@{c.username || c.name.toLowerCase().replace(/\s+/g, '')}</p>
                       </div>
                     </button>
                   ))}
@@ -1242,7 +1257,7 @@ export const MediaGallery: React.FC = () => {
               <div className="flex items-center gap-1.5 flex-wrap px-1 pb-1">
                 <span className="text-[11px] text-gray-400 font-medium">Mentioned:</span>
                 {mentionedUsernames.map((uname, idx) => (
-                  <span key={idx} className="px-2.5 py-0.5 rounded-full bg-[#00a8ff]/20 border border-[#00a8ff]/40 text-[#00a8ff] text-[11px] font-bold flex items-center gap-1">
+                  <span key={idx} className="px-2.5 py-0.5 rounded-full bg-[#ff2e93]/20 border border-[#ff2e93]/40 text-[#ff2e93] text-[11px] font-bold flex items-center gap-1">
                     {uname}
                     <button
                       type="button"
@@ -1263,17 +1278,17 @@ export const MediaGallery: React.FC = () => {
               placeholder={creatorType === 'text' ? "Add a caption or mentions..." : "Add a caption (type @ to mention friends)..."}
               value={statusCaption}
               onChange={(e) => handleStatusTextOrCaptionChange(e.target.value, false)}
-              className="w-full bg-[#202c33] border border-white/20 rounded-2xl px-4 py-2.5 text-sm text-white placeholder-gray-400 focus:outline-none focus:border-[#00a8ff]"
+              className="w-full bg-[#202c33] border border-white/20 rounded-2xl px-4 py-2.5 text-sm text-white placeholder-gray-400 focus:outline-none focus:border-[#ff2e93]"
             />
 
             <div className="flex items-center justify-between pt-1">
               <button
                 type="button"
                 onClick={() => setShowPrivacyModal(true)}
-                className="text-xs text-gray-300 hover:text-[#00a8ff] flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 transition-all cursor-pointer"
+                className="text-xs text-gray-300 hover:text-[#ff2e93] flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 transition-all cursor-pointer"
                 title="Click to set status privacy & select friends"
               >
-                <Lock className="w-3.5 h-3.5 text-[#00a8ff]" />
+                <Lock className="w-3.5 h-3.5 text-[#ff2e93]" />
                 <span>Status privacy: <strong className="text-white font-bold">{getPrivacyLabel()}</strong></span>
               </button>
 
@@ -1281,11 +1296,11 @@ export const MediaGallery: React.FC = () => {
                 type="button"
                 onClick={handlePublishStatus}
                 disabled={isPublishing || (creatorType === 'text' && !statusText.trim())}
-                className="bg-[#00a8ff] text-[#0b141a] px-6 py-2.5 rounded-full font-bold text-sm flex items-center gap-2 hover:bg-[#0088cc] active:scale-95 disabled:opacity-40 transition-all cursor-pointer shadow-lg shrink-0"
+                className="bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white px-6 py-2.5 rounded-full font-bold text-sm flex items-center gap-2 hover:opacity-90 active:scale-95 disabled:opacity-40 transition-all cursor-pointer shadow-lg shadow-[#ff2e93]/30 shrink-0"
               >
                 {isPublishing ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin text-[#0b141a]" />
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
                     <span>Sending...</span>
                   </>
                 ) : (
@@ -1303,12 +1318,11 @@ export const MediaGallery: React.FC = () => {
       {/* Privacy Settings Modal */}
       {showPrivacyModal && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
-          <div className={`w-full max-w-md rounded-3xl p-5 sm:p-6 shadow-2xl border max-h-[90vh] flex flex-col ${
-            isDark ? 'bg-[#111b21] border-[#202c33] text-[#e9edef]' : 'bg-white border-gray-200 text-gray-900'
-          }`}>
+          <div className={`w-full max-w-md rounded-3xl p-5 sm:p-6 shadow-2xl border max-h-[90vh] flex flex-col ${isDark ? 'bg-[#111b21] border-[#202c33] text-[#e9edef]' : 'bg-white border-gray-200 text-gray-900'
+            }`}>
             <div className="flex items-center justify-between pb-3 border-b border-gray-200 dark:border-[#202c33] shrink-0">
               <h3 className="font-bold text-lg flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-[#00a8ff]" />
+                <ShieldCheck className="w-5 h-5 text-[#ff2e93]" />
                 Status Privacy
               </h3>
               <button type="button" onClick={() => setShowPrivacyModal(false)} className="p-1 rounded-full hover:bg-gray-500/20 cursor-pointer">
@@ -1325,13 +1339,12 @@ export const MediaGallery: React.FC = () => {
                 { id: 'contacts', label: 'My all contacts', desc: 'All your saved contacts can view' },
                 { id: 'only', label: 'Only share with...', desc: 'Select specific contacts to share with' }
               ].map((opt) => (
-                <label 
+                <label
                   key={opt.id}
-                  className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-colors ${
-                    privacySetting === opt.id 
-                      ? 'border-[#00a8ff] bg-[#00a8ff]/10' 
+                  className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-colors ${privacySetting === opt.id
+                      ? 'border-[#ff2e93] bg-[#ff2e93]/10'
                       : (isDark ? 'border-[#202c33] hover:bg-[#202c33]' : 'border-gray-200 hover:bg-gray-50')
-                  }`}
+                    }`}
                 >
                   <div>
                     <p className="font-semibold text-sm">{opt.label}</p>
@@ -1342,21 +1355,20 @@ export const MediaGallery: React.FC = () => {
                     name="privacy"
                     checked={privacySetting === opt.id}
                     onChange={() => setPrivacySetting(opt.id as any)}
-                    className="accent-[#00a8ff] w-4 h-4 cursor-pointer"
+                    className="accent-[#ff2e93] w-4 h-4 cursor-pointer"
                   />
                 </label>
               ))}
 
               {/* Contact Picker Section when Only share with... is selected */}
               {privacySetting === 'only' && (
-                <div className={`mt-3 p-3.5 rounded-2xl border space-y-2.5 animate-fade-in ${
-                  isDark ? 'bg-[#0b141a] border-[#202c33]' : 'bg-gray-50 border-gray-200'
-                }`}>
+                <div className={`mt-3 p-3.5 rounded-2xl border space-y-2.5 animate-fade-in ${isDark ? 'bg-[#0b141a] border-[#202c33]' : 'bg-gray-50 border-gray-200'
+                  }`}>
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-bold text-[#00a8ff]">
+                    <p className="text-xs font-bold text-[#ff2e93]">
                       Share status ONLY with these contacts:
                     </p>
-                    <span className="text-[11px] text-[#00a8ff] font-bold bg-[#00a8ff]/10 px-2 py-0.5 rounded-full">
+                    <span className="text-[11px] text-[#ff2e93] font-bold bg-[#ff2e93]/10 px-2 py-0.5 rounded-full">
                       {selectedPrivacyContactIds.length} selected
                     </span>
                   </div>
@@ -1368,9 +1380,8 @@ export const MediaGallery: React.FC = () => {
                       value={privacySearchQuery}
                       onChange={(e) => setPrivacySearchQuery(e.target.value)}
                       placeholder="Search contacts..."
-                      className={`w-full text-xs px-3 py-2 rounded-xl border text-e9edef focus:outline-none focus:border-[#00a8ff] ${
-                        isDark ? 'bg-[#111b21] border-[#202c33] text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
-                      }`}
+                      className={`w-full text-xs px-3 py-2 rounded-xl border text-e9edef focus:outline-none focus:border-[#ff2e93] ${isDark ? 'bg-[#111b21] border-[#202c33] text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                        }`}
                     />
                   </div>
 
@@ -1379,7 +1390,7 @@ export const MediaGallery: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setSelectedPrivacyContactIds(availableContacts.map(c => c.id))}
-                      className="text-[#00a8ff] hover:underline font-semibold cursor-pointer"
+                      className="text-[#ff2e93] hover:underline font-semibold cursor-pointer"
                     >
                       Select All ({availableContacts.length})
                     </button>
@@ -1402,17 +1413,16 @@ export const MediaGallery: React.FC = () => {
                           <div
                             key={contact.id}
                             onClick={() => togglePrivacyContact(contact.id)}
-                            className={`flex items-center justify-between p-2 rounded-xl cursor-pointer transition-all ${
-                              isChecked 
-                                ? 'bg-[#00a8ff]/20 border border-[#00a8ff]/50' 
+                            className={`flex items-center justify-between p-2 rounded-xl cursor-pointer transition-all ${isChecked
+                                ? 'bg-[#ff2e93]/20 border border-[#ff2e93]/50'
                                 : (isDark ? 'bg-[#1f2c34]/40 hover:bg-[#1f2c34]' : 'bg-white hover:bg-gray-100 border border-gray-200')
-                            }`}
+                              }`}
                           >
                             <div className="flex items-center gap-2.5 min-w-0">
                               <img
                                 src={contact.avatar}
                                 alt={contact.name}
-                                className="w-8 h-8 rounded-full object-cover shrink-0 border border-[#00a8ff]/30"
+                                className="w-8 h-8 rounded-full object-cover shrink-0 border border-[#ff2e93]/30"
                               />
                               <div className="min-w-0 flex-1">
                                 <p className={`font-semibold truncate text-xs ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -1424,9 +1434,8 @@ export const MediaGallery: React.FC = () => {
                               </div>
                             </div>
 
-                            <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors shrink-0 ${
-                              isChecked ? 'bg-[#00a8ff] border-[#00a8ff] text-[#0b141a]' : 'border-gray-500'
-                            }`}>
+                            <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors shrink-0 ${isChecked ? 'bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] border-[#ff2e93] text-white' : 'border-gray-500'
+                              }`}>
                               {isChecked && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                             </div>
                           </div>
@@ -1440,7 +1449,7 @@ export const MediaGallery: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowPrivacyModal(false)}
-              className="w-full bg-[#00a8ff] text-[#0b141a] font-bold py-3 rounded-2xl hover:bg-[#0088cc] transition-all cursor-pointer mt-3 shrink-0 shadow-lg"
+              className="w-full bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white font-bold py-3 rounded-2xl hover:opacity-90 transition-all cursor-pointer mt-3 shrink-0 shadow-lg shadow-[#ff2e93]/25"
             >
               Done
             </button>
@@ -1450,7 +1459,7 @@ export const MediaGallery: React.FC = () => {
 
       {/* Toast Notification */}
       {privacyToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#00a8ff] text-[#0b141a] px-5 py-2.5 rounded-full text-xs font-bold shadow-2xl animate-fade-in z-50 flex items-center gap-2 border border-white/20">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white px-5 py-2.5 rounded-full text-xs font-bold shadow-2xl animate-fade-in z-50 flex items-center gap-2 border border-white/20">
           <ShieldCheck className="w-4 h-4" />
           <span>{privacyToast}</span>
         </div>
@@ -1459,7 +1468,7 @@ export const MediaGallery: React.FC = () => {
       {/* Realtime Status Mention Notification Popup Banner */}
       {activeMentionNotification && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-sm px-4 animate-slide-down">
-          <div 
+          <div
             onClick={async () => {
               const notifStatusId = activeMentionNotification.statusId;
               dismissMentionNotification();
@@ -1478,21 +1487,21 @@ export const MediaGallery: React.FC = () => {
                 }
               }
             }}
-            className="p-3.5 rounded-2xl bg-[#111b21] border-2 border-[#00a8ff] text-white shadow-2xl flex items-center gap-3 cursor-pointer hover:bg-[#182229] transition-all group"
+            className="p-3.5 rounded-2xl bg-[#111b21] border-2 border-[#ff2e93] text-white shadow-2xl flex items-center gap-3 cursor-pointer hover:bg-[#182229] transition-all group"
           >
             <img
               src={activeMentionNotification.ownerPhoto || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'}
               alt="Avatar"
-              className="w-11 h-11 rounded-full object-cover border-2 border-[#00a8ff] shrink-0"
+              className="w-11 h-11 rounded-full object-cover border-2 border-[#ff2e93] shrink-0"
             />
             <div className="min-w-0 flex-1">
-              <p className="font-bold text-xs text-[#00a8ff] flex items-center gap-1">
+              <p className="font-bold text-xs text-[#ff2e93] flex items-center gap-1">
                 <Sparkles className="w-3.5 h-3.5" /> Status Mention
               </p>
               <p className="text-xs font-medium text-white truncate">
                 {activeMentionNotification.body || `${activeMentionNotification.ownerName} mentioned you in their Status.`}
               </p>
-              <p className="text-[10px] text-emerald-400 font-bold mt-0.5 underline">
+              <p className="text-[10px] text-pink-400 font-bold mt-0.5 underline">
                 Tap to view Status directly
               </p>
             </div>

@@ -100,10 +100,10 @@ export const VaultNavbar: React.FC = () => {
                 ? 'bg-[#ff2e93] text-white font-semibold shadow'
                 : 'text-slate-400 hover:text-white hover:bg-slate-900'
             }`}
-            title="Stori Updates & Media"
+            title="Status Updates & Media"
           >
             <Image className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Stori</span>
+            <span className="hidden sm:inline">Status</span>
             {unseenStatusCount > 0 && (
               <span className="bg-white text-[#ff2e93] text-[9px] font-extrabold px-1.5 py-0.2 rounded-full">
                 {unseenStatusCount}

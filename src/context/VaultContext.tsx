@@ -20,7 +20,7 @@ import { isFirebaseConfigured, firebaseAuth, googleProvider, db } from '../lib/f
 import { compressImage } from '../lib/mediaCompressor';
 import { saveMediaBlob, getMediaBlob } from '../lib/mediaStorage';
 import { extractVideoMetadata } from '../lib/videoUtils';
-import { playMessageArrivalSound } from '../lib/soundUtils';
+import { playMessageArrivalSound, playMessageSentSound } from '../lib/soundUtils';
 import { getContactNotificationSettings } from '../lib/contactSettings';
 import { formatStatusTime, parseMessageDate, formatLastSeen } from '../lib/dateUtils';
 import { getGroupMembersList } from '../lib/groupUtils';
@@ -411,7 +411,13 @@ const ICE_SERVERS: RTCConfiguration = {
     { urls: 'stun:stun2.l.google.com:19302' },
     { urls: 'stun:stun3.l.google.com:19302' },
     { urls: 'stun:stun4.l.google.com:19302' },
+    // Free TURN servers for NAT traversal (essential for calls behind firewalls/mobile data)
+    { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turns:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
   ],
+  iceCandidatePoolSize: 10,
 };
 
 const isPermissionDeniedError = (error: unknown): boolean => {
@@ -1252,7 +1258,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           isSuperAdmin,
           isAdmin,
           isVerified,
-        }, { merge: true });
+        }, { merge: true }).catch((err) => {
+          console.warn('User doc initial write warning:', err);
+        });
       } else {
         await updateDoc(userRef, {
           online: true,
@@ -1918,7 +1926,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   : (globalMsgNotif && senderNotif.chatNotifications && targetNotif.chatNotifications);
 
                 if (!isMuted && isNotifAllowed) {
-                  playMessageArrivalSound(data.senderId);
+                  playMessageArrivalSound(change.doc.id, data.senderId);
                 }
               }
             }
@@ -2396,11 +2404,26 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (err.message === 'Username is already taken') {
         throw err;
       }
-      if (err?.message?.toLowerCase().includes('quota') || err?.code?.includes('quota') || err?.message?.toLowerCase().includes('exceeded')) {
-        console.warn('Firebase Quota Exceeded. Bypassing database update for local usage.', err);
-      } else {
-        console.error('Error during username setup transaction:', err);
-        throw err; // Re-throw other unexpected errors
+      console.warn('Transaction failed or permission denied on usernames index, trying direct user profile update:', err);
+      try {
+        await setDoc(userRef, {
+          uid: authUser.uid,
+          username: uLower,
+          usernameLower: uLower,
+          displayName: displayName || uLower,
+          photoURL,
+          avatar: photoURL,
+          email: authUser.email || '',
+          hasUsername: true,
+          createdAt: serverTimestamp(),
+          lastLogin: serverTimestamp(),
+          lastSeen: 'Online',
+          online: true,
+          status: 'Available on Secret Vault',
+          about: 'Available on CalcChat',
+        }, { merge: true });
+      } catch (directErr) {
+        console.warn('Direct user update warning (fallback to local state):', directErr);
       }
     }
 
@@ -3454,6 +3477,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         createdAt: serverTimestamp(),
       });
       setTypingStatus(receiverId, false).catch(() => {});
+      playMessageSentSound();
     } catch (err: any) {
       console.error('Error sending message to Firestore:', err);
       if (err?.message?.includes('exceeds the maximum allowed size') || err?.code === 'invalid-argument') {
@@ -3475,6 +3499,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           createdAt: serverTimestamp(),
         });
         setTypingStatus(receiverId, false).catch(() => {});
+        playMessageSentSound();
       } else {
         throw err;
       }
@@ -4102,6 +4127,17 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       pc.oniceconnectionstatechange = () => {
         console.log(`[CALL] ICE state with ${remoteUid}:`, pc.iceConnectionState);
+        if (pc.iceConnectionState === 'disconnected') {
+          setTimeout(() => {
+            if (pc.iceConnectionState === 'disconnected' && pc.signalingState !== 'closed') {
+              pc.restartIce();
+            }
+          }, 3000);
+        } else if (pc.iceConnectionState === 'failed') {
+          if (pc.signalingState !== 'closed') {
+            pc.restartIce();
+          }
+        }
       };
 
       if (localStreamRef.current) {
@@ -4482,8 +4518,18 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setActiveCall(prev => prev ? { ...prev, connectionQuality: 'excellent', signalBars: 4 } : null);
       } else if (state === 'disconnected') {
         setActiveCall(prev => prev ? { ...prev, connectionQuality: 'reconnecting', signalBars: 1 } : null);
+        // Auto ICE restart on disconnection
+        setTimeout(() => {
+          if (pc.iceConnectionState === 'disconnected' && pc.signalingState !== 'closed') {
+            pc.restartIce();
+          }
+        }, 3000);
       } else if (state === 'failed') {
         setActiveCall(prev => prev ? { ...prev, connectionQuality: 'poor', signalBars: 0 } : null);
+        // Auto ICE restart on failure
+        if (pc.signalingState !== 'closed') {
+          pc.restartIce();
+        }
       }
     };
 
@@ -4531,6 +4577,29 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
     recordCallInChat(contactId, initialCallInfo);
 
+    // Listen for receiver ICE candidates immediately (don't wait for answer)
+    // onSnapshot replays existing docs, so no candidates are missed
+    const pendingReceiverCandidates: RTCIceCandidateInit[] = [];
+    let remoteDescriptionSet = false;
+
+    candidatesUnsubRef.current = onSnapshot(collection(db, 'calls', callId, 'receiverCandidates'), (candidateSnap) => {
+      candidateSnap.docChanges().forEach(async (change) => {
+        if (change.type === 'added') {
+          const candData = change.doc.data();
+          if (remoteDescriptionSet && pc.remoteDescription) {
+            try {
+              await pc.addIceCandidate(new RTCIceCandidate(candData));
+            } catch (e) {
+              console.warn('Error adding receiver ICE candidate:', e);
+            }
+          } else {
+            // Queue candidate until remote description is set
+            pendingReceiverCandidates.push(candData as RTCIceCandidateInit);
+          }
+        }
+      });
+    });
+
     callDocUnsubRef.current = onSnapshot(callDocRef, async (snap) => {
       if (!snap.exists()) {
         cleanupCall('cancelled');
@@ -4562,20 +4631,18 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (data.answer && pc.signalingState !== 'stable' && !pc.currentRemoteDescription) {
         try {
           await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+          remoteDescriptionSet = true;
           setActiveCall(prev => prev ? { ...prev, status: 'connected' } : null);
 
-          candidatesUnsubRef.current = onSnapshot(collection(db, 'calls', callId, 'receiverCandidates'), (candidateSnap) => {
-            candidateSnap.docChanges().forEach(async (change) => {
-              if (change.type === 'added') {
-                const candData = change.doc.data();
-                try {
-                  await pc.addIceCandidate(new RTCIceCandidate(candData));
-                } catch (e) {
-                  console.warn('Error adding receiver ICE candidate:', e);
-                }
-              }
-            });
-          });
+          // Flush queued ICE candidates now that remote description is set
+          for (const cand of pendingReceiverCandidates) {
+            try {
+              await pc.addIceCandidate(new RTCIceCandidate(cand));
+            } catch (e) {
+              console.warn('Error adding queued receiver ICE candidate:', e);
+            }
+          }
+          pendingReceiverCandidates.length = 0;
         } catch (err) {
           console.error('Error setting remote description:', err);
         }
@@ -4656,8 +4723,18 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setActiveCall(prev => prev ? { ...prev, connectionQuality: 'excellent', signalBars: 4 } : null);
       } else if (state === 'disconnected') {
         setActiveCall(prev => prev ? { ...prev, connectionQuality: 'reconnecting', signalBars: 1 } : null);
+        // Auto ICE restart on disconnection
+        setTimeout(() => {
+          if (pc.iceConnectionState === 'disconnected' && pc.signalingState !== 'closed') {
+            pc.restartIce();
+          }
+        }, 3000);
       } else if (state === 'failed') {
         setActiveCall(prev => prev ? { ...prev, connectionQuality: 'poor', signalBars: 0 } : null);
+        // Auto ICE restart on failure
+        if (pc.signalingState !== 'closed') {
+          pc.restartIce();
+        }
       }
     };
 

@@ -123,9 +123,9 @@ export const CalcChatTitle: React.FC<{ className?: string; size?: 'xs' | 'sm' | 
 };
 
 /**
- * Stori Colorful Title matching user image 1
+ * Status Colorful Title
  */
-export const StoriTitle: React.FC<{ className?: string; size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' }> = ({
+export const StatusTitle: React.FC<{ className?: string; size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' }> = ({
   className = '',
   size = 'md',
 }) => {
@@ -143,12 +143,14 @@ export const StoriTitle: React.FC<{ className?: string; size?: 'xs' | 'sm' | 'md
       <span className="bg-gradient-to-b from-[#00c6ff] to-[#0072ff] bg-clip-text text-transparent drop-shadow-md">S</span>
       {/* t - Orange */}
       <span className="bg-gradient-to-b from-[#ffb300] to-[#ff4e00] bg-clip-text text-transparent drop-shadow-md">t</span>
-      {/* o - blue */}
-      <span className="bg-gradient-to-b from-[#ff2a8d] to-[#9a00ff] bg-clip-text text-transparent drop-shadow-md">o</span>
-      {/* r - Cyan/Teal */}
-      <span className="bg-gradient-to-b from-[#00e5ff] to-[#00b894] bg-clip-text text-transparent drop-shadow-md">r</span>
-      {/* i - Purple with blue Dot */}
-      <span className="bg-gradient-to-b from-[#7f00ff] to-[#e100ff] bg-clip-text text-transparent drop-shadow-md">i</span>
+      {/* a - Pink/Purple */}
+      <span className="bg-gradient-to-b from-[#ff2a8d] to-[#9a00ff] bg-clip-text text-transparent drop-shadow-md">a</span>
+      {/* t - Cyan/Teal */}
+      <span className="bg-gradient-to-b from-[#00e5ff] to-[#00b894] bg-clip-text text-transparent drop-shadow-md">t</span>
+      {/* u - Purple */}
+      <span className="bg-gradient-to-b from-[#7f00ff] to-[#e100ff] bg-clip-text text-transparent drop-shadow-md">u</span>
+      {/* s - Orange */}
+      <span className="bg-gradient-to-b from-[#ffb300] to-[#ff4e00] bg-clip-text text-transparent drop-shadow-md">s</span>
     </span>
   );
 };

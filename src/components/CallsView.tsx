@@ -193,14 +193,14 @@ export const CallsView: React.FC = () => {
           ) : (
             /* Standard Header Matching Image 1 (Responsive for mobile & desktop) */
             <div className="flex items-center justify-between">
-              <div className="hidden md:flex items-center gap-2.5">
+              <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#ff2e93] to-[#ff60b5] text-white flex items-center justify-center shadow-md shadow-[#ff2e93]/25 shrink-0">
                   <Phone className="w-4.5 h-4.5 fill-white text-transparent" />
                 </div>
                 <h2 className="text-xl font-bold tracking-tight">Call History</h2>
               </div>
 
-              <div className="flex items-center justify-end gap-2 w-full md:w-auto">
+              <div className="flex items-center justify-end gap-2 md:w-auto">
                 <button
                   onClick={() => setShowNewCallModal(true)}
                   className="w-8 h-8 rounded-full bg-gradient-to-r from-[#ff2e93] to-[#ff60b5] text-white hover:opacity-95 transition-all active:scale-95 shadow-md shadow-[#ff2e93]/25 flex items-center justify-center cursor-pointer shrink-0"

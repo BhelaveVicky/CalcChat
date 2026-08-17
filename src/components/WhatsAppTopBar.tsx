@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { UserPlus } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 import { FriendRequestsModal } from './FriendRequestsModal';
-import { CCLogo, CalcChatTitle, StoriTitle, CallsTitle, ProfileTitle } from './CalcChatBrand';
+import { CCLogo, CalcChatTitle, StatusTitle, CallsTitle, ProfileTitle } from './CalcChatBrand';
 
 export const WhatsAppTopBar: React.FC = () => {
   const {
@@ -42,7 +42,7 @@ export const WhatsAppTopBar: React.FC = () => {
               <CalcChatTitle size="md" />
             </div>
           ) : activeTab === 'gallery' ? (
-            <StoriTitle size="md" />
+            <StatusTitle size="md" />
           ) : activeTab === 'calls' ? (
             <CallsTitle size="md" />
           ) : activeTab === 'profile' ? (

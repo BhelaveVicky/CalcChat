@@ -238,7 +238,7 @@ export const VaultContainer: React.FC = () => {
               )}
             </button>
 
-            {/* 2. Status / Stori */}
+            {/* 2. Status */}
             <button
               type="button"
               onClick={() => setActiveTab('gallery')}

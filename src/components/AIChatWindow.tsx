@@ -338,6 +338,7 @@ Ask me anything in Hindi, English, or any language below! 😊`,
     const promptToSend = (customPrompt || inputText).trim();
     if (!promptToSend || isGenerating || !currentConv) return;
 
+    localStorage.removeItem('calcchat_ai_deleted');
     setInputText('');
     setEditingMsgId(null);
 

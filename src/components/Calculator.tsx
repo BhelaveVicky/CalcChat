@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Sparkles, Settings as SettingsIcon, Delete, X, Trash2, Clock, Database,
-  Volume2, Moon, Sun, Shield, Minus, Square, ExternalLink
+  Volume2, Moon, Sun, Shield
 } from 'lucide-react';
 import { useVault } from '../context/VaultContext';
 import { useSettings } from '../context/SettingsContext';
@@ -85,7 +85,6 @@ export const Calculator: React.FC = () => {
 
   // Mobile Drawer State
   const [showMobileDrawer, setShowMobileDrawer] = useState<boolean>(false);
-  const [showPasscodeHintModal, setShowPasscodeHintModal] = useState<boolean>(false);
 
   useEffect(() => {
     localStorage.setItem('calc_memory_list', JSON.stringify(memoryList));
@@ -419,81 +418,15 @@ export const Calculator: React.FC = () => {
       isDark ? 'bg-[#191919] text-[#f5f5f5]' : 'bg-[#faf8f7] text-[#1f1f1f]'
     }`}>
 
-      {/* ─── WINDOW TITLE BAR (Windows Desktop Style) ─── */}
-      <div className={`w-full h-8 px-3 flex items-center justify-between shrink-0 select-none text-xs ${
-        isDark ? 'bg-[#191919] text-[#a0a0a0] border-b border-[#292929]' : 'bg-[#faf8f7] text-[#5c5c5c]'
-      }`}>
-        {/* Left: Window Icon + App Title */}
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-md bg-[#ff5b48] flex items-center justify-center text-white text-[10px] font-bold shadow-xs">
-            🧮
-          </div>
-          <span className="font-medium text-xs tracking-tight">Calculator</span>
-        </div>
-
-        {/* Right: Window Controls */}
-        <div className="flex items-center">
-          <button
-            type="button"
-            onClick={() => {
-              setShowPasscodeHintModal(true);
-            }}
-            className={`w-10 h-8 flex items-center justify-center transition-colors cursor-pointer ${
-              isDark ? 'hover:bg-[#2b2b2b] text-[#c0c0c0]' : 'hover:bg-gray-200/80 text-gray-700'
-            }`}
-            title="Minimize / Hint"
-          >
-            <Minus className="w-3.5 h-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (document.fullscreenElement) {
-                document.exitFullscreen().catch(() => {});
-              } else {
-                document.documentElement.requestFullscreen().catch(() => {});
-              }
-            }}
-            className={`w-10 h-8 flex items-center justify-center transition-colors cursor-pointer ${
-              isDark ? 'hover:bg-[#2b2b2b] text-[#c0c0c0]' : 'hover:bg-gray-200/80 text-gray-700'
-            }`}
-            title="Maximize Window"
-          >
-            <Square className="w-3 h-3" />
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setDisplay('0');
-              setEquation('');
-            }}
-            className="w-11 h-8 flex items-center justify-center hover:bg-rose-600 hover:text-white transition-colors cursor-pointer"
-            title="Close / Reset"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-
       {/* ─── APP SUB-HEADER (Standard Title, History/Memory Tabs, Settings) ─── */}
-      <div className="w-full px-4 sm:px-6 pt-1 pb-1 flex items-center justify-between shrink-0">
-        {/* Left: Mode Title & Passcode Quick View */}
+      <div className="w-full px-4 sm:px-6 pt-3 pb-1 flex items-center justify-between shrink-0">
+        {/* Left: Mode Title */}
         <div className="flex items-center gap-3">
           <h2 className={`text-xl sm:text-2xl font-bold tracking-tight ${
             isDark ? 'text-white' : 'text-gray-900'
           }`}>
             {t('calculator') || 'Calculator'}
           </h2>
-
-          <button
-            onClick={() => setShowPasscodeHintModal(true)}
-            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-              isDark ? 'text-[#888888] hover:text-[#e0e0e0] hover:bg-[#2a2a2a]' : 'text-gray-400 hover:text-gray-700 hover:bg-[#f0ece9]'
-            }`}
-            title="Keep on top / Passcode Hint"
-          >
-            <ExternalLink className="w-4 h-4" />
-          </button>
         </div>
 
         {/* Right: Desktop History / Memory Tab Switcher & Settings */}
@@ -1072,43 +1005,6 @@ export const Calculator: React.FC = () => {
               </button>
             </div>
 
-          </div>
-        </div>
-      )}
-
-      {/* ─── PASSCODE HINT MODAL ─── */}
-      {showPasscodeHintModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
-          <div className="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-2xl border border-gray-100 dark:border-zinc-800 animate-scale-in">
-            <div className="w-12 h-12 rounded-2xl bg-[#ff5b48]/10 text-[#ff5b48] flex items-center justify-center mx-auto mb-4">
-              <Shield className="w-6 h-6" />
-            </div>
-
-            <h3 className="text-lg font-bold text-center text-gray-900 dark:text-white mb-1">
-              Secret Chat Vault
-            </h3>
-            <p className="text-xs text-center text-gray-500 dark:text-zinc-400 mb-4">
-              Your secret passcode unlocks encrypted chats, status updates, calls, and settings.
-            </p>
-
-            <div className="bg-[#fff3f0] dark:bg-[#2e1c18] border border-[#ffcdb4] dark:border-[#5c2e24] rounded-2xl p-4 text-center mb-5">
-              <span className="text-xs text-[#ff5b48] font-semibold block mb-1">
-                Your Secret Passcode
-              </span>
-              <span className="font-mono text-2xl font-black text-[#ff5b48] dark:text-[#ff7e6f] tracking-widest">
-                {currentPasscode}=
-              </span>
-              <span className="text-[11px] text-gray-600 dark:text-zinc-400 block mt-1">
-                (Type <strong className="font-mono text-[#ff5b48]">{currentPasscode}</strong> and press <strong className="font-mono text-[#ff5b48]">=</strong> on the calculator)
-              </span>
-            </div>
-
-            <button
-              onClick={() => setShowPasscodeHintModal(false)}
-              className="w-full py-3 rounded-xl bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-semibold text-sm hover:opacity-90 transition-opacity cursor-pointer"
-            >
-              Got it
-            </button>
           </div>
         </div>
       )}

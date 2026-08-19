@@ -30,8 +30,6 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showExportSheet, setShowExportSheet] = useState(false);
   const [showSecurityModal, setShowSecurityModal] = useState(false);
-  const [showPasscodeHintModal, setShowPasscodeHintModal] = useState(false);
-  const [copiedPasscode, setCopiedPasscode] = useState(false);
   const [securityPassword, setSecurityPassword] = useState('');
   const [showSnackbar, setShowSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -73,12 +71,6 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
       return pushOverlayHandler('showHistoryView', () => setShowHistoryView(false));
     }
   }, [showHistoryView, pushOverlayHandler]);
-
-  useEffect(() => {
-    if (showPasscodeHintModal) {
-      return pushOverlayHandler('showPasscodeHintModal', () => setShowPasscodeHintModal(false));
-    }
-  }, [showPasscodeHintModal, pushOverlayHandler]);
 
   useEffect(() => {
     if (showSecurityModal) {
@@ -506,29 +498,6 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                 </span>
                 <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                   {isFirstTimeUser ? 'Create your vault password' : 'Manage vault and files'}
-                </p>
-              </div>
-            </div>
-            <ChevronRight className={`w-5 h-5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
-          </button>
-
-          {/* Secret Passcode Hint & Unlock Guide */}
-          <button
-            onClick={() => setShowPasscodeHintModal(true)}
-            className={`w-full px-5 py-4 flex items-center justify-between transition-colors border-t ${
-              isDark ? 'hover:bg-[#282828] border-[#2d2d2d]' : 'hover:bg-gray-50 border-gray-200'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500 to-rose-600 shadow-lg">
-                <Key className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex-1 text-left">
-                <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>
-                  Secret Passcode Hint
-                </span>
-                <p className={`text-xs mt-0.5 ${isDark ? 'text-amber-400/90' : 'text-amber-600'}`}>
-                  Calculator secret unlock PIN & instructions
                 </p>
               </div>
             </div>
@@ -1235,114 +1204,6 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* Secret Passcode Hint & Instructions Modal */}
-      {showPasscodeHintModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowPasscodeHintModal(false)} />
-          <div className={`relative rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-scale-in p-6 border transition-colors ${
-            isDark ? 'bg-[#1e1e1e] border-[#2d2d2d] text-white' : 'bg-white border-gray-200 text-gray-800'
-          }`}>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-2xl bg-gradient-to-br from-amber-500 to-rose-600 text-white shadow-lg">
-                  <Key className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold">Secret Vault Passcode</h3>
-                  <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Calculator disguise unlock guide</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowPasscodeHintModal(false)}
-                className={`p-2 rounded-full transition-colors ${
-                  isDark ? 'hover:bg-[#282828] text-gray-400' : 'hover:bg-gray-100 text-gray-500'
-                }`}
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Current Passcode Display */}
-            <div className={`p-4 rounded-2xl border mb-4 text-center ${
-              isDark ? 'bg-[#252525] border-[#333333]' : 'bg-amber-50/80 border-amber-200/80'
-            }`}>
-              <span className={`text-xs uppercase tracking-wider font-semibold ${isDark ? 'text-gray-400' : 'text-amber-700'}`}>
-                Your Secret Passcode
-              </span>
-              <div className="mt-1 flex items-center justify-center gap-3">
-                <span className="text-3xl font-mono font-bold tracking-widest text-[#ff5b48]">
-                  {vaultSettings?.passcode || '1234'}
-                </span>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(vaultSettings?.passcode || '1234');
-                    setCopiedPasscode(true);
-                    setTimeout(() => setCopiedPasscode(false), 2000);
-                  }}
-                  className={`p-2 rounded-xl border transition-colors cursor-pointer ${
-                    copiedPasscode
-                      ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                      : isDark ? 'hover:bg-[#333] text-gray-300 border-[#444]' : 'hover:bg-amber-100 text-gray-700 border-amber-300'
-                  }`}
-                  title="Copy Passcode"
-                >
-                  {copiedPasscode ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            {/* How to Unlock Steps */}
-            <div className="space-y-2.5 mb-5 text-xs sm:text-sm">
-              <div className={`p-3 rounded-xl border flex items-start gap-2.5 ${
-                isDark ? 'bg-[#282828] border-[#383838] text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-700'
-              }`}>
-                <span className="w-5 h-5 rounded-full bg-[#ff5b48] text-white flex items-center justify-center font-bold shrink-0 text-xs mt-0.5">1</span>
-                <div>
-                  <strong>Enter Code:</strong> Type <span className="font-mono text-[#ff5b48] font-bold">{vaultSettings?.passcode || '1234'}</span> on the calculator keypad.
-                </div>
-              </div>
-
-              <div className={`p-3 rounded-xl border flex items-start gap-2.5 ${
-                isDark ? 'bg-[#282828] border-[#383838] text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-700'
-              }`}>
-                <span className="w-5 h-5 rounded-full bg-[#ff5b48] text-white flex items-center justify-center font-bold shrink-0 text-xs mt-0.5">2</span>
-                <div>
-                  <strong>Press Equal:</strong> Click the <span className="font-bold text-[#ff5b48] text-sm">"="</span> button to instantly reveal the Secret Chat Vault.
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowPasscodeHintModal(false);
-                  setShowSecurityModal(true);
-                }}
-                className={`flex-1 py-3 rounded-2xl font-semibold text-xs sm:text-sm border transition-colors ${
-                  isDark ? 'bg-[#282828] text-gray-300 border-[#383838] hover:bg-[#333333]' : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
-                }`}
-              >
-                Change PIN
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowPasscodeHintModal(false);
-                  unlockVault(vaultSettings?.passcode || '1234');
-                  setActiveTab('chats');
-                  setActiveContactId(null);
-                  onClose?.();
-                }}
-                className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-[#ff5b48] to-[#ff7d54] text-white font-bold text-xs sm:text-sm shadow-lg hover:shadow-orange-500/20 active:scale-95 transition-all"
-              >
-                Open Vault Now
-              </button>
-            </div>
           </div>
         </div>
       )}

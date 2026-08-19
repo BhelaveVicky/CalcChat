@@ -100,6 +100,7 @@ export const ChatList: React.FC = () => {
   });
   const [aiPinned, setAiPinned] = useState<boolean>(() => localStorage.getItem('calcchat_ai_pinned') === 'true');
   const [aiMuted, setAiMuted] = useState<boolean>(() => localStorage.getItem('calcchat_ai_muted') === 'true');
+  const [aiDeleted, setAiDeleted] = useState<boolean>(() => localStorage.getItem('calcchat_ai_deleted') === 'true');
 
   const reloadAiConvs = () => {
     try {
@@ -108,6 +109,7 @@ export const ChatList: React.FC = () => {
     } catch {
       setAiConversations([]);
     }
+    setAiDeleted(localStorage.getItem('calcchat_ai_deleted') === 'true');
   };
 
   // Register overlay handlers so mobile hardware back button closes modals & popups step-by-step
@@ -495,6 +497,7 @@ export const ChatList: React.FC = () => {
       </div>
 
       {/* Search Bar Container */}
+      {/* Search Bar with AI Assistant Trigger Icon */}
       <div className={`px-4 py-2 shrink-0 ${isDark ? 'bg-[#0b141a]' : 'bg-white'}`}>
         <div className={`relative flex items-center rounded-full px-4 py-2 text-sm ${isDark ? 'bg-[#202c33]' : 'bg-gray-100'
           }`}>
@@ -507,6 +510,18 @@ export const ChatList: React.FC = () => {
             className={`w-full bg-transparent focus:outline-none text-base sm:text-sm ${isDark ? 'text-[#e9edef] placeholder-[#8596a0]' : 'text-gray-900 placeholder-gray-400'
               }`}
           />
+          <button
+            type="button"
+            onClick={() => {
+              localStorage.removeItem('calcchat_ai_deleted');
+              setAiDeleted(false);
+              setShowAIChat(true);
+            }}
+            className="p-1 text-[#ff2e93] hover:scale-110 active:scale-95 transition-transform cursor-pointer shrink-0 ml-1.5"
+            title="Open CalcChat AI Assistant"
+          >
+            <Sparkles className="w-4.5 h-4.5" />
+          </button>
         </div>
       </div>
 
@@ -597,15 +612,19 @@ export const ChatList: React.FC = () => {
 
       {/* Conversations & Global Search List */}
       <div className="flex-1 overflow-y-auto divide-y divide-transparent min-h-0 no-scrollbar">
-        {/* AI Assistant Contact Item - Visible in default chat list */}
-        {!showArchivedOnly && (!search.trim() || 'calcchat ai assistant'.includes(search.toLowerCase()) || 'ai'.includes(search.toLowerCase())) && (
+        {/* AI Assistant Contact Item - Visible in default chat list when NOT deleted */}
+        {!aiDeleted && !showArchivedOnly && (!search.trim() || 'calcchat ai assistant'.includes(search.toLowerCase()) || 'ai'.includes(search.toLowerCase())) && (
           (() => {
             const lastAiMsg = activeAiConv && activeAiConv.messages && activeAiConv.messages.length > 0 
               ? activeAiConv.messages[activeAiConv.messages.length - 1] 
               : null;
             return (
               <div
-                onClick={() => setShowAIChat(true)}
+                onClick={() => {
+                  localStorage.removeItem('calcchat_ai_deleted');
+                  setAiDeleted(false);
+                  setShowAIChat(true);
+                }}
                 className={`p-3 sm:p-3.5 mx-2 my-1.5 rounded-2xl transition-all cursor-pointer flex items-center justify-between border select-none group relative ${
                   isDark
                     ? 'bg-[#182229] hover:bg-[#202c33] border-[#2a3942]/60 text-white'
@@ -671,6 +690,8 @@ export const ChatList: React.FC = () => {
                           type="button"
                           onClick={() => {
                             setOpenMenuId(null);
+                            localStorage.removeItem('calcchat_ai_deleted');
+                            setAiDeleted(false);
                             setShowAIChat(true);
                           }}
                           className="w-full text-left px-4 py-2.5 hover:bg-white/10 flex items-center gap-2.5 cursor-pointer font-medium"
@@ -711,6 +732,9 @@ export const ChatList: React.FC = () => {
                             setOpenMenuId(null);
                             localStorage.removeItem('calcchat_ai_conversations_v2');
                             localStorage.removeItem('calcchat_active_ai_id_v2');
+                            localStorage.setItem('calcchat_ai_deleted', 'true');
+                            setAiDeleted(true);
+                            setAiConversations([]);
                             window.dispatchEvent(new Event('calcchat_ai_updated'));
                             setToastMsg('AI Chat cleared & removed');
                           }}
@@ -1380,6 +1404,8 @@ export const ChatList: React.FC = () => {
       <button
         type="button"
         onClick={() => {
+          localStorage.removeItem('calcchat_ai_deleted');
+          setAiDeleted(false);
           setShowAIChat(true);
         }}
         className="absolute bottom-20 right-4 z-30 w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-[#ff2e93] via-[#ff62b0] to-[#f43f5e] hover:brightness-110 active:scale-90 text-white shadow-2xl shadow-pink-500/40 flex items-center justify-center transition-all cursor-pointer border-2 border-white/40 group overflow-hidden"

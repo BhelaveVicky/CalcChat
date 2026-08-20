@@ -239,7 +239,6 @@ const LoginPage: React.FC = () => {
                   />
                 </div>
               </div>
-
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-[11px] font-medium text-gray-600">Password</label>

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, CornerUpLeft, Forward, Trash2, MoreVertical, Copy, Pin, Check } from 'lucide-react';
+import { ArrowLeft, CornerUpLeft, Forward, Trash2, MoreVertical, Copy, Pin, Bookmark } from 'lucide-react';
 import { Message } from '../types';
 
 interface MessageSelectionToolbarProps {
@@ -10,6 +10,7 @@ interface MessageSelectionToolbarProps {
   onDelete: (messages: Message[]) => void;
   onCopy: (msg: Message) => void;
   onPin: (msg: Message) => void;
+  onSave?: (msg: Message) => void;
 }
 export const MessageSelectionToolbar: React.FC<MessageSelectionToolbarProps> = ({
   selectedMessages,
@@ -19,6 +20,7 @@ export const MessageSelectionToolbar: React.FC<MessageSelectionToolbarProps> = (
   onDelete,
   onCopy,
   onPin,
+  onSave,
 }) => {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -117,6 +119,20 @@ export const MessageSelectionToolbar: React.FC<MessageSelectionToolbarProps> = (
                   <Copy className="w-4 h-4 text-[#ff2e93]" />
                   <span>Copy</span>
                 </button>
+
+                {onSave && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowMoreMenu(false);
+                      onSave(singleMsg);
+                    }}
+                    className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-[#ff2e93]/20 hover:text-pink-300 transition-colors cursor-pointer border-t border-gray-700/50"
+                  >
+                    <Bookmark className="w-4 h-4 text-[#ff2e93]" />
+                    <span>Save / Unsave Message</span>
+                  </button>
+                )}
 
                 <button
                   type="button"

@@ -4,8 +4,8 @@ import { checkIsAdmin, VerifiedBadge } from '../lib/adminUtils';
 import {
   Send, Plus, Smile, Image, Video, FileText, Trash2, ArrowLeft, ShieldCheck,
   Lock, CheckCheck, Check, Paperclip, Camera, Phone, Mic, MicOff, MoreVertical, X,
-  Search, CheckSquare, Heart, Ban, MinusCircle, Copy, Pin, Archive, Star,
-  CornerUpLeft, Play, Pause, Volume2, Edit3, Forward, Share2, Info, ChevronRight, File, PhoneCall, Tag,
+  Search, CheckSquare, Heart, Ban, MinusCircle, Copy, Pin, Archive, Star, Bookmark,
+  CornerUpLeft, Play, Pause, Volume2, Edit3, Forward, Share2, Info, ChevronRight, File, PhoneCall, Tag, ChevronUp, ChevronDown,
   RotateCw, RefreshCw, Music, MapPin, User, ZoomIn, ZoomOut, Download, Clock, UserCheck, UserPlus, Flag, XCircle,
   AlertCircle, Loader2, Sparkles, Maximize2
 } from 'lucide-react';
@@ -25,6 +25,8 @@ import { EmojiReactionBar } from './EmojiReactionBar';
 import { PinnedMessageBanner } from './PinnedMessageBanner';
 import { WhatsAppProfileViewer } from './WhatsAppProfileViewer';
 import { SetChatWallpaperModal } from './SetChatWallpaperModal';
+import { ChatRetentionModal } from './ChatRetentionModal';
+import { DeleteChatsSection } from './DeleteChatsSection';
 import { SelectMembersModal } from './SelectMembersModal';
 import { WallpaperSuccessOverlay } from './WallpaperSuccessOverlay';
 import { StatusReplyCard } from './StatusReplyCard';
@@ -101,7 +103,7 @@ export const ChatWindow: React.FC = () => {
   const navigate = useNavigate();
   const {
     activeContactId, setActiveContactId, setActiveTab, contacts, messages,
-    sendMessage, editMessage, user, deleteMessage, deleteForEveryone, toggleStarMessage,
+    sendMessage, sendScreenshotEvent, editMessage, user, deleteMessage, deleteForEveryone, toggleSaveMessage, toggleStarMessage,
     togglePinMessage, forwardMessage, setTypingStatus, settings, updateSettings, togglePinContact,
     toggleArchiveContact, clearChatHistory, blockContact, unblockContact,
     blockedContactIds, blockedByContactIds, startCall, maximizeCall, activeCall,
@@ -112,7 +114,7 @@ export const ChatWindow: React.FC = () => {
     updateGroupDetails, deleteGroup, adminWallpapers,
     statusUpdates, likeStatusUpdate, markStatusAsSeen, replyToStatus, reactToStatus,
     deleteStatusUpdate, reshareStatus, getSeenRecords, getLikeRecords, allRegisteredUsers,
-    pushOverlayHandler
+    pushOverlayHandler, chatRetentionModes, updateChatRetentionMode, handleChatExit, checkAndCleanupExpiredMessages, chatWallpapers, updateChatWallpaper
   } = useVault();
 
   // Status Viewer from Chat Reply / Reaction State
@@ -314,6 +316,60 @@ export const ChatWindow: React.FC = () => {
   });
 
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showRetentionModal, setShowRetentionModal] = useState(false);
+
+  const [isSearchingInChat, setIsSearchingInChat] = useState(false);
+  const [chatSearchQuery, setChatSearchQuery] = useState('');
+  const [searchMatchIndex, setSearchMatchIndex] = useState(0);
+
+  const activeMsgsList = (activeContactId ? messages[activeContactId] : []) || [];
+  const matchedSearchMsgs = chatSearchQuery.trim()
+    ? activeMsgsList.filter(m => !m.deletedForEveryone && m.text && m.text.toLowerCase().includes(chatSearchQuery.toLowerCase().trim()))
+    : [];
+
+
+
+  useEffect(() => {
+    if (isSearchingInChat && matchedSearchMsgs.length > 0 && matchedSearchMsgs[searchMatchIndex]) {
+      const targetId = matchedSearchMsgs[searchMatchIndex].id;
+      const el = document.getElementById(`msg_${targetId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [isSearchingInChat, searchMatchIndex, chatSearchQuery]);
+
+  const handleNextSearchMatch = () => {
+    if (matchedSearchMsgs.length === 0) return;
+    const nextIdx = (searchMatchIndex + 1) % matchedSearchMsgs.length;
+    setSearchMatchIndex(nextIdx);
+  };
+
+  const handlePrevSearchMatch = () => {
+    if (matchedSearchMsgs.length === 0) return;
+    const prevIdx = (searchMatchIndex - 1 + matchedSearchMsgs.length) % matchedSearchMsgs.length;
+    setSearchMatchIndex(prevIdx);
+  };
+
+  const renderSearchHighlightedText = (text: string, query: string) => {
+    if (!text) return null;
+    if (!query || !query.trim()) return renderTextWithLinks(text);
+
+    const parts = text.split(new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'));
+    return (
+      <>
+        {parts.map((part, i) =>
+          part.toLowerCase() === query.toLowerCase() ? (
+            <mark key={i} className="bg-amber-300 text-black px-1 py-0.5 rounded-sm font-bold shadow-xs">
+              {part}
+            </mark>
+          ) : (
+            <React.Fragment key={i}>{renderTextWithLinks(part)}</React.Fragment>
+          )
+        )}
+      </>
+    );
+  };
 
   const groupAvatarInputRef = useRef<HTMLInputElement>(null);
   const groupWallpaperInputRef = useRef<HTMLInputElement>(null);
@@ -341,12 +397,20 @@ export const ChatWindow: React.FC = () => {
   const canShareInviteLink = !contact?.isGroup || isGroupAdmin || (groupPerms.shareInviteLink !== false);
   const hasAnyMediaPermission = canSendImages || canSendVideos || canSendFiles;
 
-  // Wallpaper styling
-  let chatWallpaper = (contact?.id && perChatWallpapers[contact.id])
-    ? perChatWallpapers[contact.id]
-    : (contact?.isGroup && contact?.wallpaper)
-      ? contact.wallpaper
-      : (settings?.chatWallpaper || 'default');
+  // Real-time synced wallpaper object for this chat across both participants
+  const chatId = contact?.id ? (contact.isGroup ? contact.id : [user.id, contact.id].sort().join('_')) : '';
+  const syncedWpObj = (contact?.id && chatWallpapers)
+    ? (chatWallpapers[contact.id] || chatWallpapers[chatId])
+    : null;
+
+  // Wallpaper styling: REAL-TIME SYNCED Firestore wallpaper ALWAYS TAKES TOP PRIORITY so both users see the exact same wallpaper!
+  let chatWallpaper = syncedWpObj?.wallpaper
+    ? syncedWpObj.wallpaper
+    : (contact?.id && perChatWallpapers[contact.id])
+      ? perChatWallpapers[contact.id]
+      : (contact?.isGroup && contact?.wallpaper)
+        ? contact.wallpaper
+        : (settings?.chatWallpaper || 'default');
 
   if (contact?.isGroup && chatWallpaper === 'default') {
     chatWallpaper = '/group-chat-bg.jpg';
@@ -354,13 +418,17 @@ export const ChatWindow: React.FC = () => {
     chatWallpaper = '/default-chat-bg.jpg';
   }
 
-  const chatWallpaperBlur = (contact?.id && perChatBlurs[contact.id] !== undefined)
-    ? perChatBlurs[contact.id]
-    : (settings?.chatWallpaperBlur ?? 0);
+  const chatWallpaperBlur = syncedWpObj?.blur !== undefined
+    ? syncedWpObj.blur
+    : (contact?.id && perChatBlurs[contact.id] !== undefined)
+      ? perChatBlurs[contact.id]
+      : (settings?.chatWallpaperBlur ?? 0);
 
-  const chatWallpaperBrightness = (contact?.id && perChatBrightnessMap[contact.id] !== undefined)
-    ? perChatBrightnessMap[contact.id]
-    : (settings?.chatWallpaperBrightness ?? 100);
+  const chatWallpaperBrightness = syncedWpObj?.brightness !== undefined
+    ? syncedWpObj.brightness
+    : (contact?.id && perChatBrightnessMap[contact.id] !== undefined)
+      ? perChatBrightnessMap[contact.id]
+      : (settings?.chatWallpaperBrightness ?? 100);
 
   const isCustomImage = Boolean(
     chatWallpaper &&
@@ -398,6 +466,27 @@ export const ChatWindow: React.FC = () => {
   const [forwardContactIds, setForwardContactIds] = useState<string[]>([]);
   const [forwardSearch, setForwardSearch] = useState('');
   const [msgContextMenuId, setMsgContextMenuId] = useState<string | null>(null);
+
+  // Retention Expiration Cleanup Effect (for 24_hours and 1_week)
+  useEffect(() => {
+    if (activeContactId) {
+      checkAndCleanupExpiredMessages(activeContactId);
+      const timer = setInterval(() => {
+        checkAndCleanupExpiredMessages(activeContactId);
+      }, 30000);
+      return () => clearInterval(timer);
+    }
+  }, [activeContactId, messages]);
+
+  // Retention Chat Exit Detection Effect (for after_viewing mode)
+  useEffect(() => {
+    const currentId = activeContactId;
+    return () => {
+      if (currentId) {
+        handleChatExit(currentId);
+      }
+    };
+  }, [activeContactId]);
 
   // WhatsApp Delete Message Modal States
   const [deleteModalMsg, setDeleteModalMsg] = useState<Message | null>(null);
@@ -1525,105 +1614,158 @@ export const ChatWindow: React.FC = () => {
         ) : (
           <div className={`px-3 py-2.5 flex items-center justify-between shrink-0 z-20 border-b transition-colors ${isDark ? 'bg-[#0b141a] border-[#1f2c34]/60 text-[#e9edef]' : 'bg-white border-gray-200 text-gray-900'
             }`}>
-            <div className="flex items-center gap-2 min-w-0">
-              <button
-                id="vault_nav_back_trigger"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (window.history.state?.calcchatState === 'chat') {
-                    window.history.back();
-                  } else {
-                    setActiveContactId(null);
-                  }
-                }}
-                className={`p-1 rounded-full transition-colors mr-0.5 ${isDark ? 'hover:bg-[#202c33] text-[#e9edef]' : 'hover:bg-gray-100 text-gray-700'
-                  }`}
-                title="Back"
-              >
-                <ArrowLeft className="w-6 h-6" />
-              </button>
-
-              <div
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate(`/profile/${contact.id}`);
-                }}
-                className="relative shrink-0 cursor-pointer group"
-                title="View Profile"
-              >
-                <img
-                  src={contact.avatar}
-                  alt={contact.name}
-                  className={`w-10 h-10 rounded-full object-cover transition-transform group-hover:scale-105 ${isDark ? 'bg-[#202c33]' : 'bg-gray-200'}`}
+            {isSearchingInChat ? (
+              <div className={`flex items-center gap-2 flex-1 mx-1 px-3 py-1.5 rounded-full border transition-all ${isDark ? 'bg-[#182229] border-[#2a3942] text-[#e9edef]' : 'bg-gray-100 border-gray-300 text-gray-900'
+                }`}>
+                <Search className="w-4.5 h-4.5 text-[#ff2e93] shrink-0" />
+                <input
+                  type="text"
+                  placeholder="Search in chat..."
+                  value={chatSearchQuery}
+                  onChange={(e) => {
+                    setChatSearchQuery(e.target.value);
+                    setSearchMatchIndex(0);
+                  }}
+                  className="bg-transparent border-none outline-none text-sm w-full font-sans placeholder-gray-400"
+                  autoFocus
                 />
-                {!contact.isGroup && contact.isOnline && (
-                  <span className={`absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 ${isDark ? 'border-[#0b141a]' : 'border-white'
-                    }`}></span>
+                {matchedSearchMsgs.length > 0 && (
+                  <div className="flex items-center gap-1 shrink-0 text-xs opacity-90 font-medium select-none">
+                    <span>{searchMatchIndex + 1}/{matchedSearchMsgs.length}</span>
+                    <button
+                      type="button"
+                      onClick={handlePrevSearchMatch}
+                      className="p-1 hover:bg-white/20 rounded-full cursor-pointer"
+                      title="Previous match"
+                    >
+                      <ChevronUp className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleNextSearchMatch}
+                      className="p-1 hover:bg-white/20 rounded-full cursor-pointer"
+                      title="Next match"
+                    >
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 )}
+                {chatSearchQuery.trim() && matchedSearchMsgs.length === 0 && (
+                  <span className="text-xs text-rose-400 shrink-0 font-medium">No matches</span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSearchingInChat(false);
+                    setChatSearchQuery('');
+                  }}
+                  className="p-1 hover:opacity-80 rounded-full text-gray-400 hover:text-white shrink-0 cursor-pointer"
+                  title="Close search"
+                >
+                  <X className="w-4.5 h-4.5" />
+                </button>
               </div>
+            ) : (
+              <div className="flex items-center gap-2 min-w-0">
+                <button
+                  id="vault_nav_back_trigger"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (window.history.state?.calcchatState === 'chat') {
+                      window.history.back();
+                    } else {
+                      setActiveContactId(null);
+                    }
+                  }}
+                  className={`p-1 rounded-full transition-colors mr-0.5 ${isDark ? 'hover:bg-[#202c33] text-[#e9edef]' : 'hover:bg-gray-100 text-gray-700'
+                    }`}
+                  title="Back"
+                >
+                  <ArrowLeft className="w-6 h-6" />
+                </button>
 
-              <div
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate(`/profile/${contact.id}`);
-                }}
-                className="min-w-0 ml-1 cursor-pointer"
-                title="View Profile"
-              >
-                <h2 className={`font-semibold text-base flex items-center gap-1.5 truncate ${isDark ? 'text-[#e9edef]' : 'text-gray-900'
-                  }`}>
-                  <span className="truncate">{getContactDisplayName(contact)}</span>
-                  {checkIsAdmin(contact) && <VerifiedBadge className="w-4 h-4 shrink-0" />}
-                  {contact.isLocked && <Lock className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
-                </h2>
-                {(() => {
-                  if (contact.id === user.id || contact.isSelf) {
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/profile/${contact.id}`);
+                  }}
+                  className="relative shrink-0 cursor-pointer group"
+                  title="View Profile"
+                >
+                  <img
+                    src={contact.avatar}
+                    alt={contact.name}
+                    className={`w-10 h-10 rounded-full object-cover transition-transform group-hover:scale-105 ${isDark ? 'bg-[#202c33]' : 'bg-gray-200'}`}
+                  />
+                  {!contact.isGroup && contact.isOnline && (
+                    <span className={`absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 ${isDark ? 'border-[#0b141a]' : 'border-white'
+                      }`}></span>
+                  )}
+                </div>
+
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/profile/${contact.id}`);
+                  }}
+                  className="min-w-0 ml-1 cursor-pointer"
+                  title="View Profile"
+                >
+                  <h2 className={`font-semibold text-base flex items-center gap-1.5 truncate ${isDark ? 'text-[#e9edef]' : 'text-gray-900'
+                    }`}>
+                    <span className="truncate">{getContactDisplayName(contact)}</span>
+                    {checkIsAdmin(contact) && <VerifiedBadge className="w-4 h-4 shrink-0" />}
+                    {contact.isLocked && <Lock className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+                  </h2>
+                  {(() => {
+                    if (contact.id === user.id || contact.isSelf) {
+                      return (
+                        <p className={`text-xs truncate ${isDark ? 'text-[#8596a0]' : 'text-gray-500'}`}>
+                          Message yourself • Personal Notes
+                        </p>
+                      );
+                    }
+
+                    // Group Chat Subtitle
+                    if (contact.isGroup) {
+                      const memberList = getGroupMembersList(contact, allRegisteredUsers, contacts, user);
+                      const memberCount = memberList.length;
+                      const namesStr = memberList.map(m => m.name).join(', ');
+                      return (
+                        <p className={`text-xs truncate ${isDark ? 'text-[#8596a0]' : 'text-gray-500'}`}>
+                          {memberCount} member{memberCount !== 1 ? 's' : ''}{namesStr ? `: ${namesStr}` : ''}
+                        </p>
+                      );
+                    }
+
+                    // 1. Typing Indicator (Pink)
+                    if (contact.isTyping) {
+                      return (
+                        <p className="text-xs truncate text-pink-500 font-semibold animate-pulse">
+                          {getContactDisplayName(contact)} is typing...
+                        </p>
+                      );
+                    }
+
+                    // 2. Online Status (Green)
+                    if (contact.isOnline) {
+                      return (
+                        <p className="text-xs truncate text-emerald-500 font-medium">
+                          Online
+                        </p>
+                      );
+                    }
+
+                    // 3. Last Seen Status (Gray)
                     return (
                       <p className={`text-xs truncate ${isDark ? 'text-[#8596a0]' : 'text-gray-500'}`}>
-                        Message yourself • Personal Notes
+                        {formatLastSeen(contact.lastSeen)}
                       </p>
                     );
-                  }
-
-                  // Group Chat Subtitle
-                  if (contact.isGroup) {
-                    const memberList = getGroupMembersList(contact, allRegisteredUsers, contacts, user);
-                    const memberCount = memberList.length;
-                    const namesStr = memberList.map(m => m.name).join(', ');
-                    return (
-                      <p className={`text-xs truncate ${isDark ? 'text-[#8596a0]' : 'text-gray-500'}`}>
-                        {memberCount} member{memberCount !== 1 ? 's' : ''}{namesStr ? `: ${namesStr}` : ''}
-                      </p>
-                    );
-                  }
-
-                  // 1. Typing Indicator (Pink)
-                  if (contact.isTyping) {
-                    return (
-                      <p className="text-xs truncate text-pink-500 font-semibold animate-pulse">
-                        {getContactDisplayName(contact)} is typing...
-                      </p>
-                    );
-                  }
-
-                  // 2. Online Status (Green)
-                  if (contact.isOnline) {
-                    return (
-                      <p className="text-xs truncate text-emerald-500 font-medium">
-                        Online
-                      </p>
-                    );
-                  }
-
-                  // 3. Last Seen Status (Gray)
-                  return (
-                    <p className={`text-xs truncate ${isDark ? 'text-[#8596a0]' : 'text-gray-500'}`}>
-                      {formatLastSeen(contact.lastSeen)}
-                    </p>
-                  );
-                })()}
+                  })()}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className={`flex items-center gap-2.5 relative ${isDark ? 'text-[#e9edef]' : 'text-gray-700'}`}>
               <button
@@ -1676,12 +1818,15 @@ export const ChatWindow: React.FC = () => {
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setShowRightSidebar(true);
+                  setIsSearchingInChat(!isSearchingInChat);
+                  if (isSearchingInChat) {
+                    setChatSearchQuery('');
+                  }
                 }}
-                className="hover:opacity-80 p-1.5 rounded-full transition-colors hidden lg:block"
-                title="Contact details"
+                className={`hover:opacity-80 p-1.5 rounded-full transition-colors ${isSearchingInChat ? 'text-[#ff2e93]' : (isDark ? 'text-white' : 'text-gray-700')}`}
+                title="Search in chat"
               >
-                <Info className="w-5 h-5" />
+                <Search className="w-5 h-5" />
               </button>
               <button
                 type="button"
@@ -1703,8 +1848,8 @@ export const ChatWindow: React.FC = () => {
                     onClick={() => setShowHeaderMenu(false)}
                   />
                   <div className={`absolute right-0 top-10 z-50 rounded-2xl shadow-2xl py-2 w-56 text-sm font-sans select-none animate-scale-in border transition-all ${isDark
-                      ? 'bg-[#233138] border-[#2a3942] text-[#e9edef]'
-                      : 'bg-white border-gray-200 text-gray-800 shadow-xl'
+                    ? 'bg-[#233138] border-[#2a3942] text-[#e9edef]'
+                    : 'bg-white border-gray-200 text-gray-800 shadow-xl'
                     }`}>
 
                     <button
@@ -1737,6 +1882,19 @@ export const ChatWindow: React.FC = () => {
                       type="button"
                       onClick={() => {
                         setShowHeaderMenu(false);
+                        setShowRetentionModal(true);
+                      }}
+                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                        }`}
+                    >
+                      <Clock className="w-4.5 h-4.5 text-[#ff2e93]" />
+                      <span className="font-semibold text-[#ff2e93]">Delete Chats / Disappearing</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowHeaderMenu(false);
                         setShowInChatSearch(true);
                       }}
                       className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
@@ -1744,6 +1902,20 @@ export const ChatWindow: React.FC = () => {
                     >
                       <Search className="w-4.5 h-4.5 opacity-80" />
                       <span>Search messages</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowHeaderMenu(false);
+                        sendScreenshotEvent(contact.id);
+                        showToast("Simulated screenshot event");
+                      }}
+                      className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors text-blue-400 font-semibold ${isDark ? 'hover:bg-[#182229]' : 'hover:bg-gray-100'
+                        }`}
+                    >
+                      <Camera className="w-4.5 h-4.5 text-blue-500 shrink-0" />
+                      <span>Simulate Screenshot</span>
                     </button>
 
                     <button
@@ -1941,22 +2113,58 @@ export const ChatWindow: React.FC = () => {
                   const speed = audioPlaybackSpeeds[msg.id] || 1;
                   const formattedTime = formatMessageTime(rawTimestamp, msg.timestamp);
 
-                  if (msg.type === 'system' || msg.systemAction) {
-                    const displayText = msg.systemText || msg.text;
+                  if (msg.type === 'screenshot_event' || msg.systemAction === 'screenshot_event') {
+                    const takerName = msg.userName || msg.senderName || (msg.userId === user.id ? (user.name || 'You') : 'User');
+                    const takerAvatar = msg.userAvatar || msg.senderAvatar;
                     return (
                       <React.Fragment key={msg.id}>
                         {showSeparator && (
                           <DateSeparator dateLabel={dateLabel} isDark={isDark} />
                         )}
-                        <div id={`msg_${msg.id}`} className="w-full flex justify-center items-center my-2.5 px-4 select-none">
-                          <div className={`px-4 py-1.5 rounded-xl text-xs font-semibold text-center max-w-[90%] sm:max-w-[75%] shadow-xs border flex items-center justify-center gap-2 flex-wrap transition-all ${isDark
-                              ? 'bg-[#182229]/90 border-[#202c33] text-[#8696a0]'
-                              : 'bg-[#f0f2f5] border-gray-200 text-gray-600'
+                        <div id={`msg_${msg.id}`} className="w-full flex justify-center items-center my-2.5 px-4 select-none animate-in fade-in zoom-in-95 duration-200">
+                          <div className={`px-4 py-1.5 rounded-full text-xs font-semibold text-center shadow-xs border flex items-center justify-center gap-2 flex-wrap transition-all backdrop-blur-md ${isDark
+                              ? 'bg-[#182229]/95 border-blue-500/30 text-gray-200 shadow-[0_2px_10px_rgba(59,130,246,0.15)]'
+                              : 'bg-white/95 border-blue-200 text-gray-800 shadow-[0_2px_10px_rgba(59,130,246,0.1)]'
                             }`}>
-                            <span className="leading-relaxed">{displayText}</span>
+                            <div className="p-1 rounded-full bg-blue-500/20 text-blue-500 flex items-center justify-center shrink-0">
+                              <Camera className="w-3.5 h-3.5" />
+                            </div>
+                            {takerAvatar && (
+                              <img src={takerAvatar} alt={takerName} className="w-4 h-4 rounded-full object-cover shrink-0 border border-blue-400/40" />
+                            )}
+                            <span className="leading-snug font-normal">
+                              <strong className="font-bold">{takerName}</strong> took a screenshot
+                            </span>
                             {formattedTime && (
-                              <span className={`text-[10px] font-normal opacity-75 shrink-0 ${isDark ? 'text-[#8696a0]' : 'text-gray-500'
-                                }`}>
+                              <span className={`text-[10px] font-normal opacity-75 shrink-0 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                                • {formattedTime}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </React.Fragment>
+                    );
+                  }
+
+                  if (msg.type === 'system' || msg.systemAction) {
+                    const displayText = msg.systemText || msg.text;
+                    const isRetentionChange = msg.systemAction === 'chat_retention_changed' || (displayText && displayText.startsWith('YOU CHANGED CHATS TO'));
+
+                    return (
+                      <React.Fragment key={msg.id}>
+                        {showSeparator && (
+                          <DateSeparator dateLabel={dateLabel} isDark={isDark} />
+                        )}
+                        <div id={`msg_${msg.id}`} className="w-full flex justify-center items-center my-3 px-4 select-none animate-in fade-in duration-200">
+                          <div className={`px-4 py-1.5 rounded-full text-[11px] sm:text-xs font-semibold text-center max-w-[92%] sm:max-w-[85%] shadow-md border transition-all ${isRetentionChange
+                              ? 'bg-[#182229] border-[#2a3942] text-gray-300 uppercase tracking-wider'
+                              : isDark
+                                ? 'bg-[#182229]/95 border-[#202c33] text-[#8696a0] rounded-xl'
+                                : 'bg-[#f0f2f5] border-gray-200 text-gray-600 rounded-xl'
+                            }`}>
+                            <span className="leading-snug">{displayText}</span>
+                            {!isRetentionChange && formattedTime && (
+                              <span className={`text-[10px] font-normal opacity-75 shrink-0 ${isDark ? 'text-[#8696a0]' : 'text-gray-500'}`}>
                                 • {formattedTime}
                               </span>
                             )}
@@ -1967,6 +2175,39 @@ export const ChatWindow: React.FC = () => {
                   }
 
                   const isEmojiOnlyMsg = isOnlyEmojis(msg.text) && !msg.media && !msg.replyTo && !msg.statusReply && !msg.statusReaction && !msg.callInfo && msg.type !== 'voice_call' && msg.type !== 'video_call' && !msg.deletedForEveryone && !msg.statusMention && msg.type !== 'status_mention' && !msg.isForwarded;
+                  
+                  const myUid = authUser?.uid || user.id;
+
+                  // Evaluate save status from current viewer's perspective:
+                  const savedByMe = Boolean(
+                    (msg.starredBy && Array.isArray(msg.starredBy) && msg.starredBy.includes(myUid)) ||
+                    msg.savedBy?.[myUid]?.saved
+                  );
+                  const savedByOther = Boolean(
+                    (msg.savedBy && Object.entries(msg.savedBy).some(([uid, v]: any) => uid !== myUid && v?.saved)) ||
+                    (msg.starredBy && Array.isArray(msg.starredBy) && msg.starredBy.some((uid: string) => uid !== myUid))
+                  );
+                  const savedByBoth = savedByMe && savedByOther;
+                  const isCurrentSearchMatch = Boolean(isSearchingInChat && matchedSearchMsgs.length > 0 && matchedSearchMsgs[searchMatchIndex]?.id === msg.id);
+
+                  const baseBubbleClasses = isEmojiOnlyMsg
+                    ? 'bg-transparent border-transparent shadow-none px-0 py-0'
+                    : isMe
+                      ? 'rounded-2xl rounded-br-xs bg-[#2a1226] text-white px-4 py-2.5'
+                      : 'rounded-2xl rounded-bl-xs bg-[#121630] text-white px-4 py-2.5';
+
+                  let borderStyleClasses = '';
+                  if (!isEmojiOnlyMsg) {
+                    if (savedByBoth) {
+                      borderStyleClasses = 'shadow-[0_0_22px_rgba(255,46,147,0.5)]';
+                    } else if (savedByMe) {
+                      borderStyleClasses = 'border-[3px] border-[#ff2e93] shadow-[0_0_22px_rgba(255,46,147,0.65)] ring-2 ring-[#ff2e93]/80';
+                    } else if (savedByOther) {
+                      borderStyleClasses = 'border-[3px] border-[#3b82f6] shadow-[0_0_22px_rgba(59,130,246,0.65)] ring-2 ring-[#3b82f6]/80';
+                    } else {
+                      borderStyleClasses = isMe ? 'border border-[#ff2e93]/40 shadow-sm' : 'border border-[#3b82f6]/40 shadow-sm';
+                    }
+                  }
 
                   return (
                     <React.Fragment key={msg.id}>
@@ -2008,7 +2249,12 @@ export const ChatWindow: React.FC = () => {
                             onTouchCancel={() => handleTouchEndMessage(msg)}
                             style={{
                               transform: swipingMsgId === msg.id ? `translateX(${swipeOffset}px)` : 'translateX(0px)',
-                              transition: swipingMsgId === msg.id ? 'none' : 'transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+                              transition: swipingMsgId === msg.id ? 'none' : 'transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                              ...(savedByBoth && !isEmojiOnlyMsg ? {
+                                background: `linear-gradient(${isMe ? '#2a1226' : '#121630'}, ${isMe ? '#2a1226' : '#121630'}) padding-box, linear-gradient(135deg, #ff2e93 0%, #ff2e93 48%, #3b82f6 52%, #3b82f6 100%) border-box`,
+                                border: '3px solid transparent',
+                                boxShadow: '0 0 22px rgba(255,46,147,0.55), 0 0 22px rgba(59,130,246,0.55)',
+                              } : {})
                             }}
                             onContextMenu={(e) => {
                               e.preventDefault();
@@ -2018,7 +2264,7 @@ export const ChatWindow: React.FC = () => {
                                 setActiveReactionMsgId(msg.id);
                               }
                             }}
-                            onClick={(e) => {
+                            onClick={async (e) => {
                               e.stopPropagation();
                               if (isSelectMode) {
                                 if (isSelected) {
@@ -2032,16 +2278,15 @@ export const ChatWindow: React.FC = () => {
                                 }
                               } else if (activeReactionMsgId) {
                                 setActiveReactionMsgId(null);
+                              } else if (!msg.deletedForEveryone && msg.type !== 'system' && !msg.systemAction) {
+                                const isSaved = await toggleSaveMessage(contact.id, msg.id);
+                                showToast(isSaved ? 'Message Saved' : 'Message Unsaved');
                               }
                             }}
-                            className={`w-full text-sm relative transition-all select-none ${isEmojiOnlyMsg
-                                ? 'bg-transparent border-transparent shadow-none px-0 py-0'
-                                : isMe
-                                  ? 'rounded-2xl rounded-br-xs border-2 border-[#ff2e93] bg-[#2a1226] text-white shadow-[0_4px_20px_-2px_rgba(255,46,147,0.35)] shadow-md px-4 py-2.5'
-                                  : 'rounded-2xl rounded-bl-xs border-2 border-[#3b82f6] bg-[#121630] text-white shadow-[0_4px_20px_-2px_rgba(59,130,246,0.35)] shadow-md px-4 py-2.5'
-                              } ${isSelectMode ? 'cursor-pointer' : ''
+                            className={`w-full text-sm relative transition-all select-none ${baseBubbleClasses} ${borderStyleClasses} ${isSelectMode ? 'cursor-pointer' : ''
                               } ${isSelected && !isEmojiOnlyMsg ? 'ring-2 ring-pink-500 bg-pink-500/20 scale-[1.01]' : (isSelected && isEmojiOnlyMsg ? 'scale-[1.05] drop-shadow-[0_0_15px_rgba(255,46,147,0.8)]' : '')
                               } ${highlightedMsgId === msg.id && !isEmojiOnlyMsg ? 'ring-2 ring-pink-500 bg-pink-500/20 animate-pulse' : ''
+                              } ${isCurrentSearchMatch ? 'ring-4 ring-yellow-400 bg-amber-500/20 scale-[1.02] shadow-[0_0_25px_rgba(251,191,36,0.9)] z-20' : ''
                               }`}
                           >
                             {/* Speech Bubble Tail - Outgoing (Pink corner wedge matching user screenshot) */}
@@ -2089,7 +2334,7 @@ export const ChatWindow: React.FC = () => {
                                 {contact?.isGroup && !isMe && (
                                   <div className="text-[11px] font-bold text-[#ea4c89] mb-1 truncate flex items-center gap-1">
                                     <span className="truncate">{msg.senderName || 'Group Member'}</span>
-                                    {checkIsAdmin(msg.senderId || msg.senderName) && <VerifiedBadge className="w-3.5 h-3.5 shrink-0 text-[#ff2e93]" />}
+                                    {checkIsAdmin(msg.senderId || msg.senderName) && <VerifiedBadge className="w-3.5 h-3.5 shrink-0 text-[#0095f6]" />}
                                   </div>
                                 )}
 
@@ -2170,8 +2415,8 @@ export const ChatWindow: React.FC = () => {
                                               }
                                             }}
                                             className={`p-3 rounded-xl flex items-center gap-3 cursor-pointer transition-all active:scale-98 ${isMe
-                                                ? 'bg-white/15 hover:bg-white/20 text-white'
-                                                : 'bg-[#111b21] hover:bg-[#1f2c34] text-[#e9edef]'
+                                              ? 'bg-white/15 hover:bg-white/20 text-white'
+                                              : 'bg-[#111b21] hover:bg-[#1f2c34] text-[#e9edef]'
                                               }`}
                                           >
                                             <div className="w-9 h-9 rounded-full border-2 border-[#ff2e93] bg-[#ff2e93]/20 flex items-center justify-center font-extrabold text-xs text-[#ff2e93] shrink-0 shadow">
@@ -2424,8 +2669,8 @@ export const ChatWindow: React.FC = () => {
                                   <div className="my-1.5 p-3 rounded-2xl bg-black/20 border border-white/10 flex flex-col gap-2.5 min-w-[220px]">
                                     <div className="flex items-center gap-3">
                                       <div className={`p-2.5 rounded-full shrink-0 ${msg.callInfo?.status === 'missed' || msg.callInfo?.status === 'rejected'
-                                          ? 'bg-rose-500/20 text-rose-400'
-                                          : 'bg-emerald-500/20 text-emerald-400'
+                                        ? 'bg-rose-500/20 text-rose-400'
+                                        : 'bg-emerald-500/20 text-emerald-400'
                                         }`}>
                                         {msg.type === 'video_call' || msg.callInfo?.type === 'video' ? (
                                           <Video className="w-5 h-5" />
@@ -2553,13 +2798,28 @@ export const ChatWindow: React.FC = () => {
                             {/* Footer Timestamp & Status */}
                             <div className={`flex items-center justify-end gap-1 mt-1 text-[11px] ${isEmojiOnlyMsg ? 'bg-black/40 backdrop-blur-md rounded-full px-2 py-0.5 w-max ml-auto text-white/90 shadow-sm' : (isMe ? 'text-white/85' : 'text-[#8596a0]')
                               }`}>
-                              {msg.isStarred && !msg.deletedForEveryone && <Star className="w-3 h-3 text-amber-300 fill-amber-300 shrink-0" />}
+                              {!msg.deletedForEveryone && (
+                                savedByBoth ? (
+                                  <span className="flex items-center -space-x-1 shrink-0" title="Saved by Both Users">
+                                    <Bookmark className="w-3.5 h-3.5 text-[#3b82f6] fill-[#3b82f6] shrink-0 drop-shadow-xs" />
+                                    <Bookmark className="w-3.5 h-3.5 text-[#ff2e93] fill-[#ff2e93] shrink-0 drop-shadow-xs" />
+                                  </span>
+                                ) : savedByMe ? (
+                                  <span className="shrink-0" title="Saved by You">
+                                    <Bookmark className="w-3.5 h-3.5 text-[#ff2e93] fill-[#ff2e93] shrink-0" />
+                                  </span>
+                                ) : savedByOther ? (
+                                  <span className="shrink-0" title="Saved by Partner">
+                                    <Bookmark className="w-3.5 h-3.5 text-[#3b82f6] fill-[#3b82f6] shrink-0" />
+                                  </span>
+                                ) : null
+                              )}
                               {msg.isEdited && !msg.deletedForEveryone && <span className="italic text-[9px] opacity-80">edited</span>}
                               <span>{formattedTime}</span>
 
                               {/* Delivery Status Indicator */}
                               {isMe && (
-                                (msg.isRead || msg.seen) ? (
+                                (msg.isRead || msg.seen || (msg as any).status === 'read' || (msg as any).read) ? (
                                   <CheckCheck className={`w-4 h-4 shrink-0 font-extrabold drop-shadow-xs stroke-[2.5] ${isEmojiOnlyMsg ? 'text-[#53bdeb]' : 'text-[#34b7f1]'}`} />
                                 ) : (msg.isDelivered || msg.isSent) ? (
                                   <CheckCheck className={`w-3.5 h-3.5 shrink-0 stroke-[2] ${isEmojiOnlyMsg ? 'text-white/80' : 'text-white/70'}`} />
@@ -2580,11 +2840,15 @@ export const ChatWindow: React.FC = () => {
                                   <CornerUpLeft className="w-3 h-3" />
                                 </button>
                                 <button
-                                  onClick={() => toggleStarMessage(contact.id, msg.id)}
-                                  className="p-1 hover:bg-white/20 rounded text-amber-300"
-                                  title="Star"
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    const isSaved = await toggleSaveMessage(contact.id, msg.id);
+                                    showToast(isSaved ? 'Message Saved' : 'Message Unsaved');
+                                  }}
+                                  className={`p-1 hover:bg-white/20 rounded ${savedByMe ? 'text-[#ff2e93]' : 'text-amber-300'}`}
+                                  title={savedByMe ? 'Unsave Message' : 'Save Message'}
                                 >
-                                  <Star className="w-3 h-3" />
+                                  <Bookmark className={`w-3 h-3 ${savedByMe ? 'fill-[#ff2e93]' : ''}`} />
                                 </button>
                                 <button
                                   onClick={() => {
@@ -2939,8 +3203,8 @@ export const ChatWindow: React.FC = () => {
                       setShowAttachModal(false);
                     }}
                     className={`p-1.5 shrink-0 transition-colors ${showEmojiPicker
-                        ? 'text-[#ff2e93]'
-                        : (isDark ? 'text-[#8596a0] hover:text-[#e9edef]' : 'text-gray-500 hover:text-gray-800')
+                      ? 'text-[#ff2e93]'
+                      : (isDark ? 'text-[#8596a0] hover:text-[#e9edef]' : 'text-gray-500 hover:text-gray-800')
                       }`}
                     title="Emojis"
                   >
@@ -2967,8 +3231,8 @@ export const ChatWindow: React.FC = () => {
                       setShowEmojiPicker(false);
                     }}
                     className={`p-1.5 transition-colors -rotate-45 ${showAttachModal
-                        ? 'text-[#ff2e93]'
-                        : (isDark ? 'text-[#8596a0] hover:text-[#e9edef]' : 'text-gray-500 hover:text-gray-800')
+                      ? 'text-[#ff2e93]'
+                      : (isDark ? 'text-[#8596a0] hover:text-[#e9edef]' : 'text-gray-500 hover:text-gray-800')
                       }`}
                     title="Attach"
                   >
@@ -3065,7 +3329,7 @@ export const ChatWindow: React.FC = () => {
 
               <h4 className="font-bold text-lg flex items-center justify-center gap-1.5">
                 {getContactDisplayName(contact)}
-                {checkIsAdmin(contact) && <VerifiedBadge className="w-5 h-5 shrink-0 text-[#ff2e93]" />}
+                {checkIsAdmin(contact) && <VerifiedBadge className="w-5 h-5 shrink-0 text-[#0095f6]" />}
                 {contact.isGroup && isGroupCreator && (
                   <button
                     type="button"
@@ -3197,10 +3461,10 @@ export const ChatWindow: React.FC = () => {
                               <span className="font-semibold text-xs truncate">{m.name}</span>
                             </div>
                             <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${m.role === 'Creator'
-                                ? 'bg-[#ff2e93]/20 text-[#ff2e93] border border-[#ff2e93]/30'
-                                : m.role === 'Admin'
-                                  ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
-                                  : 'bg-emerald-500/15 text-emerald-400'
+                              ? 'bg-[#ff2e93]/20 text-[#ff2e93] border border-[#ff2e93]/30'
+                              : m.role === 'Admin'
+                                ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                                : 'bg-emerald-500/15 text-emerald-400'
                               }`}>
                               {m.role}
                             </span>
@@ -3275,8 +3539,8 @@ export const ChatWindow: React.FC = () => {
                 value={forwardSearch}
                 onChange={e => setForwardSearch(e.target.value)}
                 className={`w-full px-3.5 py-2 rounded-xl text-xs focus:outline-none border ${isDark
-                    ? 'bg-[#202c33] border-[#2a3942] text-white placeholder-gray-400 focus:border-[#ff2e93]'
-                    : 'bg-gray-100 border-gray-300 text-gray-900 placeholder-gray-500 focus:border-[#ff2e93]'
+                  ? 'bg-[#202c33] border-[#2a3942] text-white placeholder-gray-400 focus:border-[#ff2e93]'
+                  : 'bg-gray-100 border-gray-300 text-gray-900 placeholder-gray-500 focus:border-[#ff2e93]'
                   }`}
               />
             </div>
@@ -3300,8 +3564,8 @@ export const ChatWindow: React.FC = () => {
                         );
                       }}
                       className={`p-2.5 rounded-2xl flex items-center justify-between cursor-pointer border transition-colors ${isSelected
-                          ? 'bg-[#ff2e93]/20 border-[#ff2e93]'
-                          : (isDark ? 'bg-[#202c33] border-transparent hover:bg-[#2a3942]' : 'bg-gray-100 border-gray-200 hover:bg-gray-200')
+                        ? 'bg-[#ff2e93]/20 border-[#ff2e93]'
+                        : (isDark ? 'bg-[#202c33] border-transparent hover:bg-[#2a3942]' : 'bg-gray-100 border-gray-200 hover:bg-gray-200')
                         }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
@@ -3309,7 +3573,7 @@ export const ChatWindow: React.FC = () => {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1 min-w-0">
                             <span className="text-xs font-semibold block truncate">{getContactDisplayName(c)}</span>
-                            {checkIsAdmin(c) && <VerifiedBadge className="w-3.5 h-3.5 shrink-0 text-[#ff2e93]" />}
+                            {checkIsAdmin(c) && <VerifiedBadge className="w-3.5 h-3.5 shrink-0 text-[#0095f6]" />}
                           </div>
                         </div>
                       </div>
@@ -3772,8 +4036,8 @@ export const ChatWindow: React.FC = () => {
                         showToast(nextState ? 'Photo/Video set to view once' : 'View once turned off');
                       }}
                       className={`w-7 h-7 rounded-full flex items-center justify-center font-extrabold text-xs transition-all cursor-pointer shrink-0 border-2 ${activeItem.isViewOnce
-                          ? 'bg-[#ff2e93] text-[#0b141a] border-[#ff2e93] shadow-md scale-105'
-                          : 'border-[#8596a0] text-[#8596a0] hover:border-[#ff2e93] hover:text-[#ff2e93]'
+                        ? 'bg-[#ff2e93] text-[#0b141a] border-[#ff2e93] shadow-md scale-105'
+                        : 'border-[#8596a0] text-[#8596a0] hover:border-[#ff2e93] hover:text-[#ff2e93]'
                         }`}
                       title={activeItem.isViewOnce ? "View once is active (Recipient can view only 1 time)" : "Set to View Once"}
                     >
@@ -4126,8 +4390,8 @@ export const ChatWindow: React.FC = () => {
                     showToast(!cameraViewOnce ? 'View once photo enabled' : 'View once disabled');
                   }}
                   className={`w-11 h-11 rounded-full flex items-center justify-center font-extrabold text-sm transition-all cursor-pointer border-2 ${cameraViewOnce
-                      ? 'bg-[#ff2e93] text-[#0b141a] border-[#ff2e93] shadow-lg scale-105'
-                      : 'border-white/40 text-white hover:border-[#ff2e93] hover:text-[#ff2e93]'
+                    ? 'bg-[#ff2e93] text-[#0b141a] border-[#ff2e93] shadow-lg scale-105'
+                    : 'border-white/40 text-white hover:border-[#ff2e93] hover:text-[#ff2e93]'
                     }`}
                   title={cameraViewOnce ? "View once is active" : "Set photo to View Once"}
                 >
@@ -4346,6 +4610,12 @@ export const ChatWindow: React.FC = () => {
             });
 
             try {
+              await updateChatWallpaper(contact.id, newWp, payload.blur, payload.brightness);
+            } catch (e) {
+              console.warn('Real-time wallpaper sync warning:', e);
+            }
+
+            try {
               localStorage.setItem('calcchat_per_chat_wallpapers', JSON.stringify(updatedWp));
               localStorage.setItem('calcchat_per_chat_wallpaper_blurs', JSON.stringify(updatedBlur));
               localStorage.setItem('calcchat_per_chat_wallpaper_brightness', JSON.stringify(updatedBrightness));
@@ -4379,6 +4649,12 @@ export const ChatWindow: React.FC = () => {
               chatWallpaperBlur: 0,
               chatWallpaperBrightness: 100,
             });
+
+            try {
+              await updateChatWallpaper(contact.id, 'default', 0, 100);
+            } catch (e) {
+              console.warn('Real-time wallpaper reset sync warning:', e);
+            }
 
             try {
               localStorage.setItem('calcchat_per_chat_wallpapers', JSON.stringify(updatedWp));
@@ -4433,6 +4709,22 @@ export const ChatWindow: React.FC = () => {
             <span className="text-sm font-medium">Opening status...</span>
           </div>
         </div>
+      )}
+
+      {/* Chat Retention / Delete Chats Modal */}
+      {showRetentionModal && contact && (
+        <ChatRetentionModal
+          isOpen={showRetentionModal}
+          onClose={() => setShowRetentionModal(false)}
+          contactName={getContactDisplayName(contact)}
+          currentMode={chatRetentionModes[contact.id] || chatRetentionModes[contact.isGroup ? contact.id : [user.id, contact.id].sort().join('_')] || 'never'}
+          onSaveMode={async (mode) => {
+            await updateChatRetentionMode(contact.id, mode);
+            setToastMsg(`Disappearing messages set to: ${mode.replace('_', ' ')}`);
+            setTimeout(() => setToastMsg(null), 2500);
+          }}
+          isDark={isDark}
+        />
       )}
 
       {/* Report User Modal */}

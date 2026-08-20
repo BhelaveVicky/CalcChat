@@ -1,19 +1,19 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { 
-  onAuthStateChanged, signInWithPopup, signOut, 
+import {
+  onAuthStateChanged, signInWithPopup, signOut,
   signInWithEmailAndPassword, createUserWithEmailAndPassword, signInAnonymously, updateProfile as updateAuthProfile,
-  User as FirebaseUser 
+  User as FirebaseUser
 } from 'firebase/auth';
-import { 
-  collection, collectionGroup, doc, getDoc, setDoc, updateDoc, deleteDoc, 
-  onSnapshot, query, where, orderBy, serverTimestamp, 
+import {
+  collection, collectionGroup, doc, getDoc, setDoc, updateDoc, deleteDoc,
+  onSnapshot, query, where, orderBy, serverTimestamp,
   addDoc, getDocs, writeBatch, arrayUnion, arrayRemove, runTransaction, deleteField, increment
 } from 'firebase/firestore';
-import { 
-  CallInfo, CallLog, CallType, CallDirection, CallStatus, Contact, MediaAttachment, Message, 
+import {
+  CallInfo, CallLog, CallType, CallDirection, CallStatus, Contact, MediaAttachment, Message,
   UserProfile, VaultSettings, FriendRequest, FriendStatus, StatusUpdate,
   StatusSeenRecord, StatusLikeRecord, StatusReactionRecord, StatusReplyData, StatusReactionData, StatusMentionData, AppNotification,
-  AdminWallpaper, GroupPermissions, GroupJoinRequest, GroupActivityLog, DeletedMessageLog, DEFAULT_GROUP_PERMISSIONS, UserReport
+  AdminWallpaper, GroupPermissions, GroupJoinRequest, GroupActivityLog, DeletedMessageLog, DEFAULT_GROUP_PERMISSIONS, UserReport, ChatRetentionMode
 } from '../types';
 import { DEFAULT_SETTINGS, DEFAULT_USER } from '../data/initialData';
 import { isFirebaseConfigured, firebaseAuth, googleProvider, db } from '../lib/firebase';
@@ -117,7 +117,7 @@ interface VaultContextType {
   authError: string | null;
   isFirebaseConfigured: boolean;
   needsUsername: boolean;
-  onboardingStep: 'username' | 'password' | 'completed';
+  onboardingStep: 'username' | 'password' | 'tutorial' | 'completed';
   pendingFriendRequests: FriendRequest[];
   sentFriendRequests: FriendRequest[];
   allRegisteredUsers: any[];
@@ -129,6 +129,7 @@ interface VaultContextType {
   openMentionedStatus: (statusId: string) => Promise<{ success: boolean; message?: string; status?: StatusUpdate }>;
   completeUsernameSetup: (username: string, displayName: string) => Promise<void>;
   completeChatPasswordSetup: (passcode: string) => Promise<void>;
+  completeTutorialSetup: () => Promise<void>;
   sendFriendRequest: (targetUserId: string) => Promise<void>;
   acceptFriendRequest: (requestId: string, senderId: string) => Promise<void>;
   rejectFriendRequest: (requestId: string) => Promise<void>;
@@ -179,11 +180,19 @@ interface VaultContextType {
   setActiveContactId: (id: string | null) => void;
   setActiveTab: (tab: 'chats' | 'gallery' | 'profile' | 'settings' | 'calls') => void;
   sendMessage: (receiverId: string, text: string, media?: MediaAttachment, replyTo?: Message['replyTo'], statusReply?: StatusReplyData, statusReaction?: StatusReactionData, isForwarded?: boolean, statusMention?: StatusMentionData) => Promise<void>;
+  sendScreenshotEvent: (targetContactId: string) => Promise<void>;
+  chatRetentionModes: Record<string, ChatRetentionMode>;
+  updateChatRetentionMode: (contactId: string, mode: ChatRetentionMode) => Promise<void>;
+  chatWallpapers: Record<string, { wallpaper?: string; blur?: number; brightness?: number }>;
+  updateChatWallpaper: (contactOrChatId: string, wallpaper: string, blur?: number, brightness?: number) => Promise<void>;
+  handleChatExit: (contactId: string) => Promise<void>;
+  checkAndCleanupExpiredMessages: (contactId: string) => Promise<void>;
   editMessage: (contactId: string, msgId: string, newText: string) => Promise<void>;
   deleteMessage: (contactId: string, msgId: string) => Promise<void>;
   deleteForEveryone: (contactId: string, msgId: string) => Promise<void>;
   markViewOnceOpened: (contactId: string, msgId: string) => Promise<void>;
-  toggleStarMessage: (contactId: string, msgId: string) => void;
+  toggleSaveMessage: (contactId: string, msgId: string) => Promise<boolean>;
+  toggleStarMessage: (contactId: string, msgId: string) => Promise<boolean>;
   togglePinMessage: (contactId: string, msgId: string) => void;
   forwardMessage: (msg: Message, targetContactIds: string[]) => void;
   addReactionMessage: (contactId: string, msgId: string, emoji: string) => Promise<void>;
@@ -268,18 +277,18 @@ const fallbackVaultContext: VaultContextType = {
   unreadTotal: 0,
   unseenStatusCount: 0,
   missedCallCount: 0,
-  clearMissedCallsBadge: () => {},
+  clearMissedCallsBadge: () => { },
   messages: {},
   callLogs: [],
   activeCall: null,
   isCallMinimized: false,
-  setIsCallMinimized: () => {},
-  maximizeCall: () => {},
-  minimizeCall: () => {},
-  setCallFilter: async () => {},
-  pushOverlayHandler: () => () => {},
+  setIsCallMinimized: () => { },
+  maximizeCall: () => { },
+  minimizeCall: () => { },
+  setCallFilter: async () => { },
+  pushOverlayHandler: () => () => { },
   callPermissionError: null,
-  clearCallPermissionError: () => {},
+  clearCallPermissionError: () => { },
   activeContactId: null,
   activeTab: 'chats',
   unlockedLocks: {},
@@ -298,110 +307,119 @@ const fallbackVaultContext: VaultContextType = {
   statusUpdates: [],
   notifications: [],
   activeMentionNotification: null,
-  dismissMentionNotification: () => {},
-  markNotificationAsRead: async () => {},
+  dismissMentionNotification: () => { },
+  markNotificationAsRead: async () => { },
   openMentionedStatus: async () => ({ success: false, message: '' }),
-  completeUsernameSetup: async () => {},
-  completeChatPasswordSetup: async () => {},
-  sendFriendRequest: async () => {},
-  acceptFriendRequest: async () => {},
-  rejectFriendRequest: async () => {},
-  unfriendContact: async () => {},
+  completeUsernameSetup: async () => { },
+  completeChatPasswordSetup: async () => { },
+  completeTutorialSetup: async () => { },
+  sendFriendRequest: async () => { },
+  acceptFriendRequest: async () => { },
+  rejectFriendRequest: async () => { },
+  unfriendContact: async () => { },
   isFriend: () => false,
   searchFirebaseUsers: async () => [],
-  postStatusUpdate: async () => {},
+  postStatusUpdate: async () => { },
   reshareStatus: async () => ({ success: false, message: '' }),
-  deleteStatusUpdate: async () => {},
-  likeStatusUpdate: async () => {},
-  markStatusAsSeen: async () => {},
-  replyToStatus: async () => {},
-  reactToStatus: async () => {},
+  deleteStatusUpdate: async () => { },
+  likeStatusUpdate: async () => { },
+  markStatusAsSeen: async () => { },
+  replyToStatus: async () => { },
+  reactToStatus: async () => { },
   getSeenRecords: () => [],
   getLikeRecords: () => [],
   statusSeenRecordsMap: {},
   statusLikeRecordsMap: {},
   unlockVault: () => false,
-  lockVault: () => {},
-  signInWithGoogle: async () => {},
-  signInWithEmail: async () => {},
-  signUpWithEmail: async () => {},
-  signInAsGuest: async () => {},
-  signOutGoogle: async () => {},
-  setActiveContactId: () => {},
-  setActiveTab: () => {},
-  sendMessage: async () => {},
-  editMessage: async () => {},
-  deleteMessage: async () => {},
-  deleteForEveryone: async () => {},
-  markViewOnceOpened: async () => {},
-  toggleStarMessage: () => {},
-  togglePinMessage: () => {},
-  forwardMessage: () => {},
+  lockVault: () => { },
+  signInWithGoogle: async () => { },
+  signInWithEmail: async () => { },
+  signUpWithEmail: async () => { },
+  signInAsGuest: async () => { },
+  signOutGoogle: async () => { },
+  setActiveContactId: () => { },
+  setActiveTab: () => { },
+  sendMessage: async () => { },
+  sendScreenshotEvent: async () => { },
+  chatRetentionModes: {},
+  updateChatRetentionMode: async () => { },
+  chatWallpapers: {},
+  updateChatWallpaper: async () => { },
+  handleChatExit: async () => { },
+  checkAndCleanupExpiredMessages: async () => { },
+  editMessage: async () => { },
+  deleteMessage: async () => { },
+  deleteForEveryone: async () => { },
+  markViewOnceOpened: async () => { },
+  toggleSaveMessage: async () => false,
+  toggleStarMessage: async () => false,
+  togglePinMessage: () => { },
+  forwardMessage: () => { },
   typingStatusMap: {},
-  setTypingStatus: async () => {},
-  markMessagesAsRead: async () => {},
-  setCustomNickname: async () => {},
-  clearCustomNickname: async () => {},
+  setTypingStatus: async () => { },
+  markMessagesAsRead: async () => { },
+  setCustomNickname: async () => { },
+  clearCustomNickname: async () => { },
   getContactDisplayName: () => 'User',
   isUserOnline: () => false,
-  startCall: async () => {},
-  acceptCall: () => {},
-  rejectCall: () => {},
-  cancelCall: () => {},
-  endCall: () => {},
-  toggleMuteCall: () => {},
-  toggleVideoCall: () => {},
-  toggleSpeakerCall: () => {},
-  switchCameraCall: () => {},
-  deleteCallLog: async () => {},
-  deleteMultipleCallLogs: async () => {},
-  clearCallLogs: async () => {},
-  updateSettings: () => {},
-  updateProfile: async () => {},
-  addContact: () => {},
+  startCall: async () => { },
+  acceptCall: () => { },
+  rejectCall: () => { },
+  cancelCall: () => { },
+  endCall: () => { },
+  toggleMuteCall: () => { },
+  toggleVideoCall: () => { },
+  toggleSpeakerCall: () => { },
+  switchCameraCall: () => { },
+  deleteCallLog: async () => { },
+  deleteMultipleCallLogs: async () => { },
+  clearCallLogs: async () => { },
+  updateSettings: () => { },
+  updateProfile: async () => { },
+  addContact: () => { },
   createGroup: () => '',
-  addMembersToGroup: async () => {},
-  removeMemberFromGroup: async () => {},
-  leaveGroup: async () => {},
-  toggleGroupAdmin: async () => {},
-  sendGroupSystemMessage: async () => {},
-  joinGroupCall: async () => {},
-  updateGroupDetails: async () => {},
-  updateGroupPermissions: async () => {},
-  transferGroupOwnership: async () => {},
-  toggleGroupMuteMember: async () => {},
-  toggleGroupBanMember: async () => {},
-  approveJoinRequest: async () => {},
-  rejectJoinRequest: async () => {},
-  requestToJoinGroup: async () => {},
+  addMembersToGroup: async () => { },
+  removeMemberFromGroup: async () => { },
+  leaveGroup: async () => { },
+  toggleGroupAdmin: async () => { },
+  sendGroupSystemMessage: async () => { },
+  joinGroupCall: async () => { },
+  updateGroupDetails: async () => { },
+  updateGroupPermissions: async () => { },
+  transferGroupOwnership: async () => { },
+  toggleGroupMuteMember: async () => { },
+  toggleGroupBanMember: async () => { },
+  approveJoinRequest: async () => { },
+  rejectJoinRequest: async () => { },
+  requestToJoinGroup: async () => { },
   regenerateGroupInviteLink: async () => '',
-  toggleGroupInviteLinkDisabled: async () => {},
-  updateGroupDescription: async () => {},
-  updateGroupPrivacy: async () => {},
-  deleteGroupMessageForEveryone: async () => {},
-  clearGroupChatHistoryForEveryone: async () => {},
-  deleteGroup: async () => {},
-  clearChatHistory: () => {},
-  clearAllChatHistory: () => {},
-  togglePinContact: () => {},
-  toggleLockContact: () => {},
-  toggleArchiveContact: () => {},
-  toggleFavoriteContact: () => {},
-  toggleMuteContact: () => {},
-  unlockChatLock: () => {},
-  blockContact: () => {},
-  unblockContact: () => {},
-  addReactionMessage: async () => {},
-  removeReactionMessage: async () => {},
-  deleteMultipleMessages: async () => {},
+  toggleGroupInviteLinkDisabled: async () => { },
+  updateGroupDescription: async () => { },
+  updateGroupPrivacy: async () => { },
+  deleteGroupMessageForEveryone: async () => { },
+  clearGroupChatHistoryForEveryone: async () => { },
+  deleteGroup: async () => { },
+  clearChatHistory: () => { },
+  clearAllChatHistory: () => { },
+  togglePinContact: () => { },
+  toggleLockContact: () => { },
+  toggleArchiveContact: () => { },
+  toggleFavoriteContact: () => { },
+  toggleMuteContact: () => { },
+  unlockChatLock: () => { },
+  blockContact: () => { },
+  unblockContact: () => { },
+  addReactionMessage: async () => { },
+  removeReactionMessage: async () => { },
+  deleteMultipleMessages: async () => { },
   adminWallpapers: [],
-  addAdminWallpaper: async () => {},
-  deleteAdminWallpaper: async () => {},
+  addAdminWallpaper: async () => { },
+  deleteAdminWallpaper: async () => { },
   reports: [],
-  submitUserReport: async () => {},
-  updateReportStatus: async () => {},
-  deleteReport: async () => {},
-  toggleUserBannedStatus: async () => {},
+  submitUserReport: async () => { },
+  updateReportStatus: async () => { },
+  deleteReport: async () => { },
+  toggleUserBannedStatus: async () => { },
 };
 
 const ICE_SERVERS: RTCConfiguration = {
@@ -431,12 +449,13 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [activeContactId, setActiveContactId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'chats' | 'gallery' | 'profile' | 'settings' | 'calls'>('chats');
   const [unlockedLocks, setUnlockedLocks] = useState<Record<string, boolean>>({});
-  
+
   const [authUser, setAuthUser] = useState<FirebaseUser | null>(null);
   const [authReady, setAuthReady] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [needsUsername, setNeedsUsername] = useState<boolean>(false);
-  const [onboardingStep, setOnboardingStep] = useState<'username' | 'password' | 'completed'>('username');
+  const [onboardingStep, setOnboardingStep] = useState<'username' | 'password' | 'tutorial' | 'completed'>('username');
+  const [chatRetentionModes, setChatRetentionModes] = useState<Record<string, ChatRetentionMode>>({});
 
   const [user, setUser] = useState<UserProfile>(DEFAULT_USER);
   const [settings, setSettings] = useState<VaultSettings>(() => {
@@ -476,6 +495,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [presenceMap, setPresenceMap] = useState<Record<string, { isOnline: boolean; lastSeen: any; isTyping: boolean; typingTo: string | null }>>({});
   const [presenceTick, setPresenceTick] = useState(0);
   const [chatMetadata, setChatMetadata] = useState<Record<string, { lastMessage?: string; lastMessageTime?: any; lastMessageSenderId?: string }>>({});
+  const [chatWallpapers, setChatWallpapers] = useState<Record<string, { wallpaper?: string; blur?: number; brightness?: number }>>({});
   const [adminWallpapers, setAdminWallpapers] = useState<AdminWallpaper[]>([]);
   const [reports, setReports] = useState<UserReport[]>([]);
 
@@ -513,7 +533,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           };
         });
         setPresenceMap(pMap);
-      }, (err) => handleFirestoreError('Presence snapshot error:', err, () => {}));
+      }, (err) => handleFirestoreError('Presence snapshot error:', err, () => { }));
 
       return () => unsub();
     } catch (e) {
@@ -541,7 +561,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           updatedAt: serverTimestamp(),
         };
 
-        setDoc(presenceRef, payload, { merge: true }).catch(() => {});
+        setDoc(presenceRef, payload, { merge: true }).catch(() => { });
         updateDoc(userRef, {
           online: online,
           isOnline: online,
@@ -549,7 +569,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           lastActiveAt: serverTimestamp(),
           isTyping: typing,
           typingTo: targetUid,
-        }).catch(() => {});
+        }).catch(() => { });
       } catch (err) {
         // ignore write issues
       }
@@ -642,7 +662,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setAdminWallpapers(merged);
         try {
           localStorage.setItem('calcchat_admin_wallpapers', JSON.stringify(merged));
-        } catch (e) {}
+        } catch (e) { }
       }, (err) => {
         console.warn('Admin wallpapers snapshot error:', err);
       });
@@ -681,7 +701,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const updated = [newWp, ...prev.filter(p => p.url !== newWp.url && p.id !== newWp.id)];
       try {
         localStorage.setItem('calcchat_admin_wallpapers', JSON.stringify(updated));
-      } catch (e) {}
+      } catch (e) { }
       return updated;
     });
 
@@ -706,7 +726,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const updated = prev.filter(w => w.id !== wallpaperId);
       try {
         localStorage.setItem('calcchat_admin_wallpapers', JSON.stringify(updated));
-      } catch (e) {}
+      } catch (e) { }
       return updated;
     });
 
@@ -787,7 +807,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       // Typing is visible ONLY if contact is typing to ME and is online
-      const isTyping = isOnline && p 
+      const isTyping = isOnline && p
         ? (Boolean(p.isTyping) && p.typingTo === authUser?.uid)
         : Boolean(typingStatusMap[c.id]);
 
@@ -935,7 +955,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     overlayStackRef.current.push(entry);
     try {
       window.history.pushState({ calcchatType: 'overlay', overlayId: id }, '');
-    } catch (e) {}
+    } catch (e) { }
 
     return () => {
       overlayStackRef.current = overlayStackRef.current.filter(item => item !== entry);
@@ -977,14 +997,6 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       // 4. If inside a tab other than 'chats' (e.g. 'settings', 'profile', 'calls', 'gallery'), return to 'chats' tab!
       if (isUnlockedRef.current && activeTabRef.current !== 'chats') {
-        setActiveTab('chats');
-        return;
-      }
-
-      // 5. If inside secret vault on 'chats' tab, lock vault and return to Calculator screen
-      if (isUnlockedRef.current) {
-        setIsUnlocked(false);
-        setActiveContactId(null);
         setActiveTab('chats');
         return;
       }
@@ -1044,12 +1056,12 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const callId = current.id;
           if (current.direction === 'outgoing') {
             if (callId) {
-              updateDoc(doc(db, 'calls', callId), { status: 'cancelled' }).catch(() => {});
+              updateDoc(doc(db, 'calls', callId), { status: 'cancelled' }).catch(() => { });
             }
             cleanupCall('cancelled');
           } else {
             if (callId) {
-              updateDoc(doc(db, 'calls', callId), { status: 'rejected' }).catch(() => {});
+              updateDoc(doc(db, 'calls', callId), { status: 'rejected' }).catch(() => { });
             }
             cleanupCall('rejected');
           }
@@ -1083,7 +1095,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       try {
         const targetUserRef = doc(db, 'users', targetUser.uid);
         const targetSnap = await getDoc(targetUserRef).catch(() => null);
-        
+
         // 2. Check Firestore welcomeSent flag
         if (targetSnap && targetSnap.exists() && (targetSnap.data()?.welcomeSent === true || targetSnap.data()?.welcomeSent === 'true')) {
           localStorage.setItem(`calcchat_welcome_sent_${targetUser.uid}`, 'true');
@@ -1113,7 +1125,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             isVerified: true,
             online: true,
             lastSeen: 'Online',
-          }, { merge: true }).catch(() => {});
+          }, { merge: true }).catch(() => { });
         }
 
         const chatId = [superAdminUid, targetUser.uid].sort().join('_');
@@ -1123,7 +1135,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const existingMsgsSnap = await getDocs(msgRef).catch(() => null);
         if (existingMsgsSnap && !existingMsgsSnap.empty) {
           localStorage.setItem(`calcchat_welcome_sent_${targetUser.uid}`, 'true');
-          await updateDoc(targetUserRef, { welcomeSent: true }).catch(() => {});
+          await updateDoc(targetUserRef, { welcomeSent: true }).catch(() => { });
           return;
         }
 
@@ -1159,12 +1171,12 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           friends: arrayUnion(superAdminUid),
           following: arrayUnion(superAdminUid),
           welcomeSent: true,
-        }).catch(() => {});
+        }).catch(() => { });
 
         await updateDoc(doc(db, 'users', superAdminUid), {
           friends: arrayUnion(targetUser.uid),
           followers: arrayUnion(targetUser.uid),
-        }).catch(() => {});
+        }).catch(() => { });
 
       } catch (err) {
         console.warn('Welcome message trigger warning:', err);
@@ -1268,7 +1280,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           lastLogin: serverTimestamp(),
           ...(isSuperAdmin ? { isSuperAdmin: true, isAdmin: true, isVerified: true } : {}),
           ...(isAdmin ? { isAdmin: true, isVerified: true } : {}),
-        }).catch(() => {});
+        }).catch(() => { });
       }
     };
 
@@ -1349,17 +1361,17 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const isProfileDone = (Boolean(uData.isProfileComplete) || isLocallyCompleted) && userHasUsername && userHasPassword;
 
           const resolvedUsername = uData.username || localSavedUsername || '';
-          const userPasscode = (uData.passcode && String(uData.passcode).trim() !== '') 
-            ? String(uData.passcode).trim() 
+          const userPasscode = (uData.passcode && String(uData.passcode).trim() !== '')
+            ? String(uData.passcode).trim()
             : (uData.settings?.passcode && String(uData.settings.passcode).trim() !== '')
-            ? String(uData.settings.passcode).trim()
-            : (savedLocalPasscode && savedLocalPasscode.trim() !== '')
-            ? savedLocalPasscode.trim()
-            : (settings.passcode && settings.passcode.trim() !== '')
-            ? settings.passcode.trim()
-            : (user.passcode && user.passcode.trim() !== '')
-            ? user.passcode.trim()
-            : '';
+              ? String(uData.settings.passcode).trim()
+              : (savedLocalPasscode && savedLocalPasscode.trim() !== '')
+                ? savedLocalPasscode.trim()
+                : (settings.passcode && settings.passcode.trim() !== '')
+                  ? settings.passcode.trim()
+                  : (user.passcode && user.passcode.trim() !== '')
+                    ? user.passcode.trim()
+                    : '';
 
           const localCustomAvatar = localStorage.getItem(`calcchat_custom_avatar_${fbUser.uid}`);
           const resolvedAvatar = uData.avatar || uData.photoURL || localCustomAvatar || fbUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=1200&auto=format&fit=crop&q=95';
@@ -1392,7 +1404,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               const updated = { ...prev, ...uData.settings, ...(userPasscode ? { passcode: userPasscode } : {}) };
               try {
                 localStorage.setItem('secret_vault_settings', JSON.stringify(updated));
-              } catch (e) {}
+              } catch (e) { }
               return updated;
             });
           } else if (userPasscode) {
@@ -1418,7 +1430,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 isProfileComplete: true,
                 ...(resolvedUsername ? { username: resolvedUsername, usernameLower: resolvedUsername.toLowerCase() } : {}),
                 ...(userPasscode ? { passcode: userPasscode, 'settings.passcode': userPasscode } : {}),
-              }).catch(() => {});
+              }).catch(() => { });
             }
           } else if (!userHasUsername) {
             setOnboardingStep('username');
@@ -1428,14 +1440,14 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setNeedsUsername(true);
           }
 
-          sendWelcomeMessageIfNeeded(fbUser).catch(() => {});
+          sendWelcomeMessageIfNeeded(fbUser).catch(() => { });
 
           // Update last login and online status in Firestore
           await updateDoc(userRef, {
             online: true,
             lastSeen: 'Online',
             lastLogin: serverTimestamp(),
-          }).catch(() => {});
+          }).catch(() => { });
         } else {
           applyFallbackUser(fbUser, !isLocallyCompleted);
         }
@@ -1542,16 +1554,38 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const unsub = onSnapshot(chatsQuery, (snapshot) => {
       const metaMap: Record<string, any> = {};
+      const modesMap: Record<string, ChatRetentionMode> = {};
+      const wpMap: Record<string, { wallpaper?: string; blur?: number; brightness?: number }> = {};
       snapshot.docs.forEach(d => {
         const data = d.data();
+        const mode: ChatRetentionMode = data.retentionMode || 'never';
         metaMap[d.id] = {
           lastMessage: data.lastMessage || '',
           lastMessageTime: data.lastMessageTime || data.updatedAt || null,
           lastMessageSenderId: data.lastMessageSenderId || '',
+          retentionMode: mode,
+          wallpaper: data.wallpaper || '',
         };
+        modesMap[d.id] = mode;
+        if (data.wallpaper) {
+          const wpObj = { wallpaper: data.wallpaper, blur: data.wallpaperBlur ?? 0, brightness: data.wallpaperBrightness ?? 100 };
+          wpMap[d.id] = wpObj;
+        }
+
+        if (d.id.includes('_')) {
+          const partnerUid = d.id.split('_').find(p => p !== authUser.uid);
+          if (partnerUid) {
+            modesMap[partnerUid] = mode;
+            if (data.wallpaper) {
+              wpMap[partnerUid] = { wallpaper: data.wallpaper, blur: data.wallpaperBlur ?? 0, brightness: data.wallpaperBrightness ?? 100 };
+            }
+          }
+        }
       });
       setChatMetadata(metaMap);
-    }, (err) => handleFirestoreError('Chats metadata snapshot error:', err, () => {}));
+      setChatRetentionModes(modesMap);
+      setChatWallpapers(wpMap);
+    }, (err) => handleFirestoreError('Chats metadata snapshot error:', err, () => { }));
 
     return () => unsub();
   }, [authUser, needsUsername]);
@@ -1677,7 +1711,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const fetchedContacts: Contact[] = [selfContact];
         for (const fUid of combined) {
           if (fUid === authUser.uid) continue;
-          
+
           const liveRegUser = allRegisteredUsers.find(u => u.uid === fUid || u.id === fUid);
           if (liveRegUser) {
             fetchedContacts.push({
@@ -1768,7 +1802,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const startedAtMs = data.activeCall.startedAt?.toMillis
             ? data.activeCall.startedAt.toMillis()
             : (typeof data.activeCall.startedAt === 'number' ? data.activeCall.startedAt : 0);
-          
+
           // Check if call is older than 2 minutes (120,000 ms) -> stale call
           const isStale = startedAtMs > 0 && (Date.now() - startedAtMs > 120000);
 
@@ -1777,7 +1811,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             updateDoc(doc(db, 'groups', data.groupId || gId), {
               'activeCall.status': 'ended',
               'activeCall.endedAt': Date.now(),
-            }).catch(() => {});
+            }).catch(() => { });
 
             if (activeCallRef.current && activeCallRef.current.isGroupCall && activeCallRef.current.contactId === (data.groupId || gId)) {
               cleanupCall('ended');
@@ -1870,9 +1904,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateGroupContactsFromMaps();
       };
 
-      const u1 = onSnapshot(q1, handleSnapshotChanges, (err) => handleFirestoreError('Groups snapshot error (members):', err, () => {}));
-      const u2 = onSnapshot(q2, handleSnapshotChanges, (err) => handleFirestoreError('Groups snapshot error (memberUids):', err, () => {}));
-      const u3 = onSnapshot(q3, handleSnapshotChanges, (err) => handleFirestoreError('Groups snapshot error (createdBy):', err, () => {}));
+      const u1 = onSnapshot(q1, handleSnapshotChanges, (err) => handleFirestoreError('Groups snapshot error (members):', err, () => { }));
+      const u2 = onSnapshot(q2, handleSnapshotChanges, (err) => handleFirestoreError('Groups snapshot error (memberUids):', err, () => { }));
+      const u3 = onSnapshot(q3, handleSnapshotChanges, (err) => handleFirestoreError('Groups snapshot error (createdBy):', err, () => { }));
 
       unsubs.push(u1, u2, u3);
     });
@@ -1908,7 +1942,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           snapshot.docChanges().forEach((change) => {
             if (change.type === 'added') {
               const data = change.doc.data();
-              
+
               // Only play sound for truly new messages (within last 5 seconds) to prevent barrage on initial load
               const msgTime = data.createdAt?.toMillis ? data.createdAt.toMillis() : 0;
               const isNewMessage = (Date.now() - msgTime) < 5000;
@@ -1937,7 +1971,13 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           .map((d): Message | null => {
             const data = d.data();
             const deletedForArr: string[] = data.deletedFor || [];
-            if (authUser && deletedForArr.includes(authUser.uid)) {
+            const isSavedByAnyone = Boolean(
+              data.isStarred ||
+              (data.starredBy && Array.isArray(data.starredBy) && data.starredBy.length > 0) ||
+              (data.savedBy && Object.values(data.savedBy).some((v: any) => v?.saved === true))
+            );
+
+            if (authUser && deletedForArr.includes(authUser.uid) && !isSavedByAnyone) {
               return null;
             }
 
@@ -1975,6 +2015,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               statusReaction: data.statusReaction || undefined,
               deletedForEveryone: Boolean(data.deletedForEveryone),
               deletedFor: deletedForArr,
+              starredBy: Array.isArray(data.starredBy) ? data.starredBy : [],
+              viewedBy: data.viewedBy || {},
               reactions: data.reactions || {},
             };
           })
@@ -2026,7 +2068,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }));
         }
       }, (err) => {
-        handleFirestoreError(`Typing status error for ${friendId}`, err, () => {});
+        handleFirestoreError(`Typing status error for ${friendId}`, err, () => { });
       });
 
       unsubs.push(unsub);
@@ -2049,19 +2091,19 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       await setDoc(typingRef, {
         isTyping: Boolean(isTyping),
         updatedAt: serverTimestamp()
-      }, { merge: true }).catch(() => {});
+      }, { merge: true }).catch(() => { });
 
       await setDoc(presenceRef, {
         uid: authUser.uid,
         isTyping: Boolean(isTyping),
         typingTo: isTyping ? contactId : null,
         updatedAt: serverTimestamp()
-      }, { merge: true }).catch(() => {});
+      }, { merge: true }).catch(() => { });
 
       await updateDoc(userRef, {
         isTyping: Boolean(isTyping),
         typingTo: isTyping ? contactId : null,
-      }).catch(() => {});
+      }).catch(() => { });
     } catch (e) {
       console.warn('Failed to update typing status:', e);
     }
@@ -2081,7 +2123,15 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       let count = 0;
       unseenMsgs.forEach(m => {
         const msgRef = doc(db, 'chats', chatId, 'messages', m.id);
-        batch.update(msgRef, { seen: true, isRead: true });
+        batch.update(msgRef, {
+          seen: true,
+          isRead: true,
+          viewedAt: serverTimestamp(),
+          [`viewedBy.${authUser.uid}`]: {
+            viewed: true,
+            viewedAt: serverTimestamp()
+          }
+        });
         count++;
       });
       if (count > 0) {
@@ -2127,8 +2177,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           // If status is restricted to specific contacts, non-owner users must be in allowedUserIds list (unless mentioned)
           if (privacyMode === 'only' && data.userId !== authUser.uid && !isMentioned && !isMentionedByUsername) {
             const isPermitted = allowedUserIds.includes(authUser.uid) ||
-                                (user.username && allowedUserIds.includes(user.username)) ||
-                                (user.id && allowedUserIds.includes(user.id));
+              (user.username && allowedUserIds.includes(user.username)) ||
+              (user.id && allowedUserIds.includes(user.id));
             if (!isPermitted) {
               return; // User is not in the allowed list for this status!
             }
@@ -2198,7 +2248,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           ...d.data()
         } as StatusSeenRecord));
         setStatusSeenRecordsMap(prev => ({ ...prev, [st.id]: records }));
-      }, () => {});
+      }, () => { });
       unsubs.push(unsubSeen);
 
       // Subcollection listener for Likes
@@ -2210,7 +2260,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           ...d.data()
         } as StatusLikeRecord));
         setStatusLikeRecordsMap(prev => ({ ...prev, [st.id]: records }));
-      }, () => {});
+      }, () => { });
       unsubs.push(unsubLikes);
     });
 
@@ -2269,7 +2319,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const markNotificationAsRead = async (notificationId: string) => {
     if (!authUser || !notificationId || !db) return;
     try {
-      await updateDoc(doc(db, 'notifications', notificationId), { read: true }).catch(() => {});
+      await updateDoc(doc(db, 'notifications', notificationId), { read: true }).catch(() => { });
     } catch (e) {
       console.warn('Failed marking notification as read:', e);
     }
@@ -2429,7 +2479,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     try {
       localStorage.setItem(`calcchat_username_${authUser.uid}`, uLower);
-    } catch (e) {}
+    } catch (e) { }
 
     setUser(prev => ({
       ...prev,
@@ -2467,7 +2517,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       localStorage.setItem('secret_vault_settings', JSON.stringify(updatedSettings));
       localStorage.setItem(`calcchat_profile_completed_${authUser.uid}`, 'true');
       localStorage.setItem(`calcchat_passcode_${authUser.uid}`, cleanPasscode);
-    } catch (e) {}
+    } catch (e) { }
 
     await updateDoc(userRef, {
       passcode: cleanPasscode,
@@ -2486,7 +2536,30 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       isProfileComplete: true,
     }));
 
-    // Onboarding complete -> Redirect to Calculator Screen
+    // Password set! Move to Step 4: Onboarding Tutorial Guide (with 10s countdown)
+    setOnboardingStep('tutorial');
+    setNeedsUsername(true);
+  };
+
+  // Complete Tutorial Setup (Step 4)
+  const completeTutorialSetup = async () => {
+    if (!authUser) return;
+
+    try {
+      localStorage.setItem(`calcchat_has_seen_tutorial_${authUser.uid}`, 'true');
+    } catch (e) { }
+
+    const userRef = doc(db, 'users', authUser.uid);
+    await updateDoc(userRef, {
+      hasSeenTutorial: true,
+      updatedAt: serverTimestamp(),
+    }).catch(() => { });
+
+    setUser(prev => ({
+      ...prev,
+      hasSeenTutorial: true,
+    }));
+
     setOnboardingStep('completed');
     setNeedsUsername(false);
   };
@@ -2546,7 +2619,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         results.push({
           id: uid,
-          name: uid === authUser.uid 
+          name: uid === authUser.uid
             ? `${data.displayName || data.username} (You)`
             : (customNicknames[uid] || data.displayName || data.username),
           username: data.username,
@@ -2606,7 +2679,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const myDocRef = doc(db, 'users', authUser.uid);
     await updateDoc(myDocRef, {
       following: arrayUnion(targetUid)
-    }).catch(() => {});
+    }).catch(() => { });
 
     setUser(prev => ({
       ...prev,
@@ -2621,7 +2694,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Update request status to accepted
     await updateDoc(doc(db, 'friendRequests', requestId), {
       status: 'accepted',
-    }).catch(() => {});
+    }).catch(() => { });
 
     // Add both users to each other's friends list
     const myDocRef = doc(db, 'users', authUser.uid);
@@ -2631,13 +2704,13 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       friends: arrayUnion(senderId),
       following: arrayUnion(senderId),
       followers: arrayUnion(senderId),
-    }).catch(() => {});
+    }).catch(() => { });
 
     await updateDoc(senderDocRef, {
       friends: arrayUnion(authUser.uid),
       following: arrayUnion(authUser.uid),
       followers: arrayUnion(authUser.uid),
-    }).catch(() => {});
+    }).catch(() => { });
 
     // Create friendship document in friends collection
     const friendshipId = [authUser.uid, senderId].sort().join('_');
@@ -2673,7 +2746,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (err) {
       await updateDoc(doc(db, 'friendRequests', requestId), {
         status: 'rejected',
-      }).catch(() => {});
+      }).catch(() => { });
     }
   };
 
@@ -2684,7 +2757,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       // 1. Delete friendship document from 'friends' collection
       const friendshipId = [authUser.uid, contactId].sort().join('_');
-      await deleteDoc(doc(db, 'friends', friendshipId)).catch(() => {});
+      await deleteDoc(doc(db, 'friends', friendshipId)).catch(() => { });
 
       // 2. Remove or update friendRequests between authUser.uid and contactId
       const reqQuery1 = query(
@@ -2705,10 +2778,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       const deletePromises: Promise<any>[] = [];
       if (snap1) {
-        snap1.docs.forEach(d => deletePromises.push(deleteDoc(doc(db, 'friendRequests', d.id)).catch(() => {})));
+        snap1.docs.forEach(d => deletePromises.push(deleteDoc(doc(db, 'friendRequests', d.id)).catch(() => { })));
       }
       if (snap2) {
-        snap2.docs.forEach(d => deletePromises.push(deleteDoc(doc(db, 'friendRequests', d.id)).catch(() => {})));
+        snap2.docs.forEach(d => deletePromises.push(deleteDoc(doc(db, 'friendRequests', d.id)).catch(() => { })));
       }
       await Promise.all(deletePromises);
 
@@ -2718,7 +2791,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         friends: arrayRemove(contactId),
         following: arrayRemove(contactId),
         followers: arrayRemove(contactId),
-      }).catch(() => {});
+      }).catch(() => { });
 
       // 4. Remove my UID from contact's user document arrays (friends, following, followers)
       const contactDocRef = doc(db, 'users', contactId);
@@ -2726,7 +2799,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         friends: arrayRemove(authUser.uid),
         following: arrayRemove(authUser.uid),
         followers: arrayRemove(authUser.uid),
-      }).catch(() => {});
+      }).catch(() => { });
 
       // 5. Update local states immediately
       setUser(prev => ({
@@ -2865,7 +2938,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             statusMentionData
           ).catch((err) => console.warn('Status mention message send failed for:', targetUid, err));
         });
-        await Promise.all(notifPromises).catch(() => {});
+        await Promise.all(notifPromises).catch(() => { });
       }
     } catch (err: any) {
       console.error('Failed to post status:', err);
@@ -2994,11 +3067,11 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       if (likeDocSnap && likeDocSnap.exists()) {
         // Unlike
-        await deleteDoc(likeDocRef).catch(() => {});
+        await deleteDoc(likeDocRef).catch(() => { });
         await updateDoc(statusRef, {
           likes: arrayRemove(authUser.uid),
           likesCount: increment(-1),
-        }).catch(() => {});
+        }).catch(() => { });
 
         // Instant local state updates
         setStatusUpdates(prev => prev.map(s => {
@@ -3037,12 +3110,12 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           userAvatar: bestAvatar,
           likedAt: serverTimestamp(),
           likeTime: timeFormatted,
-        }).catch(() => {});
+        }).catch(() => { });
 
         await updateDoc(statusRef, {
           likes: arrayUnion(authUser.uid),
           likesCount: increment(1),
-        }).catch(() => {});
+        }).catch(() => { });
 
         // Instant local state updates
         setStatusUpdates(prev => prev.map(s => {
@@ -3097,12 +3170,12 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           userAvatar: bestAvatar,
           seenAt: serverTimestamp(),
           seenTime: timeFormatted,
-        }).catch(() => {});
+        }).catch(() => { });
 
         await updateDoc(statusRef, {
           seenUserIds: arrayUnion(authUser.uid),
           seenCount: increment(1),
-        }).catch(() => {});
+        }).catch(() => { });
 
         // Instant local state updates
         setStatusUpdates(prev => prev.map(s => {
@@ -3176,7 +3249,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     await updateDoc(doc(db, 'status', status.id), {
       repliesCount: increment(1),
-    }).catch(() => {});
+    }).catch(() => { });
   };
 
   // React to Status Update with Emoji
@@ -3220,13 +3293,13 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       emoji: emoji,
       createdAt: serverTimestamp(),
       reactionTime: timeFormatted,
-    }).catch(() => {});
+    }).catch(() => { });
   };
 
   const getSeenRecords = (statusId: string): StatusSeenRecord[] => {
     const mapRecords = statusSeenRecordsMap[statusId] || [];
     const st = statusUpdates.find(s => s.id === statusId);
-    
+
     const recordUserIds = new Set(mapRecords.map(r => r.userId));
     const merged: StatusSeenRecord[] = [...mapRecords];
 
@@ -3236,13 +3309,13 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           recordUserIds.add(uid);
           const contact = contacts.find(c => c.id === uid);
           const regUser = allRegisteredUsers.find(u => u.uid === uid || u.id === uid);
-          const name = customNicknames[uid] || 
-                       (contact ? getContactDisplayName(contact) : null) || 
-                       regUser?.displayName || 
-                       regUser?.username || 
-                       'User';
+          const name = customNicknames[uid] ||
+            (contact ? getContactDisplayName(contact) : null) ||
+            regUser?.displayName ||
+            regUser?.username ||
+            'User';
           const avatar = contact?.avatar || regUser?.photoURL || regUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
-          
+
           merged.push({
             id: `seen_${uid}`,
             statusId,
@@ -3258,13 +3331,13 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return merged.map(r => {
       const contact = contacts.find(c => c.id === r.userId);
       const regUser = allRegisteredUsers.find(u => u.uid === r.userId || u.id === r.userId);
-      const resolvedName = customNicknames[r.userId] || 
-                           (contact ? getContactDisplayName(contact) : null) || 
-                           regUser?.displayName || 
-                           regUser?.username || 
-                           (r.userName && r.userName !== 'User' ? r.userName : '') || 
-                           r.userName || 
-                           'User';
+      const resolvedName = customNicknames[r.userId] ||
+        (contact ? getContactDisplayName(contact) : null) ||
+        regUser?.displayName ||
+        regUser?.username ||
+        (r.userName && r.userName !== 'User' ? r.userName : '') ||
+        r.userName ||
+        'User';
       const resolvedAvatar = contact?.avatar || regUser?.photoURL || regUser?.avatar || r.userAvatar;
       return {
         ...r,
@@ -3277,7 +3350,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const getLikeRecords = (statusId: string): StatusLikeRecord[] => {
     const mapRecords = statusLikeRecordsMap[statusId] || [];
     const st = statusUpdates.find(s => s.id === statusId);
-    
+
     const recordUserIds = new Set(mapRecords.map(r => r.userId));
     const merged: StatusLikeRecord[] = [...mapRecords];
 
@@ -3287,13 +3360,13 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           recordUserIds.add(uid);
           const contact = contacts.find(c => c.id === uid);
           const regUser = allRegisteredUsers.find(u => u.uid === uid || u.id === uid);
-          const name = customNicknames[uid] || 
-                       (contact ? getContactDisplayName(contact) : null) || 
-                       regUser?.displayName || 
-                       regUser?.username || 
-                       'User';
+          const name = customNicknames[uid] ||
+            (contact ? getContactDisplayName(contact) : null) ||
+            regUser?.displayName ||
+            regUser?.username ||
+            'User';
           const avatar = contact?.avatar || regUser?.photoURL || regUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
-          
+
           merged.push({
             id: `like_${uid}`,
             statusId,
@@ -3309,13 +3382,13 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return merged.map(r => {
       const contact = contacts.find(c => c.id === r.userId);
       const regUser = allRegisteredUsers.find(u => u.uid === r.userId || u.id === r.userId);
-      const resolvedName = customNicknames[r.userId] || 
-                           (contact ? getContactDisplayName(contact) : null) || 
-                           regUser?.displayName || 
-                           regUser?.username || 
-                           (r.userName && r.userName !== 'User' ? r.userName : '') || 
-                           r.userName || 
-                           'User';
+      const resolvedName = customNicknames[r.userId] ||
+        (contact ? getContactDisplayName(contact) : null) ||
+        regUser?.displayName ||
+        regUser?.username ||
+        (r.userName && r.userName !== 'User' ? r.userName : '') ||
+        r.userName ||
+        'User';
       const resolvedAvatar = contact?.avatar || regUser?.photoURL || regUser?.avatar || r.userAvatar;
       return {
         ...r,
@@ -3411,7 +3484,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (finalMedia && finalMedia.url) {
       // 1. Save media blob/data URL to IndexedDB for offline & instant video playback
       if (finalMedia.id) {
-        saveMediaBlob(finalMedia.id, finalMedia.url).catch(() => {});
+        saveMediaBlob(finalMedia.id, finalMedia.url).catch(() => { });
       }
 
       // 2. Compress image if payload is large
@@ -3452,12 +3525,12 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const messageType = statusMention
         ? 'status_mention'
         : statusReply
-        ? 'status_reply'
-        : statusReaction
-        ? 'status_reaction'
-        : finalMedia
-        ? finalMedia.type
-        : 'text';
+          ? 'status_reply'
+          : statusReaction
+            ? 'status_reaction'
+            : finalMedia
+              ? finalMedia.type
+              : 'text';
 
       await addDoc(msgRef, {
         senderId: authUser.uid,
@@ -3476,7 +3549,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         isRead: isSelfChat ? true : false,
         createdAt: serverTimestamp(),
       });
-      setTypingStatus(receiverId, false).catch(() => {});
+      setTypingStatus(receiverId, false).catch(() => { });
       playMessageSentSound();
     } catch (err: any) {
       console.error('Error sending message to Firestore:', err);
@@ -3498,7 +3571,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           isRead: isSelfChat ? true : false,
           createdAt: serverTimestamp(),
         });
-        setTypingStatus(receiverId, false).catch(() => {});
+        setTypingStatus(receiverId, false).catch(() => { });
         playMessageSentSound();
       } else {
         throw err;
@@ -3526,6 +3599,312 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         lastMessage: lastMsgSummary,
         lastMessageTime: serverTimestamp(),
       }).catch(err => console.warn('Failed to update group lastMessage:', err));
+    }
+  };
+
+  // Send Screenshot Event in Firestore (1-to-1 & Group Chat)
+  const lastScreenshotTimeMapRef = useRef<Record<string, number>>({});
+
+  const sendScreenshotEvent = async (targetContactId: string) => {
+    if (!authUser || !targetContactId) return;
+
+    const myUid = authUser.uid;
+    const now = Date.now();
+    const lastTime = lastScreenshotTimeMapRef.current[targetContactId] || 0;
+
+    // Throttle duplicate screenshot events within 5 seconds for same chat
+    if (now - lastTime < 5000) {
+      console.log('Throttling duplicate screenshot event (sent recently)');
+      return;
+    }
+    lastScreenshotTimeMapRef.current[targetContactId] = now;
+
+    const isGroupChat = contacts.some(c => c.id === targetContactId && c.isGroup) || groupContacts.some(g => g.id === targetContactId) || targetContactId.startsWith('group_');
+    const chatId = isGroupChat ? targetContactId : [myUid, targetContactId].sort().join('_');
+
+    const msgRef = collection(db, 'chats', chatId, 'messages');
+    const myName = user.name || authUser.displayName || user.username || 'User';
+    const myAvatar = user.avatar || authUser.photoURL || '';
+
+    try {
+      await addDoc(msgRef, {
+        type: 'screenshot_event',
+        senderId: myUid,
+        userId: myUid,
+        userName: myName,
+        userAvatar: myAvatar,
+        text: `${myName} took a screenshot`,
+        chatId: chatId,
+        receiverId: targetContactId,
+        groupId: isGroupChat ? targetContactId : null,
+        systemAction: 'screenshot_event',
+        systemText: `${myName} took a screenshot`,
+        seen: false,
+        isRead: false,
+        createdAt: serverTimestamp(),
+      });
+
+      // Update parent chat doc metadata
+      await setDoc(doc(db, 'chats', chatId), {
+        lastMessage: `📸 ${myName} took a screenshot`,
+        lastMessageTime: serverTimestamp(),
+        lastMessageSenderId: myUid,
+        updatedAt: serverTimestamp(),
+      }, { merge: true }).catch(() => { });
+    } catch (err) {
+      console.warn('Failed to send screenshot detection event:', err);
+    }
+  };
+
+  // Global Native Bridge for Android / iOS WebView native screenshot detection
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).handleCalcChatScreenshotDetected = (contactId?: string) => {
+        const targetId = contactId || activeContactId;
+        if (targetId) {
+          sendScreenshotEvent(targetId);
+        }
+      };
+    }
+  }, [activeContactId, authUser]);
+
+  // Exact 4 Retention System Messages Mapping (Requirement 21)
+  const RETENTION_SYSTEM_TEXTS: Record<ChatRetentionMode, string> = {
+    after_viewing: "YOU CHANGED CHATS TO BE DELETED IMMEDIATELY",
+    "24_hours": "YOU CHANGED CHATS TO BE DELETED AFTER 24 HOURS",
+    "1_week": "YOU CHANGED CHATS TO BE DELETED AFTER 1 WEEK",
+    never: "YOU CHANGED CHATS TO NEVER BE DELETED",
+  };
+
+  // Update Chat Retention Mode in Firestore & Local State
+  const updateChatRetentionMode = async (contactId: string, mode: ChatRetentionMode) => {
+    if (!authUser || !contactId || !db) return;
+
+    const isGroupChat = contacts.some(c => c.id === contactId && c.isGroup) || groupContacts.some(g => g.id === contactId) || contactId.startsWith('group_');
+    const chatId = isGroupChat ? contactId : [authUser.uid, contactId].sort().join('_');
+
+    const previousMode = chatRetentionModes[contactId] || chatRetentionModes[chatId] || 'never';
+    // Rule 14 & Test 5: Avoid duplicate events if the user selects the ALREADY ACTIVE option!
+    if (previousMode === mode) {
+      return;
+    }
+
+    // Optimistic local state update
+    setChatRetentionModes(prev => ({ ...prev, [contactId]: mode, [chatId]: mode }));
+
+    try {
+      // 1. Save setting to Firestore
+      await setDoc(doc(db, 'chats', chatId), {
+        retentionMode: mode,
+        retentionUpdatedAt: serverTimestamp(),
+        retentionUpdatedBy: authUser.uid,
+      }, { merge: true });
+
+      if (isGroupChat) {
+        await updateDoc(doc(db, 'groups', contactId), {
+          retentionMode: mode,
+          retentionUpdatedAt: serverTimestamp(),
+        }).catch(() => { });
+      }
+
+      // 2. Create System Notification Event ONLY ON SUCCESSFUL SAVE (Rule 6, 7, 8, 9, 15)
+      const systemText = RETENTION_SYSTEM_TEXTS[mode] || `YOU CHANGED CHATS TO ${mode.toUpperCase()}`;
+
+      await addDoc(collection(db, 'chats', chatId, 'messages'), {
+        type: 'system',
+        systemAction: 'chat_retention_changed',
+        systemText: systemText,
+        text: systemText,
+        retentionMode: mode,
+        senderId: 'system',
+        changedBy: authUser.uid,
+        chatId: chatId,
+        receiverId: isGroupChat ? chatId : contactId,
+        groupId: isGroupChat ? contactId : null,
+        seen: true,
+        isRead: true,
+        createdAt: serverTimestamp(),
+      });
+
+      // Update parent chat doc metadata for ChatList preview
+      await setDoc(doc(db, 'chats', chatId), {
+        lastMessage: systemText,
+        lastMessageTime: serverTimestamp(),
+        lastMessageSenderId: 'system',
+        updatedAt: serverTimestamp(),
+      }, { merge: true }).catch(() => { });
+
+    } catch (err) {
+      console.warn('Failed to update chat retention mode:', err);
+      // Revert optimistic state if save fails (Rule 6)
+      setChatRetentionModes(prev => ({ ...prev, [contactId]: previousMode, [chatId]: previousMode }));
+    }
+  };
+
+  // Real-Time Chat Wallpaper Sync Function across both users
+  const updateChatWallpaper = async (contactOrChatId: string, wallpaper: string, blur: number = 0, brightness: number = 100) => {
+    if (!authUser || !db || !contactOrChatId) return;
+    const isGroupChat = contacts.some(c => c.id === contactOrChatId && c.isGroup) || groupContacts.some(g => g.id === contactOrChatId) || contactOrChatId.startsWith('group_');
+    const chatId = isGroupChat ? contactOrChatId : (contactOrChatId.includes('_') ? contactOrChatId : [authUser.uid, contactOrChatId].sort().join('_'));
+    const partnerUid = !isGroupChat && chatId.includes('_') ? chatId.split('_').find(p => p !== authUser.uid) : contactOrChatId;
+
+    setChatWallpapers(prev => ({
+      ...prev,
+      [chatId]: { wallpaper, blur, brightness },
+      [contactOrChatId]: { wallpaper, blur, brightness },
+      ...(partnerUid ? { [partnerUid]: { wallpaper, blur, brightness } } : {})
+    }));
+
+    try {
+      const docRef = doc(db, 'chats', chatId);
+      await setDoc(docRef, {
+        wallpaper,
+        wallpaperBlur: blur,
+        wallpaperBrightness: brightness,
+        updatedAt: serverTimestamp(),
+        participants: isGroupChat ? [authUser.uid] : (chatId.includes('_') ? chatId.split('_') : [authUser.uid, contactOrChatId]),
+      }, { merge: true });
+    } catch (err) {
+      console.warn('Failed to update chat wallpaper in Firestore:', err);
+    }
+  };
+
+  // Handle Chat Exit Deletion (for "Chats After Viewing" mode)
+  const handleChatExit = async (contactId: string) => {
+    if (!authUser || !contactId || !db) return;
+
+    const isGroupChat = contacts.some(c => c.id === contactId && c.isGroup) || groupContacts.some(g => g.id === contactId) || contactId.startsWith('group_');
+    const chatId = isGroupChat ? contactId : [authUser.uid, contactId].sort().join('_');
+
+    const mode = chatRetentionModes[contactId] || chatRetentionModes[chatId] || 'never';
+    if (mode !== 'after_viewing') return;
+
+    try {
+      const msgList = messages[contactId] || messages[chatId] || [];
+      const viewedMsgs = msgList.filter(m => {
+        const isSeen = m.seen || m.isRead;
+        const isSystemMsg = m.type === 'system' || Boolean(m.systemAction);
+        const isSavedByAnyone = Boolean(
+          m.isStarred ||
+          (m.starredBy && Array.isArray(m.starredBy) && m.starredBy.length > 0) ||
+          (m.savedBy && Object.values(m.savedBy).some((v: any) => v?.saved === true))
+        );
+        const alreadyDeletedForMe = Array.isArray(m.deletedFor) && m.deletedFor.includes(authUser.uid);
+
+        // System messages, messages saved by ANY participant, or already deleted messages are NOT deleted by retention
+        if (isSystemMsg || isSavedByAnyone || alreadyDeletedForMe || m.deletedForEveryone) return false;
+
+        // Eligible if viewed/seen by current user
+        return isSeen;
+      });
+
+      if (viewedMsgs.length === 0) return;
+
+      const batch = writeBatch(db);
+      let count = 0;
+
+      viewedMsgs.forEach(m => {
+        const msgRef = doc(db, 'chats', chatId, 'messages', m.id);
+        const currentDeletedFor = Array.isArray(m.deletedFor) ? m.deletedFor : [];
+        const nextDeletedFor = Array.from(new Set([...currentDeletedFor, authUser.uid]));
+
+        // Check if all participants in the chat have deleted it (2 for 1-to-1)
+        const participantsCount = isGroupChat ? 1000 : (chatId.split('_').length);
+
+        if (nextDeletedFor.length >= participantsCount) {
+          batch.delete(msgRef);
+        } else {
+          batch.update(msgRef, { deletedFor: arrayUnion(authUser.uid) });
+        }
+        count++;
+      });
+
+      if (count > 0) {
+        await batch.commit();
+      }
+    } catch (err) {
+      console.warn('Error executing after_viewing chat exit deletion:', err);
+    }
+  };
+
+  // Check and Cleanup Expired Messages (for "24_hours" and "1_week" modes)
+  const checkAndCleanupExpiredMessages = async (contactId: string) => {
+    if (!authUser || !contactId || !db) return;
+
+    const isGroupChat = contacts.some(c => c.id === contactId && c.isGroup) || groupContacts.some(g => g.id === contactId) || contactId.startsWith('group_');
+    const chatId = isGroupChat ? contactId : [authUser.uid, contactId].sort().join('_');
+
+    const mode = chatRetentionModes[contactId] || chatRetentionModes[chatId] || 'never';
+    if (mode === 'never') return;
+
+    const now = Date.now();
+    let maxAgeMs = 0;
+
+    if (mode === '24_hours') {
+      maxAgeMs = 24 * 60 * 60 * 1000;
+    } else if (mode === '1_week') {
+      maxAgeMs = 7 * 24 * 60 * 60 * 1000;
+    } else {
+      return;
+    }
+
+    try {
+      const msgList = messages[contactId] || messages[chatId] || [];
+      const expiredMsgs = msgList.filter(m => {
+        if (m.deletedForEveryone || m.type === 'system' || Boolean(m.systemAction)) return false;
+        const isSavedByAnyone = Boolean(
+          m.isStarred ||
+          (m.starredBy && Array.isArray(m.starredBy) && m.starredBy.length > 0) ||
+          (m.savedBy && Object.values(m.savedBy).some((v: any) => v?.saved === true))
+        );
+        const alreadyDeletedForMe = Array.isArray(m.deletedFor) && m.deletedFor.includes(authUser.uid);
+        if (isSavedByAnyone || alreadyDeletedForMe) return false;
+
+        let viewedMs = 0;
+        if (m.viewedBy && m.viewedBy[authUser.uid]?.viewedAt) {
+          const vAt = m.viewedBy[authUser.uid].viewedAt;
+          viewedMs = vAt.toMillis ? vAt.toMillis() : (vAt.seconds ? vAt.seconds * 1000 : 0);
+        } else if (m.viewedAt?.toMillis) {
+          viewedMs = m.viewedAt.toMillis();
+        } else if (m.viewedAt?.seconds) {
+          viewedMs = m.viewedAt.seconds * 1000;
+        } else if (m.seenAt?.toMillis) {
+          viewedMs = m.seenAt.toMillis();
+        } else if (m.createdAt?.toMillis) {
+          viewedMs = m.createdAt.toMillis();
+        } else if (m.createdAt?.seconds) {
+          viewedMs = m.createdAt.seconds * 1000;
+        } else if (typeof m.createdAt === 'number') {
+          viewedMs = m.createdAt;
+        }
+
+        return (m.seen || m.isRead) && viewedMs > 0 && (now - viewedMs >= maxAgeMs);
+      });
+
+      if (expiredMsgs.length === 0) return;
+
+      const batch = writeBatch(db);
+      let count = 0;
+
+      expiredMsgs.forEach(m => {
+        const msgRef = doc(db, 'chats', chatId, 'messages', m.id);
+        const currentDeletedFor = Array.isArray(m.deletedFor) ? m.deletedFor : [];
+        const nextDeletedFor = Array.from(new Set([...currentDeletedFor, authUser.uid]));
+        const participantsCount = isGroupChat ? 1000 : (chatId.split('_').length);
+
+        if (nextDeletedFor.length >= participantsCount) {
+          batch.delete(msgRef);
+        } else {
+          batch.update(msgRef, { deletedFor: arrayUnion(authUser.uid) });
+        }
+        count++;
+      });
+
+      if (count > 0) {
+        await batch.commit();
+      }
+    } catch (err) {
+      console.warn('Error cleaning up expired retention messages:', err);
     }
   };
 
@@ -3557,7 +3936,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       deletedFor: arrayUnion(authUser.uid)
     }).catch(async () => {
       // Fallback if doc update fails or schema issue
-      await deleteDoc(doc(db, 'chats', chatId, 'messages', msgId)).catch(() => {});
+      await deleteDoc(doc(db, 'chats', chatId, 'messages', msgId)).catch(() => { });
     });
   };
 
@@ -3597,7 +3976,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const docId = `${authUser.uid}_${contactId}`;
 
     if (!trimmed) {
-      await deleteDoc(doc(db, 'customNicknames', docId)).catch(() => {});
+      await deleteDoc(doc(db, 'customNicknames', docId)).catch(() => { });
     } else {
       await setDoc(doc(db, 'customNicknames', docId), {
         ownerUid: authUser.uid,
@@ -3612,7 +3991,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const clearCustomNickname = async (contactId: string) => {
     if (!authUser) return;
     const docId = `${authUser.uid}_${contactId}`;
-    await deleteDoc(doc(db, 'customNicknames', docId)).catch(() => {});
+    await deleteDoc(doc(db, 'customNicknames', docId)).catch(() => { });
   };
 
   // Helper display name
@@ -3669,12 +4048,12 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // Mesh WebRTC Cleanup
     Object.values(meshUnsubsRef.current).forEach(unsub => {
-      try { unsub?.(); } catch (e) {}
+      try { unsub?.(); } catch (e) { }
     });
     meshUnsubsRef.current = {};
 
     Object.values(meshPeerConnectionsRef.current).forEach(pc => {
-      try { pc?.close(); } catch (e) {}
+      try { pc?.close(); } catch (e) { }
     });
     meshPeerConnectionsRef.current = {};
 
@@ -3697,15 +4076,15 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 'activeCall.status': 'ended',
                 'activeCall.endedAt': Date.now(),
                 'activeCall.participants': [],
-              }).catch(() => {});
+              }).catch(() => { });
             } else {
               updateDoc(gRef, {
                 'activeCall.participants': updatedParts,
-              }).catch(() => {});
+              }).catch(() => { });
             }
           }
         }
-      }).catch(() => {});
+      }).catch(() => { });
 
       if (callId) {
         const cRef = doc(db, 'calls', callId);
@@ -3715,13 +4094,13 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             if (cData.participants) {
               const updatedParts = (cData.participants as GroupCallParticipant[]).filter(p => p.uid !== myUid && p.uid !== user.id);
               if (updatedParts.length === 0) {
-                updateDoc(cRef, { status: 'ended' }).catch(() => {});
+                updateDoc(cRef, { status: 'ended' }).catch(() => { });
               } else {
-                updateDoc(cRef, { participants: updatedParts }).catch(() => {});
+                updateDoc(cRef, { participants: updatedParts }).catch(() => { });
               }
             }
           }
-        }).catch(() => {});
+        }).catch(() => { });
       }
     }
     if (currentCall) {
@@ -3791,17 +4170,17 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const isStale = createdAtMs > 0 && (Date.now() - createdAtMs > 60000); // Older than 60s is stale
 
         if (isStale) {
-          updateDoc(doc(db, 'calls', callId), { status: 'cancelled' }).catch(() => {});
+          updateDoc(doc(db, 'calls', callId), { status: 'cancelled' }).catch(() => { });
           return;
         }
 
         if (blockedContactIds.includes(data.callerId) || blockedByContactIds.includes(data.callerId)) {
-          updateDoc(doc(db, 'calls', callId), { status: 'rejected' }).catch(() => {});
+          updateDoc(doc(db, 'calls', callId), { status: 'rejected' }).catch(() => { });
           return;
         }
 
         if (!isFriend(data.callerId)) {
-          updateDoc(doc(db, 'calls', callId), { status: 'rejected' }).catch(() => {});
+          updateDoc(doc(db, 'calls', callId), { status: 'rejected' }).catch(() => { });
           return;
         }
 
@@ -3810,14 +4189,14 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         if (!callerNotif.callNotifications || !globalCallNotif) {
           if (data.status === 'ringing') {
-            updateDoc(doc(db, 'calls', callId), { status: 'rejected' }).catch(() => {});
+            updateDoc(doc(db, 'calls', callId), { status: 'rejected' }).catch(() => { });
           }
           return;
         }
 
         if (activeCallRef.current && activeCallRef.current.id !== callId) {
           if (data.status === 'ringing') {
-            updateDoc(doc(db, 'calls', callId), { status: 'busy' }).catch(() => {});
+            updateDoc(doc(db, 'calls', callId), { status: 'busy' }).catch(() => { });
           }
           return;
         }
@@ -3920,7 +4299,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const parsed = JSON.parse(item);
           if (Array.isArray(parsed)) return new Set(parsed);
         }
-      } catch (e) {}
+      } catch (e) { }
       return new Set();
     };
 
@@ -4019,7 +4398,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       deletedCallIds = local;
       try {
         localStorage.setItem(`vault_deleted_calls_${authUser.uid}`, JSON.stringify(Array.from(local)));
-      } catch (e) {}
+      } catch (e) { }
       updateCombinedCallLogs();
     }, (err) => {
       console.warn('Deleted calls snapshot warning:', err);
@@ -4039,12 +4418,12 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const unsubCaller = onSnapshot(callerQuery, (snap) => {
       callerDocs = snap.docs.map(parseCallDoc);
       updateCombinedCallLogs();
-    }, (err) => handleFirestoreError('Caller calls snapshot error:', err, () => {}));
+    }, (err) => handleFirestoreError('Caller calls snapshot error:', err, () => { }));
 
     const unsubReceiver = onSnapshot(receiverQuery, (snap) => {
       receiverDocs = snap.docs.map(parseCallDoc);
       updateCombinedCallLogs();
-    }, (err) => handleFirestoreError('Receiver calls snapshot error:', err, () => {}));
+    }, (err) => handleFirestoreError('Receiver calls snapshot error:', err, () => { }));
 
     return () => {
       unsubDeleted();
@@ -4065,7 +4444,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (!remoteUids.has(uid)) {
         try {
           meshPeerConnectionsRef.current[uid]?.close();
-        } catch (e) {}
+        } catch (e) { }
         delete meshPeerConnectionsRef.current[uid];
         delete peerStreamsRef.current[uid];
 
@@ -4121,7 +4500,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       pc.onicecandidate = (event) => {
         if (event.candidate) {
-          addDoc(collection(db, 'calls', callId, 'signals', pairId, 'candidates_' + myUid), event.candidate.toJSON()).catch(() => {});
+          addDoc(collection(db, 'calls', callId, 'signals', pairId, 'candidates_' + myUid), event.candidate.toJSON()).catch(() => { });
         }
       };
 
@@ -4142,7 +4521,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(track => {
-          try { pc.addTrack(track, localStreamRef.current!); } catch (e) {}
+          try { pc.addTrack(track, localStreamRef.current!); } catch (e) { }
         });
       }
 
@@ -4152,10 +4531,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (change.type === 'added') {
             try {
               await pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
-            } catch (e) {}
+            } catch (e) { }
           }
         });
-      }, () => {});
+      }, () => { });
       meshUnsubsRef.current[remoteUid + '_cand'] = unsubCand;
 
       if (isOfferer) {
@@ -4165,7 +4544,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             offer: { type: offer.type, sdp: offer.sdp },
             offererUid: myUid,
             updatedAt: serverTimestamp(),
-          }, { merge: true }).catch(() => {});
+          }, { merge: true }).catch(() => { });
         }).catch(err => console.warn('Mesh offer error:', err));
 
         const unsubSig = onSnapshot(doc(db, 'calls', callId, 'signals', pairId), async (snap) => {
@@ -4174,9 +4553,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (data.answer && pc.signalingState !== 'stable' && !pc.currentRemoteDescription) {
             try {
               await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-            } catch (e) {}
+            } catch (e) { }
           }
-        }, () => {});
+        }, () => { });
         meshUnsubsRef.current[remoteUid] = unsubSig;
       } else {
         const unsubSig = onSnapshot(doc(db, 'calls', callId, 'signals', pairId), async (snap) => {
@@ -4191,12 +4570,12 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 answer: { type: answer.type, sdp: answer.sdp },
                 answererUid: myUid,
                 updatedAt: serverTimestamp(),
-              }, { merge: true }).catch(() => {});
+              }, { merge: true }).catch(() => { });
             } catch (e) {
               console.warn('Mesh answer error:', e);
             }
           }
-        }, () => {});
+        }, () => { });
         meshUnsubsRef.current[remoteUid] = unsubSig;
       }
     });
@@ -4217,7 +4596,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (snap && snap.exists()) {
         const parts = snap.data()?.activeCall?.participants;
         if (Array.isArray(parts)) {
-          await updateDoc(gRef, { 'activeCall.participants': updateList(parts) }).catch(() => {});
+          await updateDoc(gRef, { 'activeCall.participants': updateList(parts) }).catch(() => { });
         }
       }
     }
@@ -4228,7 +4607,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (snap && snap.exists()) {
         const parts = snap.data()?.participants;
         if (Array.isArray(parts)) {
-          await updateDoc(cRef, { participants: updateList(parts) }).catch(() => {});
+          await updateDoc(cRef, { participants: updateList(parts) }).catch(() => { });
         }
       }
     }
@@ -4292,10 +4671,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           await updateDoc(doc(db, 'calls', currentCall.callId), {
             participants: updatedParts,
             status: 'active',
-          }).catch(() => {});
+          }).catch(() => { });
         }
 
-        await sendMessage(groupId, `📥 ${user.name || 'A member'} joined the group call`).catch(() => {});
+        await sendMessage(groupId, `📥 ${user.name || 'A member'} joined the group call`).catch(() => { });
 
         // Listen to call document for live participant updates & signaling
         if (callDocUnsubRef.current) callDocUnsubRef.current();
@@ -4442,7 +4821,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
       }).catch(err => console.warn('Error updating group activeCall:', err));
 
-      await sendMessage(contactId, `📞 Started a group ${type} call`).catch(() => {});
+      await sendMessage(contactId, `📞 Started a group ${type} call`).catch(() => { });
 
       if (callDocUnsubRef.current) callDocUnsubRef.current();
       callDocUnsubRef.current = onSnapshot(doc(db, 'calls', callId), (snap) => {
@@ -4508,7 +4887,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
-        addDoc(collection(db, 'calls', callId, 'callerCandidates'), event.candidate.toJSON()).catch(() => {});
+        addDoc(collection(db, 'calls', callId, 'callerCandidates'), event.candidate.toJSON()).catch(() => { });
       }
     };
 
@@ -4612,8 +4991,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       if (data.receiverVideoOff !== undefined || data.receiverFilter !== undefined) {
-        setActiveCall(prev => prev ? { 
-          ...prev, 
+        setActiveCall(prev => prev ? {
+          ...prev,
           isRemoteVideoOff: data.receiverVideoOff !== undefined ? !!data.receiverVideoOff : prev.isRemoteVideoOff,
           remoteFilter: data.receiverFilter || prev.remoteFilter || 'none'
         } : null);
@@ -4679,7 +5058,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       } else {
         setCallPermissionError('Unable to access microphone or camera.');
       }
-      await updateDoc(doc(db, 'calls', callId), { status: 'rejected' }).catch(() => {});
+      await updateDoc(doc(db, 'calls', callId), { status: 'rejected' }).catch(() => { });
       cleanupCall('rejected');
       return;
     }
@@ -4687,7 +5066,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStreamRef.current = localStream;
     setActiveCall(prev => prev ? { ...prev, localStream, status: 'connecting' } : null);
 
-    await updateDoc(doc(db, 'calls', callId), { status: 'connecting' }).catch(() => {});
+    await updateDoc(doc(db, 'calls', callId), { status: 'connecting' }).catch(() => { });
 
     const pc = new RTCPeerConnection(ICE_SERVERS);
     peerConnectionRef.current = pc;
@@ -4713,7 +5092,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
-        addDoc(collection(db, 'calls', callId, 'receiverCandidates'), event.candidate.toJSON()).catch(() => {});
+        addDoc(collection(db, 'calls', callId, 'receiverCandidates'), event.candidate.toJSON()).catch(() => { });
       }
     };
 
@@ -4783,8 +5162,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         cleanupCall(data.status);
       }
       if (data.callerVideoOff !== undefined || data.callerFilter !== undefined) {
-        setActiveCall(prev => prev ? { 
-          ...prev, 
+        setActiveCall(prev => prev ? {
+          ...prev,
           isRemoteVideoOff: data.callerVideoOff !== undefined ? !!data.callerVideoOff : prev.isRemoteVideoOff,
           remoteFilter: data.callerFilter || prev.remoteFilter || 'none'
         } : null);
@@ -4862,9 +5241,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const isGroup = activeCallRef.current.isGroupCall;
 
     if (isGroup && callId && authUser) {
-      deleteDoc(doc(db, 'calls', callId, 'participants', authUser.uid)).catch(() => {});
+      deleteDoc(doc(db, 'calls', callId, 'participants', authUser.uid)).catch(() => { });
     } else if (callId) {
-      updateDoc(doc(db, 'calls', callId), { status: 'rejected' }).catch(() => {});
+      updateDoc(doc(db, 'calls', callId), { status: 'rejected' }).catch(() => { });
     }
     cleanupCall('rejected');
   };
@@ -4879,10 +5258,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       updateDoc(doc(db, 'groups', contactId), {
         'activeCall.status': 'ended',
         'activeCall.endedAt': Date.now(),
-      }).catch(() => {});
+      }).catch(() => { });
     }
     if (callId) {
-      updateDoc(doc(db, 'calls', callId), { status: 'cancelled' }).catch(() => {});
+      updateDoc(doc(db, 'calls', callId), { status: 'cancelled' }).catch(() => { });
     }
     cleanupCall('cancelled');
   };
@@ -4904,13 +5283,13 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           'activeCall.status': 'ended',
           'activeCall.endedAt': Date.now(),
           'activeCall.participants': [],
-        }).catch(() => {});
+        }).catch(() => { });
 
         if (callId) {
           updateDoc(doc(db, 'calls', callId), {
             status: 'ended',
             participants: [],
-          }).catch(() => {});
+          }).catch(() => { });
         }
       } else {
         // Participant (e.g. User B or C) is leaving -> Leave call ONLY for this participant
@@ -4927,14 +5306,14 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 'activeCall.status': 'ended',
                 'activeCall.endedAt': Date.now(),
                 'activeCall.participants': [],
-              }).catch(() => {});
+              }).catch(() => { });
             } else {
               updateDoc(gRef, {
                 'activeCall.participants': updatedParts,
-              }).catch(() => {});
+              }).catch(() => { });
             }
           }
-        } catch (e) {}
+        } catch (e) { }
 
         if (callId) {
           try {
@@ -4946,18 +5325,18 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               const updatedParts = currentParts.filter(p => p.uid !== myUid);
 
               if (updatedParts.length === 0) {
-                updateDoc(cRef, { status: 'ended', participants: [] }).catch(() => {});
+                updateDoc(cRef, { status: 'ended', participants: [] }).catch(() => { });
               } else {
-                updateDoc(cRef, { participants: updatedParts }).catch(() => {});
+                updateDoc(cRef, { participants: updatedParts }).catch(() => { });
               }
             }
-          } catch (e) {}
+          } catch (e) { }
         }
       }
     } else {
       // 1-on-1 Call -> End for both sides
       if (callId) {
-        updateDoc(doc(db, 'calls', callId), { status: 'ended' }).catch(() => {});
+        updateDoc(doc(db, 'calls', callId), { status: 'ended' }).catch(() => { });
       }
     }
 
@@ -4995,7 +5374,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const callId = activeCallRef.current.id;
       if (callId && authUser) {
         const isCaller = activeCallRef.current.callerId === authUser.uid || activeCallRef.current.direction === 'outgoing';
-        updateDoc(doc(db, 'calls', callId), isCaller ? { callerVideoOff: newVideoOff } : { receiverVideoOff: newVideoOff }).catch(() => {});
+        updateDoc(doc(db, 'calls', callId), isCaller ? { callerVideoOff: newVideoOff } : { receiverVideoOff: newVideoOff }).catch(() => { });
       }
     }
   };
@@ -5064,7 +5443,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const existing: string[] = raw ? JSON.parse(raw) : [];
       const updated = Array.from(new Set([...existing, ...ids]));
       localStorage.setItem(key, JSON.stringify(updated));
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const deleteCallLog = async (callId: string) => {
@@ -5073,8 +5452,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     markCallsDeleted([callId]);
 
     try {
-      await deleteDoc(doc(db, 'calls', callId)).catch(() => {});
-      await setDoc(doc(db, 'users', authUser.uid, 'deletedCalls', callId), { deletedAt: serverTimestamp() }).catch(() => {});
+      await deleteDoc(doc(db, 'calls', callId)).catch(() => { });
+      await setDoc(doc(db, 'users', authUser.uid, 'deletedCalls', callId), { deletedAt: serverTimestamp() }).catch(() => { });
     } catch (e) {
       console.warn('Error deleting call log:', e);
     }
@@ -5093,7 +5472,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         batch.delete(doc(db, 'calls', cId));
         batch.set(doc(db, 'users', authUser.uid, 'deletedCalls', cId), { deletedAt: serverTimestamp() });
       });
-      await batch.commit().catch(() => {});
+      await batch.commit().catch(() => { });
     } catch (e) {
       console.warn('Error deleting multiple call logs:', e);
     }
@@ -5111,7 +5490,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           batch.delete(doc(db, 'calls', cId));
           batch.set(doc(db, 'users', authUser.uid, 'deletedCalls', cId), { deletedAt: serverTimestamp() });
         });
-        await batch.commit().catch(() => {});
+        await batch.commit().catch(() => { });
       } catch (e) {
         console.warn('Error clearing call logs:', e);
       }
@@ -5120,10 +5499,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const unlockVault = (code: string): boolean => {
     const savedLocalPass = authUser?.uid ? localStorage.getItem(`calcchat_passcode_${authUser.uid}`) : null;
-    const activePasscode = (user?.passcode && user.passcode.trim()) || 
-                           (settings?.passcode && settings.passcode.trim()) || 
-                           (savedLocalPass && savedLocalPass.trim()) || 
-                           '';
+    const activePasscode = (user?.passcode && user.passcode.trim()) ||
+      (settings?.passcode && settings.passcode.trim()) ||
+      (savedLocalPass && savedLocalPass.trim()) ||
+      '';
     if (activePasscode && code === activePasscode) {
       setActiveTab('chats');
       setActiveContactId(null);
@@ -5293,7 +5672,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setSettings(DEFAULT_SETTINGS);
     try {
       localStorage.removeItem('secret_vault_settings');
-    } catch (e) {}
+    } catch (e) { }
     if (firebaseAuth) {
       try {
         await signOut(firebaseAuth);
@@ -5344,7 +5723,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (recompressed) {
             safeSettings.chatWallpaper = recompressed;
           }
-        } catch (_) {}
+        } catch (_) { }
       }
 
       await updateDoc(doc(db, 'users', authUser.uid), {
@@ -5374,7 +5753,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (newProfile.username && authUser?.uid) {
         localStorage.setItem(`calcchat_username_${authUser.uid}`, newProfile.username);
       }
-    } catch (_) {}
+    } catch (_) { }
 
     // Synchronize local state for contacts & allRegisteredUsers immediately
     setContacts(prev => prev.map(c => (c.isSelf || c.id === user.id) ? {
@@ -5427,12 +5806,12 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         await updateAuthProfile(authUser, {
           ...(newProfile.name ? { displayName: newProfile.name } : {}),
           ...(photoUrlToUpdate ? { photoURL: photoUrlToUpdate } : {}),
-        }).catch(() => {});
+        }).catch(() => { });
       }
     }
   };
 
-  const addContact = () => {};
+  const addContact = () => { };
 
   const createGroup = (groupName: string, memberNamesOrIds: string[] = []): string => {
     if (!groupName.trim()) return '';
@@ -5461,10 +5840,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     memberNamesOrIds.forEach(item => {
       if (!item) return;
-      const matched = combinedList.find(u => 
-        u.id === item || 
+      const matched = combinedList.find(u =>
+        u.id === item ||
         (u.uid && u.uid === item) ||
-        (u.name && u.name.toLowerCase() === item.toLowerCase()) || 
+        (u.name && u.name.toLowerCase() === item.toLowerCase()) ||
         (u.username && u.username.toLowerCase() === item.toLowerCase()) ||
         (u.email && u.email.toLowerCase() === item.toLowerCase())
       );
@@ -5605,7 +5984,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           systemAction: systemAction,
           systemText: systemText,
           createdAt: serverTimestamp(),
-        }).catch(() => {});
+        }).catch(() => { });
 
         const groupRef = doc(db, 'groups', groupId);
         const groupSnap = await getDoc(groupRef).catch(() => null);
@@ -5613,7 +5992,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const existingLogs = Array.isArray(groupSnap.data().activityLogs) ? groupSnap.data().activityLogs : [];
           await updateDoc(groupRef, {
             activityLogs: [activityLogItem, ...existingLogs].slice(0, 100),
-          }).catch(() => {});
+          }).catch(() => { });
         }
       }
     } catch (err) {
@@ -5656,10 +6035,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       for (const item of newMemberInputs) {
         if (!item) continue;
-        const matched = combinedList.find(u => 
-          u.id === item || 
+        const matched = combinedList.find(u =>
+          u.id === item ||
           (u.uid && u.uid === item) ||
-          (u.name && u.name.toLowerCase() === item.toLowerCase()) || 
+          (u.name && u.name.toLowerCase() === item.toLowerCase()) ||
           (u.username && u.username.toLowerCase() === item.toLowerCase()) ||
           (u.email && u.email.toLowerCase() === item.toLowerCase())
         );
@@ -5908,14 +6287,14 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       firestoreUpdates.name = newName;
       firestoreUpdates.groupName = newName;
       const sysMsgText = `✏️ ${actorName} changed the group name to "${newName}".`;
-      sendGroupSystemMessage(groupId, 'group_name_changed', sysMsgText).catch(() => {});
+      sendGroupSystemMessage(groupId, 'group_name_changed', sysMsgText).catch(() => { });
     }
 
     if (updates.avatar !== undefined && updates.avatar !== (group?.avatar || '')) {
       firestoreUpdates.avatar = updates.avatar;
       firestoreUpdates.groupPhoto = updates.avatar;
       const sysMsgText = `🖼️ ${actorName} changed the group photo.`;
-      sendGroupSystemMessage(groupId, 'group_photo_changed', sysMsgText).catch(() => {});
+      sendGroupSystemMessage(groupId, 'group_photo_changed', sysMsgText).catch(() => { });
     }
 
     if (updates.wallpaper !== undefined) {
@@ -5927,7 +6306,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       firestoreUpdates.about = updates.description.trim();
       firestoreUpdates.bio = updates.description.trim();
       const sysMsgText = `📝 ${actorName} updated the group description.`;
-      sendGroupSystemMessage(groupId, 'description_changed', sysMsgText).catch(() => {});
+      sendGroupSystemMessage(groupId, 'description_changed', sysMsgText).catch(() => { });
     }
 
     if (Object.keys(firestoreUpdates).length === 0) return;
@@ -6080,7 +6459,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }));
 
     if (authUser && db) {
-      await updateDoc(doc(db, 'groups', groupId), { mutedMembers: updatedMuted }).catch(() => {});
+      await updateDoc(doc(db, 'groups', groupId), { mutedMembers: updatedMuted }).catch(() => { });
     }
 
     await sendGroupSystemMessage(groupId, isMuted ? 'member_unmuted' : 'member_muted', sysMsgText);
@@ -6143,7 +6522,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           memberNames: updatedNames,
           admins: updatedAdmins,
           bannedMembers: updatedBanned,
-        }).catch(() => {});
+        }).catch(() => { });
       }
       await sendGroupSystemMessage(groupId, 'member_banned', sysMsgText);
       return;
@@ -6157,7 +6536,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }));
 
     if (authUser && db) {
-      await updateDoc(doc(db, 'groups', groupId), { bannedMembers: updatedBanned }).catch(() => {});
+      await updateDoc(doc(db, 'groups', groupId), { bannedMembers: updatedBanned }).catch(() => { });
     }
 
     await sendGroupSystemMessage(groupId, 'member_unbanned', sysMsgText);
@@ -6198,7 +6577,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         memberUids: updatedUids,
         memberNames: updatedNames,
         joinRequests: updatedRequests,
-      }).catch(() => {});
+      }).catch(() => { });
     }
 
     const sysMsgText = `🟢 ${actorName} approved join request for ${targetName}.`;
@@ -6219,7 +6598,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }));
 
     if (authUser && db) {
-      await updateDoc(doc(db, 'groups', groupId), { joinRequests: updatedRequests }).catch(() => {});
+      await updateDoc(doc(db, 'groups', groupId), { joinRequests: updatedRequests }).catch(() => { });
     }
   };
 
@@ -6250,7 +6629,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }));
 
     if (db) {
-      await updateDoc(doc(db, 'groups', groupId), { joinRequests: updatedRequests }).catch(() => {});
+      await updateDoc(doc(db, 'groups', groupId), { joinRequests: updatedRequests }).catch(() => { });
     }
   };
 
@@ -6266,7 +6645,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }));
 
     if (authUser && db) {
-      await updateDoc(doc(db, 'groups', groupId), { inviteLink: newCode, inviteLinkDisabled: false }).catch(() => {});
+      await updateDoc(doc(db, 'groups', groupId), { inviteLink: newCode, inviteLinkDisabled: false }).catch(() => { });
     }
 
     const sysMsgText = `🔗 ${actorName} regenerated the group invite link.`;
@@ -6287,7 +6666,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }));
 
     if (authUser && db) {
-      await updateDoc(doc(db, 'groups', groupId), { inviteLinkDisabled: nextDisabled }).catch(() => {});
+      await updateDoc(doc(db, 'groups', groupId), { inviteLinkDisabled: nextDisabled }).catch(() => { });
     }
 
     const sysMsgText = `🔗 ${actorName} ${nextDisabled ? 'disabled' : 'enabled'} group invite links.`;
@@ -6309,7 +6688,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }));
 
     if (authUser && db) {
-      await updateDoc(doc(db, 'groups', groupId), { isPublic, joinApprovalRequired }).catch(() => {});
+      await updateDoc(doc(db, 'groups', groupId), { isPublic, joinApprovalRequired }).catch(() => { });
     }
 
     const sysMsgText = `🔒 ${actorName} changed group to ${isPublic ? 'Public' : 'Private'} (Join Approval: ${joinApprovalRequired ? 'Required' : 'Disabled'}).`;
@@ -6345,7 +6724,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       deletedForEveryone: true,
       isStarred: false,
       deletedBy: actorName,
-    }).catch(() => {});
+    }).catch(() => { });
 
     if (isAdmin && senderId !== myUid) {
       const logEntry = {
@@ -6364,7 +6743,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       setGroupContacts(prev => prev.map(g => g.id === groupId ? { ...g, deletedMessageLogs: updatedLogs } : g));
       if (db) {
-        await updateDoc(doc(db, 'groups', groupId), { deletedMessageLogs: updatedLogs }).catch(() => {});
+        await updateDoc(doc(db, 'groups', groupId), { deletedMessageLogs: updatedLogs }).catch(() => { });
       }
     }
   };
@@ -6385,7 +6764,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       msgsSnap.docs.forEach(d => {
         batch.delete(d.ref);
       });
-      await batch.commit().catch(() => {});
+      await batch.commit().catch(() => { });
     }
 
     const actorName = user.name || authUser.displayName || 'Admin';
@@ -6421,19 +6800,19 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
 
       // 2. Delete chat doc
-      await deleteDoc(doc(db, 'chats', groupId)).catch(() => {});
+      await deleteDoc(doc(db, 'chats', groupId)).catch(() => { });
 
       // 3. Delete messages in subcollections
       try {
         const msgsSnap = await getDocs(collection(db, 'chats', groupId, 'messages')).catch(() => null);
         if (msgsSnap && !msgsSnap.empty) {
           const batchPromises = msgsSnap.docs.map(mDoc => deleteDoc(mDoc.ref));
-          await Promise.all(batchPromises).catch(() => {});
+          await Promise.all(batchPromises).catch(() => { });
         }
         const groupMsgsSnap = await getDocs(collection(db, 'groups', groupId, 'messages')).catch(() => null);
         if (groupMsgsSnap && !groupMsgsSnap.empty) {
           const batchPromises = groupMsgsSnap.docs.map(mDoc => deleteDoc(mDoc.ref));
-          await Promise.all(batchPromises).catch(() => {});
+          await Promise.all(batchPromises).catch(() => { });
         }
       } catch (err) {
         console.error('Error cleaning up group messages in Firestore:', err);
@@ -6452,10 +6831,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     for (const m of msgs) {
       await updateDoc(doc(db, 'chats', chatId, 'messages', m.id), {
         deletedFor: arrayUnion(authUser.uid)
-      }).catch(() => {});
+      }).catch(() => { });
     }
-    await updateDoc(doc(db, 'chats', chatId), { lastMessage: 'New Chat' }).catch(() => {});
-    await updateDoc(doc(db, 'groups', contactId), { lastMessage: 'New Chat' }).catch(() => {});
+    await updateDoc(doc(db, 'chats', chatId), { lastMessage: 'New Chat' }).catch(() => { });
+    await updateDoc(doc(db, 'groups', contactId), { lastMessage: 'New Chat' }).catch(() => { });
   };
 
   const clearAllChatHistory = async () => {
@@ -6472,10 +6851,10 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         for (const m of msgs) {
           await updateDoc(doc(db, 'chats', chatId, 'messages', m.id), {
             deletedFor: arrayUnion(authUser.uid)
-          }).catch(() => {});
+          }).catch(() => { });
         }
-        await updateDoc(doc(db, 'chats', chatId), { lastMessage: 'New Chat' }).catch(() => {});
-        await updateDoc(doc(db, 'groups', contactId), { lastMessage: 'New Chat' }).catch(() => {});
+        await updateDoc(doc(db, 'chats', chatId), { lastMessage: 'New Chat' }).catch(() => { });
+        await updateDoc(doc(db, 'groups', contactId), { lastMessage: 'New Chat' }).catch(() => { });
       }
     } catch (e) {
       console.warn('Error clearing all chat history:', e);
@@ -6497,7 +6876,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         : [...prev, contactId];
       try {
         localStorage.setItem('calcchat_favorite_contacts', JSON.stringify(updated));
-      } catch (e) {}
+      } catch (e) { }
       return updated;
     });
     setContacts(prev => prev.map(c => c.id === contactId ? { ...c, isFavorite: !c.isFavorite } : c));
@@ -6509,7 +6888,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         : [...prev, contactId];
       try {
         localStorage.setItem('calcchat_muted_contacts', JSON.stringify(updated));
-      } catch (e) {}
+      } catch (e) { }
       return updated;
     });
     setContacts(prev => prev.map(c => c.id === contactId ? { ...c, isMuted: !c.isMuted } : c));
@@ -6521,9 +6900,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!contactId) return;
 
     const targetUser = allRegisteredUsers.find(u => u.uid === contactId || u.id === contactId) || contacts.find(c => c.id === contactId);
-    const isSuperAdminTarget = contactId === 'super_admin_vicky' || 
-                               targetUser?.email?.toLowerCase() === SUPER_ADMIN_EMAIL || 
-                               targetUser?.isSuperAdmin;
+    const isSuperAdminTarget = contactId === 'super_admin_vicky' ||
+      targetUser?.email?.toLowerCase() === SUPER_ADMIN_EMAIL ||
+      targetUser?.isSuperAdmin;
 
     if (isSuperAdminTarget) {
       alert('⚠️ Super Admin (Vicky Bhelave) cannot be blocked!');
@@ -6550,15 +6929,47 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       await deleteDoc(ref).catch(err => console.error('Error unblocking contact in Firestore:', err));
     }
   };
-  const toggleStarMessage = async (contactId: string, msgId: string) => {
-    if (!authUser) return;
+  const toggleSaveMessage = async (contactId: string, msgId: string): Promise<boolean> => {
+    if (!authUser || !contactId || !db) return false;
     const chatId = getChatIdForContact(contactId);
-    const msg = (messages[contactId] || []).find(m => m.id === msgId);
-    if (!msg) return;
-    await updateDoc(doc(db, 'chats', chatId, 'messages', msgId), {
-      isStarred: !msg.isStarred
-    }).catch(err => console.warn('Failed to star message:', err));
+    const msgList = messages[contactId] || messages[chatId] || [];
+    const msg = msgList.find(m => m.id === msgId);
+    if (!msg) return false;
+
+    const isCurrentlySaved = Boolean(
+      (msg.starredBy && Array.isArray(msg.starredBy) && msg.starredBy.includes(authUser.uid)) ||
+      msg.savedBy?.[authUser.uid]?.saved
+    );
+
+    const msgRef = doc(db, 'chats', chatId, 'messages', msgId);
+
+    if (isCurrentlySaved) {
+      try {
+        await updateDoc(msgRef, {
+          isStarred: false,
+          starredBy: arrayRemove(authUser.uid),
+          [`savedBy.${authUser.uid}`]: { saved: false, unsavedAt: serverTimestamp() },
+        });
+        return false;
+      } catch (err) {
+        console.warn('Error unsaving message:', err);
+        return true;
+      }
+    } else {
+      try {
+        await updateDoc(msgRef, {
+          starredBy: arrayUnion(authUser.uid),
+          [`savedBy.${authUser.uid}`]: { saved: true, savedAt: serverTimestamp() },
+        });
+        return true;
+      } catch (err) {
+        console.warn('Error saving message:', err);
+        return false;
+      }
+    }
   };
+
+  const toggleStarMessage = toggleSaveMessage;
 
   const togglePinMessage = async (contactId: string, msgId: string) => {
     if (!authUser) return;
@@ -6579,7 +6990,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       for (const oldPin of currentlyPinned) {
         await updateDoc(doc(db, 'chats', chatId, 'messages', oldPin.id), {
           isPinned: false
-        }).catch(() => {});
+        }).catch(() => { });
       }
       await updateDoc(doc(db, 'chats', chatId, 'messages', msgId), {
         isPinned: true
@@ -6620,9 +7031,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!authUser || !msgIds || msgIds.length === 0) return;
     for (const msgId of msgIds) {
       if (deleteForEveryoneFlag) {
-        await deleteForEveryone(contactId, msgId).catch(() => {});
+        await deleteForEveryone(contactId, msgId).catch(() => { });
       } else {
-        await deleteMessage(contactId, msgId).catch(() => {});
+        await deleteMessage(contactId, msgId).catch(() => { });
       }
     }
   };
@@ -6785,7 +7196,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         console.warn('My user doc snapshot warning:', err);
       });
       return () => unsub();
-    } catch (e) {}
+    } catch (e) { }
   }, [authUser, db]);
 
   const submitUserReport = async (reportedUid: string, reason: string, reportedUserData?: any) => {
@@ -6836,11 +7247,11 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     await updateDoc(myDocRef, {
       following: arrayUnion(targetUid)
-    }).catch(() => {});
+    }).catch(() => { });
 
     await updateDoc(targetDocRef, {
       followers: arrayUnion(authUser.uid)
-    }).catch(() => {});
+    }).catch(() => { });
 
     setUser(prev => ({
       ...prev,
@@ -6905,6 +7316,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       statusLikeRecordsMap,
       completeUsernameSetup,
       completeChatPasswordSetup,
+      completeTutorialSetup,
       sendFriendRequest,
       acceptFriendRequest,
       rejectFriendRequest,
@@ -6930,10 +7342,18 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setActiveContactId,
       setActiveTab,
       sendMessage,
+      sendScreenshotEvent,
+      chatRetentionModes,
+      updateChatRetentionMode,
+      chatWallpapers,
+      updateChatWallpaper,
+      handleChatExit,
+      checkAndCleanupExpiredMessages,
       editMessage,
       deleteMessage,
       deleteForEveryone,
       markViewOnceOpened,
+      toggleSaveMessage,
       toggleStarMessage,
       togglePinMessage,
       forwardMessage,

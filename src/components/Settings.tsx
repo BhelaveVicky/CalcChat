@@ -5,6 +5,7 @@ import { firebaseAuth } from '../lib/firebase';
 import { useSettings } from '../context/SettingsContext';
 import { useVault } from '../context/VaultContext';
 import { apiFetch } from '../lib/apiClient';
+import { OnboardingTutorialModal } from './OnboardingTutorialModal';
 
 interface SettingsProps {
   onClose?: () => void;
@@ -35,6 +36,7 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
   const [showSnackbar, setShowSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showTutorialGuide, setShowTutorialGuide] = useState(false);
 
   // Forgot Password Flow States
   const [forgotStep, setForgotStep] = useState<'none' | 'confirm_delete' | 'otp' | 'new_password'>('none');
@@ -523,8 +525,8 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
           {/* Language Selector */}
           <button
             onClick={() => setShowLanguageModal(true)}
-            className={`w-full px-5 py-4 flex items-center justify-between transition-colors ${
-              isDark ? 'hover:bg-[#282828]' : 'hover:bg-gray-50'
+            className={`w-full px-5 py-4 flex items-center justify-between border-b transition-colors ${
+              isDark ? 'hover:bg-[#282828] border-[#2d2d2d]' : 'hover:bg-gray-50 border-gray-100'
             }`}
           >
             <div className="flex items-center gap-3">
@@ -532,6 +534,29 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                 <Globe className="w-5 h-5 text-white" />
               </div>
               <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-800'}`}>{t('language')}</span>
+            </div>
+            <ChevronRight className={`w-5 h-5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
+          </button>
+
+          {/* CalcChat Secret Passcode Guide & Tutorial */}
+          <button
+            onClick={() => setShowTutorialGuide(true)}
+            className={`w-full px-5 py-4 flex items-center justify-between transition-colors ${
+              isDark ? 'hover:bg-[#282828]' : 'hover:bg-gray-50'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-gradient-to-tr from-[#ec4899] to-[#d946ef] shadow-lg">
+                <Sparkles className="w-5 h-5 text-white" />
+              </div>
+              <div className="text-left">
+                <span className={`font-medium block ${isDark ? 'text-white' : 'text-gray-800'}`}>
+                  {settings.language === 'hi' ? 'कैलकुलेटर सीक्रेट कोड गाइड' : 'Secret Passcode Guide & Tutorial'}
+                </span>
+                <p className={`text-xs mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  {settings.language === 'hi' ? 'कैलकुलेटर से चैट कैसे खोलें देखें' : 'How to unlock chat with secret code'}
+                </p>
+              </div>
             </div>
             <ChevronRight className={`w-5 h-5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
           </button>
@@ -1263,6 +1288,16 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
             {snackbarMessage}
           </div>
         </div>
+      )}
+
+      {/* Guide Tutorial Modal */}
+      {showTutorialGuide && (
+        <OnboardingTutorialModal
+          isOpen={true}
+          onComplete={async () => {
+            setShowTutorialGuide(false);
+          }}
+        />
       )}
     </div>
   );

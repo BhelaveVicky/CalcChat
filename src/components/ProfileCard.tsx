@@ -77,12 +77,12 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
 }) => {
   const targetUid = user.uid || user.id || '';
   const { 
-    allRegisteredUsers = [], contacts = [], groupContacts = [], user: vaultUser, 
+    allRegisteredUsers = [], contacts = [], groupContacts = [], user: vaultUser, authUser,
     removeMemberFromGroup, leaveGroup, toggleGroupAdmin,
     updateGroupDetails, updateGroupPermissions, transferGroupOwnership,
     toggleGroupMuteMember, toggleGroupBanMember, approveJoinRequest,
     rejectJoinRequest, regenerateGroupInviteLink, toggleGroupInviteLinkDisabled,
-    updateGroupPrivacy, deleteGroup
+    updateGroupPrivacy, deleteGroup, toggleUserVerifiedBadge
   } = useVault();
 
   const [showPrivateNotice, setShowPrivateNotice] = useState(false);
@@ -443,6 +443,30 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
                 >
                   <MessageSquare className="w-4 h-4 text-[#00a8ff]" />
                   <span>Message</span>
+                </button>
+              )}
+
+              {/* Super Admin Exclusive: Give / Remove Verified Blue Tick */}
+              {(authUser?.email?.toLowerCase() === 'bhelavevicky66@gmail.com' || vaultUser?.isSuperAdmin) && !isGroup && !isSelf && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (toggleUserVerifiedBadge) {
+                      const isCurrentVerified = liveUserFromDb.isVerified !== undefined 
+                        ? Boolean(liveUserFromDb.isVerified) 
+                        : checkIsAdmin(liveUserFromDb);
+                      await toggleUserVerifiedBadge(targetUid, !isCurrentVerified);
+                    }
+                  }}
+                  className={`py-2.5 px-3.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md active:scale-95 ${
+                    liveUserFromDb.isVerified
+                      ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30'
+                      : 'bg-[#0095f6]/20 hover:bg-[#0095f6]/30 text-[#0095f6] border border-[#0095f6]/40'
+                  }`}
+                  title="Super Admin Exclusive: Toggle Verified Blue Tick"
+                >
+                  <VerifiedBadge className="w-4 h-4 shrink-0" />
+                  <span>{liveUserFromDb.isVerified ? 'Remove Blue Tick' : 'Give Blue Tick 🔹'}</span>
                 </button>
               )}
             </>

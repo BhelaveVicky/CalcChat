@@ -1373,13 +1373,17 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     ? user.passcode.trim()
                     : '';
 
+          const localCustomName = localStorage.getItem(`calcchat_custom_name_${fbUser.uid}`);
           const localCustomAvatar = localStorage.getItem(`calcchat_custom_avatar_${fbUser.uid}`);
-          const resolvedAvatar = uData.avatar || uData.photoURL || localCustomAvatar || fbUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=1200&auto=format&fit=crop&q=95';
-          const resolvedBio = uData.bio || uData.about || uData.status || 'Available on CalcChat';
+          const localCustomBio = localStorage.getItem(`calcchat_custom_bio_${fbUser.uid}`);
+
+          const resolvedName = localCustomName || uData.displayName || uData.name || fbUser.displayName || resolvedUsername || 'User';
+          const resolvedAvatar = localCustomAvatar || uData.avatar || uData.photoURL || fbUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=1200&auto=format&fit=crop&q=95';
+          const resolvedBio = localCustomBio || uData.bio || uData.about || uData.status || 'Available on CalcChat';
 
           setUser({
             id: fbUser.uid,
-            name: uData.displayName || fbUser.displayName || resolvedUsername || 'User',
+            name: resolvedName,
             username: resolvedUsername,
             avatar: resolvedAvatar,
             status: resolvedBio,
@@ -5744,14 +5748,22 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     try {
       localStorage.setItem('secret_vault_user_profile', JSON.stringify(updatedUser));
-      if (newProfile.avatar) {
-        localStorage.setItem(`calcchat_custom_avatar_${user.id}`, newProfile.avatar);
-        if (authUser?.uid) {
-          localStorage.setItem(`calcchat_custom_avatar_${authUser.uid}`, newProfile.avatar);
-        }
+      if (newProfile.name && newProfile.name.trim()) {
+        localStorage.setItem(`calcchat_custom_name_${user.id}`, newProfile.name.trim());
+        if (authUser?.uid) localStorage.setItem(`calcchat_custom_name_${authUser.uid}`, newProfile.name.trim());
       }
-      if (newProfile.username && authUser?.uid) {
-        localStorage.setItem(`calcchat_username_${authUser.uid}`, newProfile.username);
+      if (newProfile.avatar && newProfile.avatar.trim()) {
+        localStorage.setItem(`calcchat_custom_avatar_${user.id}`, newProfile.avatar.trim());
+        if (authUser?.uid) localStorage.setItem(`calcchat_custom_avatar_${authUser.uid}`, newProfile.avatar.trim());
+      }
+      if (statusVal !== undefined && statusVal !== null) {
+        localStorage.setItem(`calcchat_custom_bio_${user.id}`, statusVal.trim());
+        if (authUser?.uid) localStorage.setItem(`calcchat_custom_bio_${authUser.uid}`, statusVal.trim());
+      }
+      if (newProfile.username && newProfile.username.trim()) {
+        const cleanU = newProfile.username.trim().replace(/^@/, '');
+        localStorage.setItem(`calcchat_username_${user.id}`, cleanU);
+        if (authUser?.uid) localStorage.setItem(`calcchat_username_${authUser.uid}`, cleanU);
       }
     } catch (_) { }
 
@@ -5777,7 +5789,9 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updatedAt: serverTimestamp(),
       };
       if (newProfile.name !== undefined && newProfile.name !== null && newProfile.name.trim() !== '') {
-        docUpdates.displayName = newProfile.name.trim();
+        const cleanName = newProfile.name.trim();
+        docUpdates.displayName = cleanName;
+        docUpdates.name = cleanName;
       }
       if (statusVal !== undefined && statusVal !== null) {
         const cleanStatus = statusVal.trim();
@@ -5796,8 +5810,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       if (Object.keys(docUpdates).length > 1) {
-        await updateDoc(doc(db, 'users', authUser.uid), docUpdates).catch(err => {
-          console.warn('Failed to update user document in Firestore:', err);
+        await setDoc(doc(db, 'users', authUser.uid), docUpdates, { merge: true }).catch(err => {
+          console.warn('Failed to merge user document in Firestore:', err);
         });
       }
 

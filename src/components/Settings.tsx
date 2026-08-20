@@ -4,6 +4,7 @@ import { sendPasswordResetEmail } from 'firebase/auth';
 import { firebaseAuth } from '../lib/firebase';
 import { useSettings } from '../context/SettingsContext';
 import { useVault } from '../context/VaultContext';
+import { apiFetch } from '../lib/apiClient';
 
 interface SettingsProps {
   onClose?: () => void;
@@ -108,7 +109,7 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
     setOtpTargetEmail(targetEmail);
 
     try {
-      const res = await fetch('/api/auth/send-otp', {
+      const res = await apiFetch('/api/auth/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifier: targetEmail, email: targetEmail }),
@@ -1025,7 +1026,7 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                     return;
                   }
                   try {
-                    const res = await fetch('/api/auth/verify-otp', {
+                    const res = await apiFetch('/api/auth/verify-otp', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ identifier: otpTargetEmail, email: otpTargetEmail, otp: userOtpInput }),
@@ -1040,7 +1041,7 @@ export const Settings: React.FC<SettingsProps> = ({ onClose }) => {
                     setForgotError(null);
                     setForgotStep('new_password');
                   } catch (err: any) {
-                    setForgotError(err.message || 'OTP verification failed.');
+                    setForgotError(err.message || 'OTP verification failed. Please check network connection.');
                   }
                 }}
                 className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-sm transition-all shadow-lg"

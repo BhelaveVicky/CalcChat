@@ -59,12 +59,14 @@ export const DeleteChatsSection: React.FC<DeleteChatsSectionProps> = ({
         : 'bg-white border-gray-200 text-gray-800 shadow-xs'
     }`}>
       {/* Header Label */}
-      <h4 className="text-[11px] font-bold tracking-wider text-slate-400 dark:text-slate-400 uppercase mb-3.5 select-none">
+      <h4 className={`text-[11px] font-bold tracking-wider uppercase mb-3.5 select-none ${
+        isDark ? 'text-[#8696a0]' : 'text-gray-500'
+      }`}>
         DELETE CHATS
       </h4>
 
       {/* Options List */}
-      <div className="space-y-1 divide-y divide-gray-100 dark:divide-gray-800/60">
+      <div className={`space-y-1 divide-y ${isDark ? 'divide-[#202c33]' : 'divide-gray-100'}`}>
         {options.map((opt) => {
           const isSelected = selectedMode === opt.id;
 
@@ -75,10 +77,10 @@ export const DeleteChatsSection: React.FC<DeleteChatsSectionProps> = ({
               className={`pt-3 pb-3 first:pt-0 last:pb-0 flex items-center justify-between gap-3.5 cursor-pointer transition-colors rounded-xl px-2 -mx-2 select-none ${
                 isSelected
                   ? isDark
-                    ? 'bg-[#202c33]/70'
-                    : 'bg-pink-50/60'
+                    ? 'bg-[#202c33]/90 ring-1 ring-[#ff2e93]/40'
+                    : 'bg-pink-50/80 ring-1 ring-pink-400/40'
                   : isDark
-                  ? 'hover:bg-[#202c33]/40'
+                  ? 'hover:bg-[#202c33]/50'
                   : 'hover:bg-gray-50'
               } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
               role="radio"
@@ -98,10 +100,14 @@ export const DeleteChatsSection: React.FC<DeleteChatsSectionProps> = ({
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <h5 className="font-bold text-xs sm:text-sm leading-tight text-gray-900 dark:text-gray-100 truncate">
+                  <h5 className={`font-bold text-xs sm:text-sm leading-tight truncate ${
+                    isDark ? 'text-white' : 'text-gray-900'
+                  }`}>
                     {opt.title}
                   </h5>
-                  <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 font-normal leading-normal mt-0.5 truncate sm:whitespace-normal">
+                  <p className={`text-[11px] sm:text-xs font-normal leading-normal mt-0.5 truncate sm:whitespace-normal ${
+                    isDark ? 'text-[#94a3b8]' : 'text-gray-600'
+                  }`}>
                     {opt.description}
                   </p>
                 </div>

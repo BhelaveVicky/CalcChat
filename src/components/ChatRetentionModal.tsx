@@ -42,12 +42,14 @@ export const ChatRetentionModal: React.FC<ChatRetentionModalProps> = ({
 
         {/* Modal Header */}
         <div className="flex flex-col gap-1 pr-8">
-          <h3 className="text-lg sm:text-xl font-bold tracking-tight flex items-center gap-2">
+          <h3 className={`text-lg sm:text-xl font-bold tracking-tight flex items-center gap-2 ${
+            isDark ? 'text-white' : 'text-gray-900'
+          }`}>
             <span>Disappearing Messages</span>
             <ShieldCheck className="w-5 h-5 text-[#ff2e93]" />
           </h3>
-          <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-            Set automatic message deletion policy for <strong className="text-gray-800 dark:text-gray-200">{contactName}</strong>.
+          <p className={`text-xs font-medium ${isDark ? 'text-[#8696a0]' : 'text-gray-600'}`}>
+            Set automatic message deletion policy for <strong className={isDark ? 'text-white font-bold' : 'text-gray-900 font-bold'}>{contactName}</strong>.
           </p>
         </div>
 
@@ -62,7 +64,7 @@ export const ChatRetentionModal: React.FC<ChatRetentionModalProps> = ({
         />
 
         {/* Footer Note */}
-        <p className="text-[11px] text-gray-400 dark:text-gray-500 text-center leading-relaxed px-2">
+        <p className={`text-[11px] text-center leading-relaxed px-2 ${isDark ? 'text-[#8696a0]' : 'text-gray-500'}`}>
           New messages sent in this chat will follow the selected retention rule. Unseen messages are preserved until viewed.
         </p>
       </div>

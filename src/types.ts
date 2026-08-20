@@ -104,6 +104,8 @@ export interface MediaAttachment {
   };
 }
 
+export type ChatRetentionMode = 'after_viewing' | '24_hours' | '1_week' | 'never';
+
 export interface Message {
   id: string;
   senderId: string;
@@ -113,8 +115,19 @@ export interface Message {
   text: string;
   timestamp: string;
   createdAt?: any;
-  type?: 'text' | 'voice_call' | 'video_call' | 'system' | string;
-  systemAction?: 'member_added' | 'member_removed' | 'member_left' | 'group_name_changed' | 'group_photo_changed' | 'admin_added' | 'admin_removed' | string;
+  viewedAt?: any;
+  seenAt?: any;
+  retentionMode?: ChatRetentionMode;
+  starredBy?: string[];
+  viewedBy?: Record<string, { viewed: boolean; viewedAt: any }>;
+  savedBy?: Record<string, { saved: boolean; savedAt?: any; unsavedAt?: any }>;
+  type?: 'text' | 'voice_call' | 'video_call' | 'system' | 'screenshot_event' | string;
+  userId?: string;
+  userName?: string;
+  userAvatar?: string;
+  chatId?: string;
+  groupId?: string;
+  systemAction?: 'member_added' | 'member_removed' | 'member_left' | 'group_name_changed' | 'group_photo_changed' | 'admin_added' | 'admin_removed' | 'screenshot_event' | string;
   systemText?: string;
   callInfo?: CallInfo;
   media?: MediaAttachment;

@@ -329,12 +329,14 @@ export const UserProfile: React.FC<UserProfileProps> = ({ targetUserId, onBack }
     }
   };
 
-  // Back button handler
+  // Back button handler (Traverse history: C -> B -> A)
   const handleBack = () => {
     if (onBack) {
       onBack();
-    } else {
+    } else if (window.history.length > 1) {
       navigate(-1);
+    } else {
+      navigate('/');
     }
   };
 

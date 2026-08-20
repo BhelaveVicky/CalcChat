@@ -12,12 +12,13 @@ import { VaultContainer } from './components/VaultContainer';
 import LoginPage from './components/LoginPage';
 import { UsernameModal } from './components/UsernameModal';
 import { ChatPasswordModal } from './components/ChatPasswordModal';
+import { OnboardingTutorialModal } from './components/OnboardingTutorialModal';
 import { SplashScreen } from './components/SplashScreen';
 import { BannedAccountModal } from './components/BannedAccountModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 const AppContent: React.FC = () => {
-  const { authUser, authReady, needsUsername, onboardingStep, completeUsernameSetup, completeChatPasswordSetup, isUnlocked } = useVault();
+  const { authUser, authReady, needsUsername, onboardingStep, completeUsernameSetup, completeChatPasswordSetup, completeTutorialSetup, isUnlocked } = useVault();
   const [showSplash, setShowSplash] = useState<boolean>(true);
   const [isFadingOut, setIsFadingOut] = useState<boolean>(false);
   const prevAuthUserUid = useRef<string | null | undefined>(undefined);
@@ -60,8 +61,19 @@ const AppContent: React.FC = () => {
     return <LoginPage />;
   }
 
-  // If user profile onboarding (username or password creation) is incomplete, force onboarding step
+  // If user profile onboarding (username, password, or tutorial guide) is incomplete, force onboarding step
   if (needsUsername) {
+    if (onboardingStep === 'tutorial') {
+      return (
+        <OnboardingTutorialModal
+          isOpen={true}
+          onComplete={async () => {
+            await completeTutorialSetup();
+          }}
+        />
+      );
+    }
+
     if (onboardingStep === 'password') {
       return (
         <ChatPasswordModal

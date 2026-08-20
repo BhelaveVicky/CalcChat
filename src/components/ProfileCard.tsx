@@ -137,11 +137,16 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   const canEditGroupInfo = isOwner || isGroupAdmin || groupContact.permissions?.editGroupInfo !== false;
   const canAddMembers = isOwner || isGroupAdmin || groupContact.permissions?.addMembers !== false;
 
-  const avatarUrl = user.photoURL || user.avatar;
-  const displayName = user.name || 'CalChat User';
-  const usernameStr = isGroup ? '@group' : (user.username ? `@${user.username.replace(/^@/, '')}` : '@username');
-  
-  const rawBio = user.description || user.bio || user.status || user.about || '';
+  const liveUserFromDb = !isGroup
+    ? (allRegisteredUsers.find(u => u.uid === targetUid || u.id === targetUid) || user)
+    : user;
+
+  const avatarUrl = liveUserFromDb.avatar || liveUserFromDb.photoURL || user.photoURL || user.avatar;
+  const displayName = liveUserFromDb.displayName || liveUserFromDb.name || user.name || 'CalcChat User';
+  const resolvedUsernameVal = liveUserFromDb.username || user.username || '';
+  const usernameStr = isGroup ? '@group' : (resolvedUsernameVal ? `@${resolvedUsernameVal.replace(/^@/, '')}` : '@username');
+
+  const rawBio = liveUserFromDb.bio || liveUserFromDb.status || liveUserFromDb.about || user.description || user.bio || user.status || user.about || '';
   const bioText = isGroup
     ? (rawBio.includes('members:') || rawBio.includes('member:') ? 'Official Group Chat' : (rawBio || 'Official Group Chat'))
     : (rawBio || 'Available on CalcChat');

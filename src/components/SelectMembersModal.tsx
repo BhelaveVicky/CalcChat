@@ -375,7 +375,7 @@ export const SelectMembersModal: React.FC<SelectMembersModalProps> = ({
                         <span className={`text-sm font-bold truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
                           {u.name}
                         </span>
-                        {checkIsAdmin(u) && <VerifiedBadge className="w-4 h-4 text-[#ff2e93] shrink-0" />}
+                        {checkIsAdmin(u) && <VerifiedBadge className="w-4 h-4 text-[#0095f6] shrink-0" />}
                       </div>
                       <span className={`text-xs truncate ${isDark ? 'text-[#8596a0]' : 'text-gray-500'}`}>
                         {u.username ? `@${u.username.replace(/^@/, '')}` : (u.email || 'CalChat Member')}

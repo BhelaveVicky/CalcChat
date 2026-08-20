@@ -362,7 +362,7 @@ export const FriendRequestsModal: React.FC<FriendRequestsModalProps> = ({
                       <h4 className={`font-bold text-sm truncate flex items-center gap-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                         <span className="truncate">{req.senderName || req.senderDisplayName || req.senderUsername || 'User'}</span>
                         {checkIsAdmin(req.senderUsername || req.senderName || req.senderId) && (
-                          <VerifiedBadge className="w-3.5 h-3.5 shrink-0 text-[#ff2e93]" />
+                          <VerifiedBadge className="w-3.5 h-3.5 shrink-0 text-[#0095f6]" />
                         )}
                       </h4>
                       {req.senderUsername && (

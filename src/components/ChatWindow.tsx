@@ -1415,8 +1415,13 @@ export const ChatWindow: React.FC = () => {
         ? (file.size / (1024 * 1024)).toFixed(1) + ' MB'
         : (file.size / 1024).toFixed(1) + ' KB';
 
-      if (!isImg && file.size > 15 * 1024 * 1024) {
+      if (!isImg && !isVid && file.size > 15 * 1024 * 1024) {
         showToast(`File "${file.name}" is too large (max 15MB)`);
+        continue;
+      }
+
+      if (isVid && file.size > 200 * 1024 * 1024) {
+        showToast(`Video "${file.name}" is too large (max 200MB)`);
         continue;
       }
 
@@ -3271,13 +3276,7 @@ export const ChatWindow: React.FC = () => {
                 ) : (
                   <button
                     type="button"
-                    onClick={() => {
-                      if (!canSendVoice) {
-                        showToast('Voice message support coming soon!');
-                      } else {
-                        showToast('Sending voice notes is disabled in this group.');
-                      }
-                    }}
+                    onClick={handleStartRecording}
                     className={`bg-[#ff2e93] hover:bg-[#ff1e85] active:scale-95 text-[#0b141a] w-11 h-11 rounded-full font-bold transition-all shadow-md flex items-center justify-center shrink-0 cursor-pointer`}
                     title="Voice Note"
                   >

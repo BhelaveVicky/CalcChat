@@ -1432,6 +1432,10 @@ export const ChatWindow: React.FC = () => {
       if (isVid && dataUrl) {
         try {
           const meta = await extractVideoMetadata(dataUrl);
+          if (meta.duration > 600) {
+            showToast(`Video "${file.name}" is too long (max 10 minutes)`);
+            continue;
+          }
           thumbnailUrl = meta.thumbnailUrl;
           durationStr = meta.durationStr;
         } catch (err) {

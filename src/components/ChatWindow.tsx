@@ -16,6 +16,7 @@ import { MediaAttachment, Message, Contact, StatusUpdate, GroupPermissions, DEFA
 import { StatusViewer } from './Status/StatusViewer';
 import { NicknameModal } from './NicknameModal';
 import { compressImage } from '../lib/mediaCompressor';
+import { uploadMediaToStorage, uploadBase64ToStorage } from '../lib/uploadUtils';
 import { formatChatDate, formatMessageTime, formatLastSeen } from '../lib/dateUtils';
 import { DateSeparator } from './DateSeparator';
 import { VideoMessagePlayer } from './VideoMessagePlayer';
@@ -1482,12 +1483,20 @@ export const ChatWindow: React.FC = () => {
         setUploadProgress(Math.round(((i + 0.5) / pendingMediaList.length) * 100));
 
         let finalDataUrl = item.url;
-        if (item.type === 'image') {
-          try {
+        try {
+          if (item.file) {
+            const path = `chats/${authUser?.uid || 'anon'}/${Date.now()}_${item.file.name}`;
+            finalDataUrl = await uploadMediaToStorage(item.file, path, (prog) => {
+              // Update upload progress fine-grained between files if desired
+            });
+          } else if (item.type === 'image') {
             finalDataUrl = await compressImage(item.url, 1024, 450000);
-          } catch (err) {
-            console.warn('Compression failed, fallback to original image', err);
+          } else {
+            const path = `chats/${authUser?.uid || 'anon'}/${Date.now()}_media`;
+            finalDataUrl = await uploadBase64ToStorage(item.url, path);
           }
+        } catch (err) {
+          console.warn('Upload failed, fallback to original data url', err);
         }
 
         const media: MediaAttachment = {

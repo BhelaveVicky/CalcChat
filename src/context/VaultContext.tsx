@@ -19,6 +19,7 @@ import { DEFAULT_SETTINGS, DEFAULT_USER } from '../data/initialData';
 import { isFirebaseConfigured, firebaseAuth, googleProvider, db } from '../lib/firebase';
 import { compressImage } from '../lib/mediaCompressor';
 import { saveMediaBlob, getMediaBlob } from '../lib/mediaStorage';
+import { uploadBase64ToStorage } from '../lib/uploadUtils';
 import { extractVideoMetadata } from '../lib/videoUtils';
 import { playMessageArrivalSound, playMessageSentSound } from '../lib/soundUtils';
 import { getContactNotificationSettings } from '../lib/contactSettings';
@@ -3515,6 +3516,17 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
         } catch (e) {
           console.warn('Failed to extract video thumbnail:', e);
+        }
+      }
+
+      // 4. If payload is still a massive base64, upload it to storage instead of stripping it!
+      if (finalMedia.url && finalMedia.url.length > 700000 && finalMedia.url.startsWith('data:')) {
+        try {
+          const path = `chats/${authUser.uid}/${Date.now()}_large_media`;
+          const storageUrl = await uploadBase64ToStorage(finalMedia.url, path);
+          finalMedia.url = storageUrl;
+        } catch (e) {
+          console.warn('Fallback Firebase Storage upload failed:', e);
         }
       }
     }

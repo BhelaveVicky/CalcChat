@@ -72,7 +72,9 @@ export const VideoMessagePlayer: React.FC<VideoMessagePlayerProps> = ({
         if (!isMounted) return;
 
         if (meta.error) {
-          if (!initialThumbnailUrl && !currentSrc.startsWith('data:') && !currentSrc.startsWith('blob:')) {
+          // If metadata extraction fails (e.g., CORS on Firebase Storage), don't block playback.
+          // The native <video> element can often still render and play it.
+          if (!initialThumbnailUrl && !currentSrc.startsWith('data:') && !currentSrc.startsWith('blob:') && !currentSrc.includes('firebasestorage')) {
             setIsError(true);
           }
         } else {
